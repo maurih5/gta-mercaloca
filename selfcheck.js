@@ -255,6 +255,36 @@ console.log('  poblacion viva: ' + pedsNear + ' peatones, ' + carsNear + ' autos
   console.log('  arresto: patrulleros OK (' + ch.length + ' persiguiendo)');
 }
 
+// choques entre autos: dos autos superpuestos se tienen que separar y danar, no cruzarse
+{
+  startGame(CREW[0]);
+  for(let f=0;f<10;f++) update(1/60);
+  const a = G.cars.find(c => c !== G.player.car);
+  const b = G.cars.find(c => c !== a && c !== G.player.car);
+  a.ai = false; a.chase = false;
+  b.ai = false; b.chase = false;
+  a.x = G.player.x; a.y = G.player.y; a.spd = 100;
+  b.x = G.player.x + 4; b.y = G.player.y; b.spd = -100;
+  const d0 = dist(a, b), hpA0 = a.hp, hpB0 = b.hp;
+  update(1/60);
+  assert.ok(dist(a, b) > d0, 'los autos superpuestos tienen que separarse al chocar');
+  assert.ok(a.hp < hpA0 && b.hp < hpB0, 'un choque fuerte entre autos tiene que hacer dano');
+  console.log('  choques: autos se separan y se danan al superponerse');
+}
+
+// solo el auto del jugador puede atropellar gente: un auto de NPC nunca lastima peatones
+{
+  startGame(CREW[0]);
+  for(let f=0;f<10;f++) update(1/60);
+  const ped = G.peds.find(p => p.hp > 0);
+  const npc = G.cars.find(c => c !== G.player.car);
+  npc.x = ped.x; npc.y = ped.y; npc.ang = 0; npc.spd = 150;
+  const hp0 = ped.hp;
+  for(let f=0;f<60;f++) update(1/60);
+  assert.equal(ped.hp, hp0, 'un auto de NPC no puede herir peatones, solo el auto del jugador');
+  console.log('  atropello: los autos de NPC no lastiman peatones');
+}
+
 // muerte
 startGame(CREW[0]);
 for(let f=0;f<30;f++) update(1/60);
