@@ -135,6 +135,20 @@ class Game {
     }
   }
 
+  wreckCar(car) {
+    const P = G.player;
+    const mine = car === P.car;
+    boom(car.x, car.y, mine ? 34 : 24, '255,150,40', 2);
+    puff(car.x, car.y, '40,40,40', 10, 26);
+    decal(car.x, car.y, mine ? 14 : 12, 'rgba(10,10,10,.5)');
+    G.shake += mine ? 12 : 4;
+    if (mine) {
+      G.flash = 0.8;
+      P.hp -= 25;
+      this.exitCar();
+    }
+  }
+
   update(dt) {
     G.t += dt;
     if (G.msgT > 0) G.msgT -= dt;
@@ -234,15 +248,7 @@ class Game {
         }
       }
 
-      if (car.hp <= 0) {
-        boom(car.x, car.y, 34, '255,150,40', 2);
-        puff(car.x, car.y, '40,40,40', 10, 26);
-        decal(car.x, car.y, 14, 'rgba(10,10,10,.5)');
-        G.shake += 12;
-        G.flash = 0.8;
-        P.hp -= 25;
-        this.exitCar();
-      }
+      if (car.hp <= 0) this.wreckCar(car);
 
       if (keys.KeyE && P.cool <= 0) {
         this.exitCar();
@@ -756,6 +762,54 @@ class Game {
     }
 
     G.cars = G.cars.filter(c => !c.chase || (c.hp > 0 && dist(c, P) < SIM_R * 1.3));
+
+    // Choques entre autos: si dos terminan superpuestos se empujan y se danan,
+    // en vez de cruzarse como si nada. Solo toca G.cars: los peatones (G.peds/G.cops
+    // a pie) nunca reciben dano aca, asi que un auto de NPC jamas puede atropellar a nadie.
+    for (let i = 0; i < G.cars.length; i++) {
+      const a = G.cars[i];
+      if (a.hp <= 0) continue;
+      for (let j = i + 1; j < G.cars.length; j++) {
+        const b = G.cars[j];
+        if (b.hp <= 0) continue;
+        const minD = (a.w + a.h) / 4 + (b.w + b.h) / 4;
+        const dx2 = b.x - a.x, dy2 = b.y - a.y;
+        const d2 = Math.hypot(dx2, dy2);
+        if (d2 <= 0 || d2 >= minD) continue;
+
+        const overlap = minD - d2, ux = dx2 / d2, uy = dy2 / d2;
+        const halfAx = a.x - ux * overlap * 0.5, halfAy = a.y - uy * overlap * 0.5;
+        const halfBx = b.x + ux * overlap * 0.5, halfBy = b.y + uy * overlap * 0.5;
+        const aClear = !hitBuilding(halfAx, halfAy, (a.w + a.h) / 4);
+        const bClear = !hitBuilding(halfBx, halfBy, (b.w + b.h) / 4);
+        if (aClear && bClear) {
+          a.x = halfAx; a.y = halfAy;
+          b.x = halfBx; b.y = halfBy;
+        } else if (aClear) {
+          a.x -= ux * overlap;
+          a.y -= uy * overlap;
+        } else if (bClear) {
+          b.x += ux * overlap;
+          b.y += uy * overlap;
+        }
+
+        const impact = Math.abs(a.spd) + Math.abs(b.spd);
+        if (impact > 30) {
+          const dmg = impact / 14;
+          const aAlive = a.hp > 0, bAlive = b.hp > 0;
+          a.hp -= dmg;
+          b.hp -= dmg;
+          a.spd *= -0.3;
+          b.spd *= -0.3;
+          boom((a.x + b.x) / 2, (a.y + b.y) / 2, 10, '255,190,90');
+          G.shake += Math.min(10, dmg * 0.5);
+          if (a === P.car) P.hp -= dmg * 0.5;
+          if (b === P.car) P.hp -= dmg * 0.5;
+          if (aAlive && a.hp <= 0) this.wreckCar(a);
+          if (bAlive && b.hp <= 0) this.wreckCar(b);
+        }
+      }
+    }
 
     for (const c of G.cops) {
       if (c.hp <= 0) continue;
