@@ -10,11 +10,15 @@ class UIManager {
   constructor() {
     this.selIdx = 0;
     this.initEvents();
+    const vt = $('version-tag');
+    if (vt) vt.textContent = VERSION;
   }
 
   show(id) {
     if (typeof document === 'undefined') return;
     document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id));
+    const vt = $('version-tag');
+    if (vt) vt.style.display = id ? 'block' : 'none';
     if (typeof touchController !== 'undefined') {
       touchController.updateVisibility();
     }
