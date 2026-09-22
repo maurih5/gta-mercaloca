@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Mantiene sincronizado el indicador de version (VERSION en js/constants.js)
+# con el estado de git en cada commit: vN-hash, donde N es la posicion del
+# commit en la historia y hash es el commit corto del que sale. Nadie tiene
+# que acordarse de bumpear un numero a mano.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+COUNT=$(( $(git rev-list --count HEAD 2>/dev/null || echo 0) + 1 ))
+HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "0000000")
+NEW_VERSION="v${COUNT}-${HASH}"
+
+if [ -f js/constants.js ] && grep -q '^const VERSION = ' js/constants.js; then
+  sed -i "s/^const VERSION = .*/const VERSION = '${NEW_VERSION}';/" js/constants.js
+  git add js/constants.js
+fi
