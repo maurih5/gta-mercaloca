@@ -47,6 +47,13 @@ Lista de características planificadas y mejoras en desarrollo:
 - [ ] Incorporar nuevos personajes seleccionables
 - [ ] **Arma / Ítem especial:** Incorporar el **bastón verde del Ciego Augusto** (arma de combate cuerpo a cuerpo)
 
+### 🌿 Mecánicas & Jugabilidad
+- [ ] **Fumarse un porro:**
+  - [ ] Efecto "bullet time" (ralentiza el paso del tiempo durante unos segundos)
+  - [ ] Efecto visual de gradiente/filtro verde en pantalla
+- [ ] **Ítems de curación:**
+  - [ ] Consumibles/botiquines en el mapa para recuperar vida
+
 ### 📱 Experiencia Móvil
 - [ ] Hacer que se pueda jugar desde el celular:
   - [ ] Controles táctiles en pantalla (joystick virtual para movimiento/dirección)
