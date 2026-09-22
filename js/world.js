@@ -7,6 +7,7 @@ const buildings = [];
 const props = [];
 const lamps = [];
 const lights = [];
+const hospitals = [];
 
 // Buffers gráficos pre-renderizados del mundo e iluminación
 let GROUND = null, GCTX = null, MINI = null;
@@ -19,6 +20,7 @@ class World {
     this.props = props;
     this.lamps = lamps;
     this.lights = lights;
+    this.hospitals = hospitals;
   }
 
   /**
@@ -30,6 +32,7 @@ class World {
     this.props.length = 0;
     this.lamps.length = 0;
     this.lights.length = 0;
+    this.hospitals.length = 0;
 
     let id = 0;
     for (let cy = 0; cy < GRID; cy++) {
@@ -110,6 +113,24 @@ class World {
           y: cy * CELL + ROAD / 2,
           phase: ((cx + cy) % 2) * (LIGHT_CYCLE / 2) + ((cx * 7 + cy * 3) % 5),
         });
+      }
+    }
+
+    // Hospitales: dos edificios existentes, uno en cada mitad del mapa, convertidos
+    // en centro de salud (pintados de blanco/rojo, con puerta ya lista para entrar)
+    const targets = [[WORLD * 0.28, WORLD * 0.32], [WORLD * 0.72, WORLD * 0.68]];
+    for (const [tx, ty] of targets) {
+      let best = null, bd = Infinity;
+      for (const b of this.buildings) {
+        if (b.hospital || b.ty.k === 'torre') continue;
+        const d = Math.hypot(b.x + b.w / 2 - tx, b.y + b.h / 2 - ty);
+        if (d < bd) { bd = d; best = b; }
+      }
+      if (best) {
+        best.hospital = true;
+        best.col = '#e6e2d6';
+        best.roofCol = '#c23b3b';
+        this.hospitals.push(best);
       }
     }
   }

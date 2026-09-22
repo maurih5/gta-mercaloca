@@ -144,6 +144,15 @@ class Renderer {
       ctx.fillRect(px(rx + b.w * 0.12), px(ry + b.h * 0.62), 10, 2.5);
     }
 
+    if (b.hospital) {
+      const ccx = rx + b.w / 2, ccy = ry + b.h / 2, cs = Math.min(b.w, b.h) * 0.22;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(px(ccx - cs), px(ccy - cs), cs * 2, cs * 2);
+      ctx.fillStyle = '#d8342c';
+      ctx.fillRect(px(ccx - cs * 0.22), px(ccy - cs * 0.75), cs * 0.44, cs * 1.5);
+      ctx.fillRect(px(ccx - cs * 0.75), px(ccy - cs * 0.22), cs * 1.5, cs * 0.44);
+    }
+
     if (det === 'ac' || b.ac) {
       for (let i = 0; i < 2; i++) {
         const ax2 = rx + b.w * (0.22 + i * 0.3), ay2 = ry + b.h * 0.2;
@@ -275,6 +284,46 @@ class Renderer {
     ctx.stroke();
     ctx.fillStyle = night > 0.3 ? '#ffe08a' : '#9aa0a8';
     ctx.fillRect(px(x + dx - 3), px(y + dy - 2), 6, 4);
+  }
+
+  drawPickup(pk) {
+    const ctx = this.ctx;
+    const x = pk.x - G.cam.x, y = pk.y - G.cam.y + Math.sin(pk.t * 3) * 2;
+    if (x < -12 || y < -12 || x > RW + 12 || y > RH + 12) return;
+    ctx.fillStyle = 'rgba(0,0,0,.3)';
+    ctx.fillRect(px(x - 4), px(pk.y - G.cam.y + 4), 9, 3);
+
+    if (pk.kind === 'cash') {
+      ctx.fillStyle = '#1f5c23';
+      ctx.fillRect(px(x - 5), px(y - 4), 10, 7);
+      ctx.fillStyle = '#3f9c43';
+      ctx.fillRect(px(x - 5), px(y - 4), 10, 3);
+      ctx.fillStyle = '#d8f0d8';
+      ctx.fillRect(px(x - 2), px(y - 2), 4, 3);
+    } else if (pk.food === 'pernil') {
+      ctx.fillStyle = '#8a5a3a';
+      ctx.fillRect(px(x - 5), px(y - 4), 9, 8);
+      ctx.fillStyle = '#d99a68';
+      ctx.fillRect(px(x - 5), px(y - 4), 9, 5);
+      ctx.fillStyle = '#efe6d4';
+      ctx.fillRect(px(x + 3), px(y + 1), 3, 4);
+    } else if (pk.food === 'choripan') {
+      ctx.fillStyle = '#d8ad5f';
+      ctx.fillRect(px(x - 5), px(y - 3), 10, 6);
+      ctx.fillStyle = '#7a3a2a';
+      ctx.fillRect(px(x - 5), px(y - 1), 10, 3);
+      ctx.fillStyle = '#c9a227';
+      ctx.fillRect(px(x - 5), px(y - 1), 10, 1);
+    } else {
+      ctx.fillStyle = '#c8c8c8';
+      ctx.fillRect(px(x - 0.5), px(y - 7), 2, 6);
+      ctx.fillStyle = '#4a3524';
+      ctx.beginPath();
+      ctx.ellipse(x, y + 1, 4, 4.5, 0, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#6b8a4a';
+      ctx.fillRect(px(x - 2.5), px(y - 1), 5, 2);
+    }
   }
 
   drawGuy(e, faceKey, shirt, pants, hurt) {
@@ -566,6 +615,7 @@ class Renderer {
       ctx.fillRect(px(x), px(y), sz, sz);
     };
     for (const pk of G.pickups) dot(pk, pk.kind === 'cash' ? '#5ad25a' : '#ff5a5a');
+    for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
     for (const c of G.cops) dot(c, '#4aa3ff');
     for (const c of G.cars) if (c.chase && c.hp > 0) dot(c, '#2a6aff', 3);
     ctx.fillStyle = '#fff';
@@ -634,6 +684,22 @@ class Renderer {
       ctx.globalAlpha = 1;
     }
 
+    if (G.healing) {
+      const k = clamp(0.45 + G.healT / 0.35, 0, 1);
+      ctx.fillStyle = 'rgba(18,60,30,.5)';
+      ctx.fillRect(0, 0, RW, RH);
+      ctx.fillStyle = 'rgba(0,0,0,.93)';
+      ctx.fillRect(0, RH / 2 - 26, RW, 58);
+      ctx.fillStyle = '#3fae4a';
+      ctx.fillRect(0, RH / 2 - 27, RW, 2);
+      ctx.fillRect(0, RH / 2 + 30, RW, 2);
+      ctx.globalAlpha = k;
+      this.text('CURANDOTE...', RW / 2, RH / 2 - 4, '#8ef08e', 14, 'center');
+      const pct = Math.min(100, Math.round(G.healT / HOSPITAL_TIME * 100));
+      this.text(pct + '%', RW / 2, RH / 2 + 16, '#ffd34a', 9, 'center');
+      ctx.globalAlpha = 1;
+    }
+
     if (!G.busted && !P.dead && P.car) {
       const near = G.cars.some(c => c.chase && c.hp > 0 && dist(c, P) < 30);
       if (near && Math.floor(G.t * 5) % 2) {
@@ -667,26 +733,7 @@ class Renderer {
     }
     this.drawGround();
 
-    for (const pk of G.pickups) {
-      const x = pk.x - G.cam.x, y = pk.y - G.cam.y + Math.sin(pk.t * 3) * 2;
-      if (x < -12 || y < -12 || x > RW + 12 || y > RH + 12) continue;
-      ctx.fillStyle = 'rgba(0,0,0,.3)';
-      ctx.fillRect(px(x - 4), px(pk.y - G.cam.y + 4), 9, 3);
-      if (pk.kind === 'cash') {
-        ctx.fillStyle = '#1f5c23';
-        ctx.fillRect(px(x - 5), px(y - 4), 10, 7);
-        ctx.fillStyle = '#3f9c43';
-        ctx.fillRect(px(x - 5), px(y - 4), 10, 3);
-        ctx.fillStyle = '#d8f0d8';
-        ctx.fillRect(px(x - 2), px(y - 2), 4, 3);
-      } else {
-        ctx.fillStyle = '#e8e8e8';
-        ctx.fillRect(px(x - 5), px(y - 4), 10, 8);
-        ctx.fillStyle = '#c8302a';
-        ctx.fillRect(px(x - 1.5), px(y - 3), 3, 6);
-        ctx.fillRect(px(x - 4), px(y - 0.5), 8, 3);
-      }
-    }
+    for (const pk of G.pickups) this.drawPickup(pk);
 
     for (const c of G.cars) {
       if (c !== (P && P.car)) this.drawCar(c, night);
@@ -720,7 +767,7 @@ class Renderer {
 
     if (P) {
       if (P.car) this.drawCar(P.car, night);
-      else if (!P.dead) this.drawGuy(P, P.def.id, P.def.shirt, P.def.pants, P.hp < 35);
+      else if (!P.dead && !G.healing) this.drawGuy(P, P.def.id, P.def.shirt, P.def.pants, P.hp < 35);
     }
 
     for (const b of G.bullets) {
@@ -771,6 +818,7 @@ const render = () => renderer.render();
 const quad = (x1, y1, x2, y2, x3, y3, x4, y4, col) => renderer.quad(x1, y1, x2, y2, x3, y3, x4, y4, col);
 const drawGround = () => renderer.drawGround();
 const drawBuilding = (b, night) => renderer.drawBuilding(b, night);
+const drawPickup = pk => renderer.drawPickup(pk);
 const drawPalm = p => renderer.drawPalm(p);
 const drawTrafficLight = L => renderer.drawTrafficLight(L);
 const drawLamp = (l, night) => renderer.drawLamp(l, night);

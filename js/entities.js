@@ -129,10 +129,12 @@ class EntityManager {
 
   makePickup() {
     const s = freeRoadSpot();
+    const isHp = Math.random() < 0.22;
     return {
       x: s.x,
       y: s.y,
-      kind: Math.random() < 0.22 ? 'hp' : 'cash',
+      kind: isHp ? 'hp' : 'cash',
+      food: isHp ? FOODS[(Math.random() * FOODS.length) | 0] : null,
       t: 0,
     };
   }

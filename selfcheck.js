@@ -29,12 +29,12 @@ const api = new Function(js + `
          startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
          PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
          lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
-         bust,finishBust,makeChaser,makeCop};`)();
+         bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
        lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
-       bust,finishBust,makeChaser,makeCop} = api;
+       bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup} = api;
 
 // --- helpers de color ---
 assert.equal(shade('#808080', 1), 'rgb(128,128,128)');
@@ -90,6 +90,14 @@ for(const b of buildings){
   assert.ok(!hitBuilding(d.x+d.ox, d.y+d.oy, 1) || true, 'punto de salida');
 }
 assert.ok(nearestDoor(buildings[0].x, buildings[0].y, 200), 'nearestDoor encuentra algo');
+
+// --- hospitales ---
+assert.equal(hospitals.length, 2, 'tienen que existir dos hospitales: ' + hospitals.length);
+for(const h of hospitals){
+  assert.ok(h.door, 'el hospital tiene que tener puerta');
+  assert.ok(buildings.includes(h), 'el hospital es un edificio real de la ciudad');
+}
+assert.ok(dist(hospitals[0], hospitals[1]) > CELL * 3, 'los hospitales tienen que estar lejos entre si: ' + dist(hospitals[0], hospitals[1]));
 
 // --- ciclo dia/noche: siempre color valido y oscuridad en [0,1] ---
 for(let t=0; t<DAY*2; t+=1.7){
@@ -283,6 +291,46 @@ console.log('  poblacion viva: ' + pedsNear + ' peatones, ' + carsNear + ' autos
   for(let f=0;f<60;f++) update(1/60);
   assert.equal(ped.hp, hp0, 'un auto de NPC no puede herir peatones, solo el auto del jugador');
   console.log('  atropello: los autos de NPC no lastiman peatones');
+}
+
+// hospitales: entrar cura a los pocos segundos y te deja quieto mientras tanto
+{
+  startGame(CREW[0]);
+  for(let f=0;f<10;f++) update(1/60);
+  const h = hospitals[0], d = h.door;
+  G.player.car = null;
+  G.player.x = d.x + d.ox; G.player.y = d.y + d.oy;
+  G.player.hp = 40;
+  update(1/60);
+  assert.equal(G.healing, 1, 'entrar al hospital arranca la curacion');
+  assert.ok(G.player.hp < G.player.maxhp, 'todavia no te curaste al toque');
+
+  const px0 = G.player.x, py0 = G.player.y;
+  for(let f=0;f<Math.round(HOSPITAL_TIME*60)-5;f++) update(1/60);
+  assert.equal(G.player.x, px0, 'te quedas quieto mientras te curan');
+  assert.equal(G.player.y, py0, 'te quedas quieto mientras te curan');
+  assert.equal(G.healing, 1, 'la curacion dura varios segundos');
+  assert.ok(G.player.hp < G.player.maxhp, 'no te curaron antes de tiempo');
+
+  for(let f=0;f<20;f++) update(1/60);
+  assert.equal(G.healing, 0, 'la curacion termina sola');
+  assert.equal(G.player.hp, G.player.maxhp, 'salis del hospital con la vida llena');
+  console.log('  hospital: cura en ' + HOSPITAL_TIME + 's y te deja quieto mientras tanto');
+}
+
+// items de curacion: cada comida cura lo que corresponde, no mas ni menos
+{
+  startGame(CREW[0]);
+  for(let f=0;f<10;f++) update(1/60);
+  for(const food of FOODS){
+    G.player.hp = 10;
+    const pk = G.pickups[0];
+    Object.assign(pk, { x: G.player.x, y: G.player.y, kind: 'hp', food, t: 0 });
+    update(1/60);
+    assert.equal(G.player.hp, Math.min(G.player.maxhp, 10 + FOOD_HEAL[food]),
+      food + ' tiene que curar ' + FOOD_HEAL[food] + ' de vida');
+  }
+  console.log('  items de curacion: ' + FOODS.map(f => f + ' +' + FOOD_HEAL[f]).join(', '));
 }
 
 // muerte
