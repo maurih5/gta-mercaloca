@@ -198,6 +198,18 @@
     align-items: center;
     justify-content: center;
   }
+
+  #version-tag {
+    position: fixed;
+    left: 8px;
+    bottom: 6px;
+    font-size: 8px;
+    color: rgba(255, 255, 255, 0.45);
+    letter-spacing: 1px;
+    text-shadow: 1px 1px 0 #000;
+    pointer-events: none;
+    z-index: 40;
+  }
 </style>
 </head>
 <body>
@@ -231,6 +243,7 @@
   <div class="btn-play-sel" id="btnPlaySel">&gt; JUGAR AHORA &lt;</div>
 </div>
 <div class="fade" id="fade"></div>
+<div id="version-tag"></div>
 
 <!-- Botón de control táctil siempre accesible -->
 <button id="btn-toggle-touch" class="touch-toggle-btn" aria-label="Controles táctiles" title="Activar/Desactivar controles táctiles">🕹️</button>
