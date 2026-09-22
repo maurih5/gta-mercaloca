@@ -1,9 +1,11 @@
 // Self-check headless: corre la logica y las funciones puras de render con stubs de DOM.
 // node selfcheck.js  -> exit 0 si todo OK
 const fs = require('fs'), assert = require('assert');
-const html = fs.readFileSync(__dirname + '/index.html', 'utf8');
-let js = html.split('<script>')[1].split('</scr'+'ipt>')[0];
-js = js.replace(/\(async function boot\(\)[\s\S]*$/, '');       // sin boot (carga imagenes)
+const scriptFiles = [
+  'constants.js', 'utils.js', 'input.js', 'world.js',
+  'entities.js', 'game.js', 'renderer.js', 'ui.js'
+];
+let js = scriptFiles.map(f => fs.readFileSync(__dirname + '/js/' + f, 'utf8')).join('\n');
 
 const noop = () => {};
 const ctxStub = new Proxy({}, {get:(t,k)=>{
