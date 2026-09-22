@@ -27,6 +27,8 @@ const G = {
   bustT: 0,
   bustFine: 0,
   bustCar: null,
+  healing: 0,
+  healT: 0,
 };
 
 class Game {
@@ -74,6 +76,8 @@ class Game {
     G.busted = 0;
     G.bustT = 0;
     G.bustFine = 0;
+    G.healing = 0;
+    G.healT = 0;
     this.say('MERCALOCA EN LA CALLE. JUNTA GUITA.', 3.4);
     if (typeof touchController !== 'undefined') {
       touchController.updateVisibility();
@@ -180,6 +184,17 @@ class Game {
       return;
     }
 
+    // ---- Secuencia de curacion: entraste a un hospital, unos segundos y salis con la vida llena
+    if (G.healing) {
+      G.healT += dt;
+      if (G.healT > HOSPITAL_TIME) {
+        P.hp = P.maxhp;
+        G.healing = 0;
+        this.say('LISTO. A LA CALLE.', 2.6);
+      }
+      return;
+    }
+
     const ix = input.getHorizontalAxis();
     const iy = input.getVerticalAxis();
     P.muzzle = Math.max(0, P.muzzle - dt * 14);
@@ -283,6 +298,18 @@ class Game {
           P.car = best;
           if (!best.cop) this.wantUp(1);
           this.say(best.cop ? 'AUTO DE LA YUTA' : 'AUTO ROBADO');
+        }
+      }
+
+      if (P.hp < P.maxhp) {
+        for (const h of hospitals) {
+          const d = h.door;
+          if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 10) {
+            G.healing = 1;
+            G.healT = 0;
+            this.say('ENTRANDO AL HOSPITAL...', 2.4);
+            break;
+          }
         }
       }
     }
@@ -871,8 +898,9 @@ class Game {
           G.money += v;
           this.say('+$' + v);
         } else {
-          P.hp = Math.min(P.maxhp, P.hp + 35);
-          this.say('+35 VIDA');
+          const heal = FOOD_HEAL[pk.food] || 35;
+          P.hp = Math.min(P.maxhp, P.hp + heal);
+          this.say('+' + heal + ' VIDA (' + pk.food.toUpperCase() + ')');
         }
         boom(pk.x, pk.y, 8, pk.kind === 'cash' ? '120,220,120' : '230,90,90');
         Object.assign(pk, makePickup());

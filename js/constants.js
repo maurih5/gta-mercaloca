@@ -31,6 +31,13 @@ const MARGIN = 8;
 // Semaforos
 const LIGHT_CYCLE = 11, GREEN = 4.6, AMBER = 0.9;  // por eje: 4.6s verde, 0.9 amarillo, resto rojo
 
+// Hospitales: cuanto tarda en curarte la secuencia al entrar
+const HOSPITAL_TIME = 3.2;
+
+// Items de curacion desperdigados por el mapa: cuanta vida da cada uno
+const FOOD_HEAL = { pernil: 45, choripan: 30, mate: 15 };
+const FOODS = Object.keys(FOOD_HEAL);
+
 // Poblacion viva y radios de simulacion
 const SIM_R = 560;                       // radio de simulacion
 const PED_TARGET = 58, CAR_TARGET = 46;  // poblacion viva alrededor del jugador
