@@ -55,10 +55,10 @@ Lista de características planificadas y mejoras en desarrollo:
   - [ ] Consumibles/botiquines en el mapa para recuperar vida
 
 ### 📱 Experiencia Móvil
-- [ ] Hacer que se pueda jugar desde el celular:
-  - [ ] Controles táctiles en pantalla (joystick virtual para movimiento/dirección)
-  - [ ] Botones de acción táctiles (disparo, entrar/salir de auto, correr)
-  - [ ] Optimización de viewport y layout adaptable a pantallas móviles
+- [x] Soporte para jugar desde el celular:
+  - [x] Controles táctiles en pantalla (joystick virtual flotante para movimiento/dirección)
+  - [x] Botones de acción táctiles (disparo 🔫, entrar/salir de auto 🚗, correr/sprint ⚡, pausa ⏸)
+  - [x] Optimización de viewport, prevención de scroll/zoom no deseado y layout adaptable a pantallas móviles
 
 ### 🌐 Multijugador (Multiplayer)
 - [ ] Modo multijugador online en tiempo real:

@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>GTA MERCALOCA</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
   :root{ --gold:#e8b53a; --grove:#3a9b47; --ink:#08080a; }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;background:var(--ink);overflow:hidden;font-family:"Press Start 2P",monospace;color:#fff}
+  *{box-sizing:border-box;margin:0;padding:0;touch-action:none;-webkit-touch-callout:none}
+  html,body{height:100%;background:var(--ink);overflow:hidden;font-family:"Press Start 2P",monospace;color:#fff;user-select:none;-webkit-user-select:none}
   #wrap{position:fixed;inset:0;display:grid;place-items:center}
   canvas{image-rendering:pixelated;background:#000;max-width:100vw;max-height:100vh;
          box-shadow:0 0 0 2px #000, 0 12px 60px rgba(0,0,0,.9)}
@@ -44,6 +44,134 @@
   #sel h3{position:absolute;top:6vh;font-size:min(4vw,24px);color:var(--gold);text-shadow:4px 4px 0 #000;letter-spacing:3px}
   #sel .go{position:absolute;bottom:6vh;font-size:11px;color:#999;letter-spacing:1px}
   .fade{position:fixed;inset:0;background:#000;pointer-events:none;opacity:0;transition:opacity .35s;z-index:50}
+
+  /* Controles Táctiles (Mobile) */
+  #touch-controls {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 45;
+    display: none;
+  }
+  #touch-controls.active {
+    display: block;
+  }
+  .touch-zone {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 48vw;
+    height: 52vh;
+    pointer-events: auto;
+    touch-action: none;
+  }
+  .stick-base {
+    position: absolute;
+    width: 94px;
+    height: 94px;
+    border-radius: 50%;
+    border: 3px solid rgba(232, 181, 58, 0.45);
+    background: radial-gradient(circle, rgba(232, 181, 58, 0.12) 0%, rgba(0, 0, 0, 0.5) 80%);
+    box-shadow: 0 0 16px rgba(0, 0, 0, 0.6), inset 0 0 12px rgba(232, 181, 58, 0.25);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    opacity: 0.55;
+    transition: opacity 0.2s, border-color 0.2s;
+    left: calc(24px + 47px);
+    bottom: calc(24px + 47px);
+  }
+  .stick-base.visible {
+    opacity: 0.95;
+    border-color: var(--gold);
+  }
+  .stick-thumb {
+    position: absolute;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff 0%, var(--gold) 45%, #7e5a10 100%);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.85), 0 0 10px rgba(232,181,58,0.55);
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .touch-actions {
+    position: absolute;
+    right: 4vw;
+    bottom: 4vh;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+    pointer-events: auto;
+  }
+  .touch-btn-row {
+    display: flex;
+    gap: 12px;
+  }
+  .touch-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.45);
+    background: rgba(18, 18, 22, 0.78);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    color: #fff;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.75);
+    transition: transform 0.08s, background-color 0.08s, border-color 0.08s;
+  }
+  .touch-btn:active, .touch-btn.pressed {
+    transform: scale(0.92);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.9);
+  }
+  .btn-fire {
+    width: 76px;
+    height: 76px;
+    font-size: 32px;
+    border-color: #d1483f;
+    background: radial-gradient(circle, rgba(209, 72, 63, 0.65) 0%, rgba(20, 10, 10, 0.85) 80%);
+    box-shadow: 0 0 16px rgba(209, 72, 63, 0.5);
+  }
+  .btn-fire:active, .btn-fire.pressed {
+    background: radial-gradient(circle, rgba(255, 90, 80, 0.85) 0%, rgba(120, 20, 20, 0.95) 80%);
+    border-color: #ff6a5a;
+  }
+  .btn-car {
+    border-color: #3f8ad8;
+    background: radial-gradient(circle, rgba(63, 138, 216, 0.5) 0%, rgba(10, 20, 30, 0.85) 80%);
+  }
+  .btn-car:active, .btn-car.pressed {
+    border-color: #72b0f4;
+  }
+  .btn-run {
+    border-color: var(--grove);
+    background: radial-gradient(circle, rgba(58, 155, 71, 0.5) 0%, rgba(10, 30, 15, 0.85) 80%);
+  }
+  .btn-run:active, .btn-run.pressed {
+    border-color: #5ed66e;
+  }
+  .btn-pause {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+    border-radius: 8px;
+    border-color: #666;
+    background: rgba(10, 10, 10, 0.68);
+    pointer-events: auto;
+  }
 </style>
 </head>
 <body>
@@ -77,6 +205,23 @@
 </div>
 <div class="fade" id="fade"></div>
 
+<!-- Controles Táctiles en Pantalla -->
+<div id="touch-controls">
+  <div id="touch-zone-stick" class="touch-zone">
+    <div id="stick-base" class="stick-base">
+      <div id="stick-thumb" class="stick-thumb"></div>
+    </div>
+  </div>
+  <div id="touch-actions" class="touch-actions">
+    <button id="btn-fire" class="touch-btn btn-fire" aria-label="Disparar">🔫</button>
+    <div class="touch-btn-row">
+      <button id="btn-car" class="touch-btn btn-car" aria-label="Auto">🚗</button>
+      <button id="btn-run" class="touch-btn btn-run" aria-label="Correr">⚡</button>
+    </div>
+  </div>
+  <button id="btn-pause" class="touch-btn btn-pause" aria-label="Pausa">⏸</button>
+</div>
+
 <!-- Módulos de lógica y motor del juego -->
 <script src="js/constants.js"></script>
 <script src="js/utils.js"></script>
@@ -86,6 +231,7 @@
 <script src="js/game.js"></script>
 <script src="js/renderer.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/touch.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

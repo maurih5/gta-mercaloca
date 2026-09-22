@@ -5,6 +5,7 @@
 class InputManager {
   constructor() {
     this.keys = {};
+    this.touchAxis = { x: 0, y: 0 };
     this._preventCodes = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
     this._boundDown = this.onKeyDown.bind(this);
     this._boundUp = this.onKeyUp.bind(this);
@@ -41,13 +42,15 @@ class InputManager {
   }
 
   getHorizontalAxis() {
-    return (this.keys.KeyD || this.keys.ArrowRight ? 1 : 0) -
-           (this.keys.KeyA || this.keys.ArrowLeft ? 1 : 0);
+    const keyVal = (this.keys.KeyD || this.keys.ArrowRight ? 1 : 0) -
+                   (this.keys.KeyA || this.keys.ArrowLeft ? 1 : 0);
+    return keyVal !== 0 ? keyVal : this.touchAxis.x;
   }
 
   getVerticalAxis() {
-    return (this.keys.KeyS || this.keys.ArrowDown ? 1 : 0) -
-           (this.keys.KeyW || this.keys.ArrowUp ? 1 : 0);
+    const keyVal = (this.keys.KeyS || this.keys.ArrowDown ? 1 : 0) -
+                   (this.keys.KeyW || this.keys.ArrowUp ? 1 : 0);
+    return keyVal !== 0 ? keyVal : this.touchAxis.y;
   }
 }
 

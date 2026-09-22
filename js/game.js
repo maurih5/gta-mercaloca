@@ -163,8 +163,8 @@ class Game {
       return;
     }
 
-    const ix = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
-    const iy = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
+    const ix = input.getHorizontalAxis();
+    const iy = input.getVerticalAxis();
     P.muzzle = Math.max(0, P.muzzle - dt * 14);
 
     if (P.dead) {
@@ -173,11 +173,11 @@ class Game {
     } else if (P.car) {
       const car = P.car;
       const acc = (keys.ShiftLeft || keys.ShiftRight) ? 200 : 145;
-      if (iy < 0) car.spd += acc * dt;
-      else if (iy > 0) car.spd -= acc * 1.25 * dt;
+      if (iy < -0.1) car.spd += acc * dt * Math.min(1, Math.abs(iy));
+      else if (iy > 0.1) car.spd -= acc * 1.25 * dt * Math.min(1, Math.abs(iy));
       else car.spd *= (1 - 1.6 * dt);
       car.spd = clamp(car.spd, -70, 195);
-      const turning = Math.abs(car.spd) > 4 ? ix : 0;
+      const turning = Math.abs(car.spd) > 4 && Math.abs(ix) > 0.1 ? ix : 0;
       car.steer = lerp(car.steer, turning, dt * 9);
       if (turning) {
         car.ang += turning * 2.3 * dt * (car.spd > 0 ? 1 : -1) * clamp(Math.abs(car.spd) / 90, 0.35, 1);
@@ -710,7 +710,7 @@ class Game {
 
       if (hitBuilding(nx2, ny2, CR2) || nx2 < 10 || ny2 < 10 || nx2 > WORLD - 10 || ny2 > WORLD - 10) {
         let got = false;
-        for (const t2 of [0.7, -0.7, 1.5, -1.5]) {
+        for (const t2 of [0.7, -0.7, 1.5, -1.5, 2.4, -2.4, Math.PI]) {
           const a2 = c.ang + t2;
           const tx3 = c.x + Math.cos(a2) * (Math.abs(c.spd) * dt + CR2 + 6);
           const ty3 = c.y + Math.sin(a2) * (Math.abs(c.spd) * dt + CR2 + 6);
@@ -721,7 +721,11 @@ class Game {
           }
         }
         c.spd *= got ? 0.8 : 0.35;
-        if (!got && d > OFFSCREEN) c.hp = 0;
+        if (!got) {
+          c.ang += Math.PI;
+          c.spd = 16;
+          if (d > OFFSCREEN) c.hp = 0;
+        }
       } else {
         c.x = nx2;
         c.y = ny2;
