@@ -9,9 +9,12 @@ class TouchController {
     this.stickCenter = { x: 0, y: 0 };
     this.maxRadius = 46;
     this.container = null;
+    this.stickZone = null;
     this.stickBase = null;
     this.stickThumb = null;
+    this.toggleBtn = null;
     this.isTouch = false;
+    this.forceVisible = false;
 
     if (typeof window !== 'undefined') {
       this.detectTouch();
@@ -38,17 +41,43 @@ class TouchController {
     this.stickZone = document.getElementById('touch-zone-stick');
     this.stickBase = document.getElementById('stick-base');
     this.stickThumb = document.getElementById('stick-thumb');
+    this.toggleBtn = document.getElementById('btn-toggle-touch');
 
     if (!this.container || !this.stickZone || !this.stickBase || !this.stickThumb) return;
-
-    // Mostrar controles si es dispositivo táctil o pantalla pequeña
-    if (this.isTouch) {
-      this.container.classList.add('active');
-    }
 
     this.bindJoystick();
     this.bindButtons();
     this.bindGlobalTouch();
+    this.updateVisibility();
+  }
+
+  updateVisibility() {
+    if (!this.container) return;
+    const inGame = typeof G !== 'undefined' && G.state === 'play';
+    const shouldShow = (inGame || this.forceVisible) && (this.isTouch || this.forceVisible);
+
+    if (shouldShow) {
+      this.container.style.display = 'block';
+      this.container.classList.add('active');
+    } else {
+      this.container.style.display = 'none';
+      this.container.classList.remove('active');
+    }
+  }
+
+  resetStickPosition() {
+    if (!this.stickBase || !this.stickThumb) return;
+    this.stickBase.style.left = '80px';
+    this.stickBase.style.top = 'auto';
+    this.stickBase.style.bottom = '80px';
+    this.stickBase.classList.remove('moving');
+    this.stickThumb.style.transform = 'translate(-50%, -50%)';
+    input.touchAxis.x = 0;
+    input.touchAxis.y = 0;
+    keys.KeyW = false;
+    keys.KeyS = false;
+    keys.KeyA = false;
+    keys.KeyD = false;
   }
 
   bindJoystick() {
@@ -64,14 +93,14 @@ class TouchController {
           this.stickTouchId = touch.identifier;
           const rect = zone.getBoundingClientRect();
 
-          // Centrar el joystick donde el usuario tocó dentro de la zona
           const posX = clamp(touch.clientX, rect.left + this.maxRadius, rect.right - this.maxRadius);
           const posY = clamp(touch.clientY, rect.top + this.maxRadius, rect.bottom - this.maxRadius);
 
           this.stickCenter = { x: posX, y: posY };
           base.style.left = posX + 'px';
           base.style.top = posY + 'px';
-          base.classList.add('visible');
+          base.style.bottom = 'auto';
+          base.classList.add('moving');
 
           thumb.style.transform = 'translate(-50%, -50%)';
           this.updateStick(touch.clientX, touch.clientY);
@@ -97,14 +126,7 @@ class TouchController {
         const touch = e.changedTouches[i];
         if (touch.identifier === this.stickTouchId) {
           this.stickTouchId = null;
-          thumb.style.transform = 'translate(-50%, -50%)';
-          base.classList.remove('visible');
-          input.touchAxis.x = 0;
-          input.touchAxis.y = 0;
-          keys.KeyW = false;
-          keys.KeyS = false;
-          keys.KeyA = false;
-          keys.KeyD = false;
+          this.resetStickPosition();
           break;
         }
       }
@@ -134,7 +156,6 @@ class TouchController {
     input.touchAxis.x = normX;
     input.touchAxis.y = normY;
 
-    // Actualizar también códigos de teclas para compatibilidad
     keys.KeyD = normX > 0.25;
     keys.KeyA = normX < -0.25;
     keys.KeyS = normY > 0.25;
@@ -205,21 +226,31 @@ class TouchController {
       },
       () => {}
     );
+
+    // Botón manual de toggle en pantalla
+    if (this.toggleBtn) {
+      this.toggleBtn.onclick = e => {
+        e.preventDefault();
+        this.forceVisible = !this.forceVisible;
+        if (this.forceVisible) this.isTouch = true;
+        this.updateVisibility();
+      };
+    }
   }
 
   bindGlobalTouch() {
-    // Al tocar la pantalla tras morir, reiniciar la partida automáticamente
+    // Al tocar la pantalla tras morir, reiniciar la partida
     addEventListener('touchstart', () => {
       if (G.player && G.player.dead) {
         startGame(G.player.def);
       }
     }, { passive: true });
 
-    // Habilitar controles si se detecta cualquier toque en la ventana
+    // Habilitar controles si se detecta cualquier toque
     addEventListener('touchstart', () => {
-      if (!this.container.classList.contains('active')) {
-        this.container.classList.add('active');
+      if (!this.isTouch) {
         this.isTouch = true;
+        this.updateVisibility();
       }
     }, { once: true, passive: true });
   }

@@ -15,6 +15,9 @@ class UIManager {
   show(id) {
     if (typeof document === 'undefined') return;
     document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id));
+    if (typeof touchController !== 'undefined') {
+      touchController.updateVisibility();
+    }
   }
 
   fadeTo(fn) {
@@ -39,11 +42,12 @@ class UIManager {
     ).join('');
 
     cardsEl.querySelectorAll('.card').forEach(el => {
-      el.onclick = () => {
+      const choose = () => {
         this.selIdx = +el.dataset.i;
         this.markSel();
         this.play();
       };
+      el.onclick = choose;
     });
   }
 
@@ -59,6 +63,9 @@ class UIManager {
     this.fadeTo(() => {
       this.show('');
       startGame(CREW[this.selIdx]);
+      if (typeof touchController !== 'undefined') {
+        touchController.updateVisibility();
+      }
     });
   }
 
@@ -104,6 +111,10 @@ class UIManager {
           G.state = 'sel';
           this.fadeTo(() => this.show('sel'));
         };
+      }
+      const btnSel = $('btnPlaySel');
+      if (btnSel) {
+        btnSel.onclick = () => this.play();
       }
     }
   }

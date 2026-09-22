@@ -75,6 +75,9 @@ class Game {
     G.bustT = 0;
     G.bustFine = 0;
     this.say('MERCALOCA EN LA CALLE. JUNTA GUITA.', 3.4);
+    if (typeof touchController !== 'undefined') {
+      touchController.updateVisibility();
+    }
   }
 
   bust() {
