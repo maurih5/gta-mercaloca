@@ -128,3 +128,13 @@ cd gta-mercaloca
 python3 -m http.server 8000
 ```
 Luego entra a `http://localhost:8000`.
+
+### Indicador de versión
+
+El tag de versión que se ve en el menú (`vN-hash`) se regenera solo en cada commit
+vía un git hook versionado en `.githooks/pre-commit` (nadie tiene que acordarse de
+bumpear un número a mano). Para que el hook corra en tu clon local:
+
+```bash
+git config core.hooksPath .githooks
+```
