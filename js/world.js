@@ -198,9 +198,13 @@ class World {
         }
 
         if (isPlaza) {
-          obelisco = { x: cxCenter - 5, y: cyCenter - 5, w: 10, h: 10 };
-          this.props.push({ t: 'rotonda', x: cxCenter, y: cyCenter, rIsland: ROTONDA_ISLAND_R, rRing: ROTONDA_R });
-          this.props.push({ t: 'obelisco', x: cxCenter, y: cyCenter });
+          // Va en el centro del CRUCE de avenidas, no en el de la manzana: usar
+          // cxCenter lo corria 95px y el obelisco quedaba tirado sobre la calle
+          // en vez de adentro de su rotonda.
+          const rcx = cx * CELL + AVENUE_ROAD / 2, rcy = cy * CELL + AVENUE_ROAD / 2;
+          obelisco = { x: rcx - 5, y: rcy - 5, w: 10, h: 10 };
+          this.props.push({ t: 'rotonda', x: rcx, y: rcy, rIsland: ROTONDA_ISLAND_R, rRing: ROTONDA_R });
+          this.props.push({ t: 'obelisco', x: rcx, y: rcy });
           continue;
         }
 
