@@ -65,7 +65,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 - [ ] Mecánica de asado: combinar carbón + carne + parrilla, tiempo de cocción y resultado consumible (#40)
 
 ### 🗺️ Mundo & Ubicaciones
-- [ ] Ampliar el mapa a 24x24 (#38)
+- [x] Ampliar el mapa a 24x24 (#38)
 - [ ] Riachuelo que cruza el mapa y desemboca en la playa (#39)
 - [ ] Obelisco como landmark navegable (#33)
 - [ ] Casa Rosada como landmark, con actividad de NPCs (#34)

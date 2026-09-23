@@ -2,7 +2,7 @@
    GTA MERCALOCA - Constantes y Configuración General
    ========================================================================= */
 
-const VERSION = 'v15-7b26fba';
+const VERSION = 'v17-1f7b45c';
 
 const CREW = [
   {id:'p1', name:'EL SMOKE',  img:'img/p1.jpeg', crop:[0.42,0.11,0.25,0.29], shirt:'#3f9a4a', pants:'#232323'},
@@ -27,7 +27,7 @@ const FOCAL = 300;                      // menor = mas perspectiva en la extrusi
 
 // Geometria del mundo y grilla
 const CELL = 190, ROAD = 56, SIDEWALK = 10;
-const GRID = 18, WORLD = CELL * GRID;
+const GRID = 24, WORLD = CELL * GRID;
 const MARGIN = 8;
 
 // Semaforos
