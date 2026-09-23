@@ -9,13 +9,26 @@ function frame(now) {
   lastTime = now;
 
   if (G.state === 'play') {
-    if (keys.KeyP && !G._p) {
+    if (keys.KeyP && !G._p && !G.mapOpen) {
       G.paused = !G.paused;
       G._p = true;
     }
     if (!keys.KeyP) G._p = false;
 
-    if (!G.paused) update(dt);
+    if (keys.KeyM && !G._m && !G.paused) {
+      G.mapOpen = !G.mapOpen;
+      G._m = true;
+    }
+    if (!keys.KeyM) G._m = false;
+
+    if (G.mapOpen) {
+      const f = 1 + MAP_ZOOM_RATE * dt;
+      if (keys.Equal || keys.NumpadAdd) G.mapZoom = clamp(G.mapZoom * f, MAP_MIN_ZOOM, MAP_MAX_ZOOM);
+      if (keys.Minus || keys.NumpadSubtract) G.mapZoom = clamp(G.mapZoom / f, MAP_MIN_ZOOM, MAP_MAX_ZOOM);
+    }
+    if (touchController) touchController.syncMapButtons();
+
+    if (!G.paused && !G.mapOpen) update(dt);
     render();
   }
 

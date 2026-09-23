@@ -659,6 +659,39 @@ class Renderer {
     ctx.strokeRect(ox - 2.5, oy - 2.5, S + 5, S + 5);
   }
 
+  drawMap() {
+    if (!GROUND) return;
+    const ctx = this.ctx;
+    const P = G.player;
+    const viewW = clamp(WORLD / G.mapZoom, 40, WORLD);
+    const viewH = viewW * (RH / RW);
+    const sx = clamp(P.x - viewW / 2, 0, WORLD - viewW);
+    const sy = clamp(P.y - viewH / 2, 0, WORLD - viewH);
+    const k = RW / viewW;
+
+    ctx.fillStyle = 'rgba(0,0,0,.85)';
+    ctx.fillRect(0, 0, RW, RH);
+    ctx.drawImage(GROUND, sx, sy, viewW, viewH, 0, 0, RW, RH);
+
+    const dot = (e, col, sz = 2) => {
+      const x = (e.x - sx) * k, y = (e.y - sy) * k;
+      if (x < 0 || y < 0 || x > RW || y > RH) return;
+      ctx.fillStyle = col;
+      ctx.fillRect(px(x), px(y), sz, sz);
+    };
+    for (const pk of G.pickups) dot(pk, pk.kind === 'cash' ? '#5ad25a' : '#ff5a5a');
+    for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
+    for (const cr of casaRosada) dot({ x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }, '#ff8fc0', 3);
+    if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#f5f0e0', 3);
+    for (const c of G.cops) dot(c, '#4aa3ff');
+    for (const c of G.cars) if (c.chase && c.hp > 0) dot(c, '#2a6aff', 3);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(px((P.x - sx) * k) - 2, px((P.y - sy) * k) - 2, 4, 4);
+
+    this.text('MAPA', RW / 2, 12, '#ffd34a', 10, 'center');
+    this.text('M cerrar · +/- zoom', RW / 2, RH - 10, '#ccc', 7, 'center');
+  }
+
   text(t, x, y, col = '#fff', size = 8, align = 'left') {
     const ctx = this.ctx;
     ctx.font = size + 'px "Press Start 2P", monospace';
@@ -838,6 +871,7 @@ class Renderer {
     }
     this.drawRadar();
     this.drawHUD();
+    if (G.mapOpen) this.drawMap();
   }
 }
 
@@ -859,5 +893,6 @@ const drawGuy = (e, faceKey, shirt, pants, hurt) => renderer.drawGuy(e, faceKey,
 const drawCar = (c, night) => renderer.drawCar(c, night);
 const drawLights = night => renderer.drawLights(night);
 const drawRadar = () => renderer.drawRadar();
+const drawMap = () => renderer.drawMap();
 const text = (t, x, y, col, size, align) => renderer.text(t, x, y, col, size, align);
 const drawHUD = () => renderer.drawHUD();

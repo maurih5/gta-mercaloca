@@ -2,7 +2,7 @@
    GTA MERCALOCA - Constantes y Configuración General
    ========================================================================= */
 
-const VERSION = 'v19-2bac213';
+const VERSION = 'v20-78364a4';
 
 const CREW = [
   {id:'p1', name:'EL SMOKE',  img:'img/p1.jpeg', crop:[0.42,0.11,0.25,0.29], shirt:'#3f9a4a', pants:'#232323'},
@@ -36,6 +36,9 @@ const BEACH_RADIUS = CELL * 1.8;
 
 // Casa Rosada: cantidad de guardias fijos en la puerta
 const CASA_ROSADA_GUARDS = 3;
+
+// Mapa global (tecla M): rango y velocidad de zoom
+const MAP_MIN_ZOOM = 1, MAP_MAX_ZOOM = 8, MAP_ZOOM_RATE = 1.6;
 
 // Semaforos
 const LIGHT_CYCLE = 11, GREEN = 4.6, AMBER = 0.9;  // por eje: 4.6s verde, 0.9 amarillo, resto rojo
