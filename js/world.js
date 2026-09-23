@@ -16,7 +16,7 @@ const PLAZA_CX = GRID >> 1, PLAZA_CY = GRID >> 1;
 const ROSADA_CX = PLAZA_CX + 3, ROSADA_CY = PLAZA_CY + 3;
 const PLAZA_PX = PLAZA_CX * CELL + CELL / 2, PLAZA_PY = PLAZA_CY * CELL + CELL / 2;
 const ROSADA_PX = ROSADA_CX * CELL + CELL / 2, ROSADA_PY = ROSADA_CY * CELL + CELL / 2;
-const DIAG_WIDTH = ROAD * 1.3;
+const DIAG_WIDTH = ROAD * 1.7;
 const DIAG_LEN = Math.hypot(ROSADA_PX - PLAZA_PX, ROSADA_PY - PLAZA_PY);
 const DIAG_UX = (ROSADA_PX - PLAZA_PX) / DIAG_LEN, DIAG_UY = (ROSADA_PY - PLAZA_PY) / DIAG_LEN;
 const DIAG_ANG = Math.atan2(DIAG_UY, DIAG_UX);
@@ -24,6 +24,12 @@ function inDiagonalBand(x, y) {
   const px2 = x - PLAZA_PX, py2 = y - PLAZA_PY;
   const u = px2 * DIAG_UX + py2 * DIAG_UY, v = -px2 * DIAG_UY + py2 * DIAG_UX;
   return u > 0 && u < DIAG_LEN && Math.abs(v) < DIAG_WIDTH / 2;
+}
+// Ademas del centro de la celda, ningun edificio puede meter una esquina en la diagonal
+// (evita el efecto "edificio clavado en la vereda" cuando el lote linda con la banda)
+function rectHitsDiagonalBand(x, y, w, h) {
+  return inDiagonalBand(x, y) || inDiagonalBand(x + w, y) || inDiagonalBand(x, y + h) || inDiagonalBand(x + w, y + h)
+    || inDiagonalBand(x + w / 2, y + h / 2);
 }
 
 // Curva del riachuelo: entra por el borde norte, cruza el centro y sale por el este
@@ -134,8 +140,6 @@ class World {
           continue;
         }
 
-        if (inDiagonalBand(cxCenter, cyCenter)) continue;
-
         const downtown = Math.abs(cx - GRID / 2) + Math.abs(cy - GRID / 2) < 5;
         const cols = downtown ? (Math.random() < 0.6 ? 1 : 2) : 1 + ((Math.random() * 2) | 0);
         const rows = downtown ? (Math.random() < 0.6 ? 1 : 2) : 1 + ((Math.random() * 2) | 0);
@@ -162,6 +166,8 @@ class World {
               ac: Math.random() < 0.6,
               tank: H > 40 && Math.random() < 0.5,
             };
+
+            if (rectHitsDiagonalBand(b.x, b.y, b.w, b.h)) continue; // la diagonal corta el lote, no plantar edificio encima
 
             // Puerta en el lado que da a la calle más cercana con felpudo exterior
             const side = ((cx * 3 + cy * 5 + r + c) % 4);
@@ -245,24 +251,10 @@ class World {
     g.fillStyle = '#31343a';
     g.fillRect(0, 0, WORLD, WORLD);
 
-    // Diagonal Norte: franja recta de plaza a Casa Rosada, asfalto rotado + linea central punteada
-    g.save();
-    g.translate(PLAZA_PX, PLAZA_PY);
-    g.rotate(DIAG_ANG);
-    g.fillStyle = '#31343a';
-    g.fillRect(0, -DIAG_WIDTH / 2, DIAG_LEN, DIAG_WIDTH);
-    g.fillStyle = '#8d8d86';
-    g.fillRect(0, -DIAG_WIDTH / 2 - SIDEWALK, DIAG_LEN, SIDEWALK);
-    g.fillRect(0, DIAG_WIDTH / 2, DIAG_LEN, SIDEWALK);
-    g.fillStyle = '#c9a227';
-    for (let t = 8; t < DIAG_LEN; t += 16) g.fillRect(t, -1, 9, 2);
-    g.restore();
-
     // Manzanas: vereda + interior
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
         if (cx === PLAZA_CX && cy === PLAZA_CY) continue; // la rotonda se hornea aparte, mas abajo
-        if (inDiagonalBand(cx * CELL + CELL / 2, cy * CELL + CELL / 2)) continue; // la diagonal ya se horneo antes, no la tapes
         const roadX = cx === PLAZA_CX ? AVENUE_ROAD : ROAD;
         const roadY = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
         const bx = cx * CELL + roadX - SIDEWALK, by = cy * CELL + roadY - SIDEWALK;
@@ -330,6 +322,26 @@ class World {
       }
     }
 
+    // Diagonal Norte: franja recta de plaza a Casa Rosada, horneada ENCIMA de manzanas/parques
+    // (asi corta prolijo sobre vereda/pasto en vez de dejar un hueco de asfalto pelado)
+    g.save();
+    g.translate(PLAZA_PX, PLAZA_PY);
+    g.rotate(DIAG_ANG);
+    g.fillStyle = '#8d8d86';
+    g.fillRect(0, -DIAG_WIDTH / 2 - SIDEWALK, DIAG_LEN, SIDEWALK);
+    g.fillRect(0, DIAG_WIDTH / 2, DIAG_LEN, SIDEWALK);
+    g.fillStyle = '#34373d';
+    g.fillRect(0, -DIAG_WIDTH / 2, DIAG_LEN, DIAG_WIDTH);
+    g.fillStyle = '#c9a227';
+    g.fillRect(0, -1, DIAG_LEN, 2);
+    for (let t = 0; t < DIAG_LEN; t += 16) g.fillRect(t, -1, 9, 2);
+    g.fillStyle = 'rgba(235,235,235,.5)';
+    for (let t = 0; t < DIAG_LEN; t += 16) {
+      g.fillRect(t, -DIAG_WIDTH / 2 - 1, 2, 6);
+      g.fillRect(t, DIAG_WIDTH / 2 - 5, 2, 6);
+    }
+    g.restore();
+
     // Riachuelo: cauce azul horneado
     for (const w2 of this.water) {
       g.fillStyle = '#3f7ea6';
@@ -372,7 +384,7 @@ class World {
       g.fillStyle = '#c9a227';
       for (let y = 0; y < WORLD; y += 16) {
         if (this.onRoad(rx + rw / 2, y) && (y % CELL) > rw) {
-          g.fillRect(rx + rw / 2 - 1, y, 2, 9);
+          if (!isAveCol) g.fillRect(rx + rw / 2 - 1, y, 2, 9); // avenida: sin raya al medio, va el cantero
           if (isAveCol) {
             g.fillRect(rx + rw / 2 - 1 - AVENUE_LANE * 1.4, y, 2, 9);
             g.fillRect(rx + rw / 2 - 1 + AVENUE_LANE * 1.4, y, 2, 9);
@@ -381,12 +393,40 @@ class World {
       }
       for (let x = 0; x < WORLD; x += 16) {
         if (this.onRoad(x, ry + rh / 2) && (x % CELL) > rh) {
-          g.fillRect(x, ry + rh / 2 - 1, 9, 2);
+          if (!isAveRow) g.fillRect(x, ry + rh / 2 - 1, 9, 2);
           if (isAveRow) {
             g.fillRect(x, ry + rh / 2 - 1 - AVENUE_LANE * 1.4, 9, 2);
             g.fillRect(x, ry + rh / 2 - 1 + AVENUE_LANE * 1.4, 9, 2);
           }
         }
+      }
+    }
+
+    // Bulevar central: cantero verde arbolado en el medio de la avenida (como la 9 de Julio real)
+    {
+      const midX = PLAZA_CX * CELL + AVENUE_ROAD / 2, midY = PLAZA_CY * CELL + AVENUE_ROAD / 2;
+      const MW = AVENUE_LANE * 0.85;
+      const medianOk = (x, y) => {
+        if (distToRiver(x, y) < RIVER_HALF) return false; // sobre el puente no hay cantero
+        if (obelisco) {
+          const ox = obelisco.x + obelisco.w / 2, oy = obelisco.y + obelisco.h / 2;
+          if (Math.hypot(x - ox, y - oy) < ROTONDA_R + 16) return false; // lo absorbe la rotonda
+        }
+        return true;
+      };
+      g.fillStyle = '#3f5a34';
+      for (let y = 0; y < WORLD; y += 4) {
+        if (this.onRoad(midX, y) && (y % CELL) > AVENUE_ROAD && medianOk(midX, y)) g.fillRect(midX - MW / 2, y, MW, 4);
+      }
+      for (let x = 0; x < WORLD; x += 4) {
+        if (this.onRoad(x, midY) && (x % CELL) > AVENUE_ROAD && medianOk(x, midY)) g.fillRect(x, midY - MW / 2, 4, MW);
+      }
+      g.fillStyle = '#5c7d45';
+      for (let y = 28; y < WORLD; y += 46) {
+        if (this.onRoad(midX, y) && (y % CELL) > AVENUE_ROAD && medianOk(midX, y)) { g.beginPath(); g.arc(midX, y, MW * 0.95, 0, TAU); g.fill(); }
+      }
+      for (let x = 28; x < WORLD; x += 46) {
+        if (this.onRoad(x, midY) && (x % CELL) > AVENUE_ROAD && medianOk(x, midY)) { g.beginPath(); g.arc(x, midY, MW * 0.95, 0, TAU); g.fill(); }
       }
     }
 
@@ -450,9 +490,13 @@ class World {
     m.fillStyle = '#4a5240';
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
-        m.fillRect((cx * CELL + ROAD) * k, (cy * CELL + ROAD) * k, (CELL - ROAD) * k, (CELL - ROAD) * k);
+        const mrx = cx === PLAZA_CX ? AVENUE_ROAD : ROAD, mry = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
+        m.fillRect((cx * CELL + mrx) * k, (cy * CELL + mry) * k, (CELL - mrx) * k, (CELL - mry) * k);
       }
     }
+    m.fillStyle = '#3f5a34'; // bulevar central sobre la avenida, para que se distinga de una calle comun
+    m.fillRect(PLAZA_PX * k - k, 0, 2 * k, MS);
+    m.fillRect(0, PLAZA_PY * k - k, MS, 2 * k);
     m.fillStyle = '#4a5240';
     m.save();
     m.translate(PLAZA_PX * k, PLAZA_PY * k);
