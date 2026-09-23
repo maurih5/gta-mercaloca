@@ -271,8 +271,8 @@ console.log('  poblacion viva: ' + pedsNear + ' peatones, ' + carsNear + ' autos
   const b = G.cars.find(c => c !== a && c !== G.player.car);
   a.ai = false; a.chase = false;
   b.ai = false; b.chase = false;
-  a.x = G.player.x; a.y = G.player.y; a.spd = 100;
-  b.x = G.player.x + 4; b.y = G.player.y; b.spd = -100;
+  a.x = G.player.x; a.y = G.player.y; a.ang = 0; a.spd = 100;
+  b.x = G.player.x + 4; b.y = G.player.y; b.ang = Math.PI; b.spd = 100;
   const d0 = dist(a, b), hpA0 = a.hp, hpB0 = b.hp;
   update(1/60);
   assert.ok(dist(a, b) > d0, 'los autos superpuestos tienen que separarse al chocar');
