@@ -739,12 +739,26 @@ class Game {
         c.ringArc = 0;
       }
 
+      // Diagonal Norte: mientras el auto esta en la franja, mantiene el heading fijo
+      // de la diagonal (el sentido mas cercano a su angulo actual) en vez de cardinal.
+      const inDiag = inDiagonalBand(c.x, c.y);
+      if (inDiag) {
+        const fwdDot = Math.cos(c.ang) * DIAG_UX + Math.sin(c.ang) * DIAG_UY;
+        c.ang = fwdDot >= 0 ? DIAG_ANG : DIAG_ANG + Math.PI;
+        c.turned = true;
+      } else if (c.wasDiag) {
+        const L = laneSnap(c.x, c.y, c.ang);
+        c.x = L.x; c.y = L.y; c.ang = L.ang;
+        c.turned = false;
+      }
+      c.wasDiag = inDiag;
+
       const ox = ((c.x % CELL) + CELL) % CELL, oy = ((c.y % CELL) + CELL) % CELL;
       const rw = Math.floor(c.x / CELL) === PLAZA_CX ? AVENUE_ROAD : ROAD;
       const rh = Math.floor(c.y / CELL) === PLAZA_CY ? AVENUE_ROAD : ROAD;
       const atCross = ox < rw && oy < rh;
-      if (inPlazaCell) {
-        // ya resuelto arriba (entrar a la rotonda / circular), no aplica el criterio de bocacalle comun
+      if (inPlazaCell || inDiag) {
+        // ya resuelto arriba (rotonda / diagonal), no aplica el criterio de bocacalle comun
       } else if (atCross && !c.turned) {
         c.turned = true;
         if (Math.random() < 0.34) {

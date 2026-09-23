@@ -12,6 +12,19 @@ const water = [];
 const casaRosada = [];
 let obelisco = null;
 const PLAZA_CX = GRID >> 1, PLAZA_CY = GRID >> 1;
+// Plaza de Mayo / Casa Rosada: celda fija al sudeste del obelisco, lindante al rio real (distToRiver~570)
+const ROSADA_CX = PLAZA_CX + 3, ROSADA_CY = PLAZA_CY + 3;
+const PLAZA_PX = PLAZA_CX * CELL + CELL / 2, PLAZA_PY = PLAZA_CY * CELL + CELL / 2;
+const ROSADA_PX = ROSADA_CX * CELL + CELL / 2, ROSADA_PY = ROSADA_CY * CELL + CELL / 2;
+const DIAG_WIDTH = ROAD * 1.3;
+const DIAG_LEN = Math.hypot(ROSADA_PX - PLAZA_PX, ROSADA_PY - PLAZA_PY);
+const DIAG_UX = (ROSADA_PX - PLAZA_PX) / DIAG_LEN, DIAG_UY = (ROSADA_PY - PLAZA_PY) / DIAG_LEN;
+const DIAG_ANG = Math.atan2(DIAG_UY, DIAG_UX);
+function inDiagonalBand(x, y) {
+  const px2 = x - PLAZA_PX, py2 = y - PLAZA_PY;
+  const u = px2 * DIAG_UX + py2 * DIAG_UY, v = -px2 * DIAG_UY + py2 * DIAG_UX;
+  return u > 0 && u < DIAG_LEN && Math.abs(v) < DIAG_WIDTH / 2;
+}
 
 // Curva del riachuelo: entra por el borde norte, cruza el centro y sale por el este
 const riverCurve = [
@@ -79,10 +92,12 @@ class World {
         const inner = Math.min(innerW, innerH); // lotes siguen siendo cuadrados, tamano acotado por el eje mas angosto
         const cxCenter = bx + innerW / 2, cyCenter = by + innerH / 2;
         const isPlaza = cx === PLAZA_CX && cy === PLAZA_CY;
+        const isRosada = cx === ROSADA_CX && cy === ROSADA_CY;
+        const isBridge = (cx === PLAZA_CX || cy === PLAZA_CY);
         const d2River = distToRiver(cxCenter, cyCenter);
 
         if (d2River < RIVER_HALF) {
-          this.water.push({ x: bx, y: by, w: innerW, h: innerH });
+          if (!isBridge) this.water.push({ x: bx, y: by, w: innerW, h: innerH });
           continue;
         }
         if (d2River < RIVER_HALF + CELL * 0.4 && Math.hypot(cxCenter - WORLD, cyCenter - WORLD * 0.68) < BEACH_RADIUS) {
@@ -90,7 +105,7 @@ class World {
           continue;
         }
 
-        const park = !isPlaza && (cx + cy) % 9 === 4;
+        const park = !isPlaza && !isRosada && (cx + cy) % 9 === 4;
 
         if (park) {
           this.props.push({ t: 'park', x: bx, y: by, w: innerW, h: innerH });
@@ -103,6 +118,23 @@ class World {
           this.props.push({ t: 'obelisco', x: cxCenter, y: cyCenter });
           continue;
         }
+
+        if (isRosada) {
+          const rw2 = Math.min(inner * 0.55, 90), rh2 = Math.min(inner * 0.4, 60);
+          const b = {
+            id: id++,
+            x: cxCenter - rw2 / 2, y: cyCenter - rh2 / 2, w: rw2, h: rh2, H: 46,
+            ty: BTYPE.find(t => t.k === 'local'), col: '#d88fa0', roofCol: '#f5ead6',
+            ac: false, tank: false, casaRosada: true,
+            door: { x: cxCenter, y: cyCenter + rh2 / 2, ox: 0, oy: 7, s: 's' },
+          };
+          this.buildings.push(b);
+          this.casaRosada.push(b);
+          this.props.push({ t: 'park', x: bx, y: by, w: innerW, h: innerH });
+          continue;
+        }
+
+        if (inDiagonalBand(cxCenter, cyCenter)) continue;
 
         const downtown = Math.abs(cx - GRID / 2) + Math.abs(cy - GRID / 2) < 5;
         const cols = downtown ? (Math.random() < 0.6 ? 1 : 2) : 1 + ((Math.random() * 2) | 0);
@@ -198,22 +230,6 @@ class World {
       }
     }
 
-    // Casa Rosada: edificio existente cerca del centro, pintado de rosa
-    {
-      const tx = WORLD * 0.35, ty = WORLD * 0.55;
-      let best = null, bd = Infinity;
-      for (const b of this.buildings) {
-        if (b.hospital || b.casaRosada || b.ty.k === 'torre') continue;
-        const d = Math.hypot(b.x + b.w / 2 - tx, b.y + b.h / 2 - ty);
-        if (d < bd) { bd = d; best = b; }
-      }
-      if (best) {
-        best.casaRosada = true;
-        best.col = '#d88fa0';
-        best.roofCol = '#f5ead6';
-        this.casaRosada.push(best);
-      }
-    }
   }
 
   /**
@@ -229,10 +245,24 @@ class World {
     g.fillStyle = '#31343a';
     g.fillRect(0, 0, WORLD, WORLD);
 
+    // Diagonal Norte: franja recta de plaza a Casa Rosada, asfalto rotado + linea central punteada
+    g.save();
+    g.translate(PLAZA_PX, PLAZA_PY);
+    g.rotate(DIAG_ANG);
+    g.fillStyle = '#31343a';
+    g.fillRect(0, -DIAG_WIDTH / 2, DIAG_LEN, DIAG_WIDTH);
+    g.fillStyle = '#8d8d86';
+    g.fillRect(0, -DIAG_WIDTH / 2 - SIDEWALK, DIAG_LEN, SIDEWALK);
+    g.fillRect(0, DIAG_WIDTH / 2, DIAG_LEN, SIDEWALK);
+    g.fillStyle = '#c9a227';
+    for (let t = 8; t < DIAG_LEN; t += 16) g.fillRect(t, -1, 9, 2);
+    g.restore();
+
     // Manzanas: vereda + interior
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
         if (cx === PLAZA_CX && cy === PLAZA_CY) continue; // la rotonda se hornea aparte, mas abajo
+        if (inDiagonalBand(cx * CELL + CELL / 2, cy * CELL + CELL / 2)) continue; // la diagonal ya se horneo antes, no la tapes
         const roadX = cx === PLAZA_CX ? AVENUE_ROAD : ROAD;
         const roadY = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
         const bx = cx * CELL + roadX - SIDEWALK, by = cy * CELL + roadY - SIDEWALK;
@@ -307,6 +337,30 @@ class World {
       g.fillStyle = 'rgba(255,255,255,.12)';
       for (let i = 0; i < 12; i++) {
         g.fillRect(w2.x + rnd(0, w2.w), w2.y + rnd(0, w2.h), rnd(6, 16), 2);
+      }
+    }
+
+    // Puentes: celdas de la avenida que cruzan el rio, deck de asfalto con baranda en vez de agua
+    for (let cy = 0; cy < GRID; cy++) {
+      for (let cx = 0; cx < GRID; cx++) {
+        if (cx !== PLAZA_CX && cy !== PLAZA_CY) continue;
+        const ccx = cx * CELL + CELL / 2, ccy = cy * CELL + CELL / 2;
+        if (distToRiver(ccx, ccy) >= RIVER_HALF) continue;
+        const bx = cx * CELL, by = cy * CELL;
+        g.fillStyle = '#57534a';
+        if (cx === PLAZA_CX) {
+          // Puente en la columna avenida: deck vertical de ancho AVENUE_ROAD, atraviesa toda la celda en Y
+          g.fillRect(bx, by, AVENUE_ROAD, CELL);
+          g.fillStyle = '#c9a227';
+          g.fillRect(bx - 5, by, 4, CELL);
+          g.fillRect(bx + AVENUE_ROAD + 1, by, 4, CELL);
+        } else {
+          // Puente en la fila avenida: deck horizontal de alto AVENUE_ROAD, atraviesa toda la celda en X
+          g.fillRect(bx, by, CELL, AVENUE_ROAD);
+          g.fillStyle = '#c9a227';
+          g.fillRect(bx, by - 5, CELL, 4);
+          g.fillRect(bx, by + AVENUE_ROAD + 1, CELL, 4);
+        }
       }
     }
 
@@ -399,6 +453,12 @@ class World {
         m.fillRect((cx * CELL + ROAD) * k, (cy * CELL + ROAD) * k, (CELL - ROAD) * k, (CELL - ROAD) * k);
       }
     }
+    m.fillStyle = '#4a5240';
+    m.save();
+    m.translate(PLAZA_PX * k, PLAZA_PY * k);
+    m.rotate(DIAG_ANG);
+    m.fillRect(0, -DIAG_WIDTH * k / 2, DIAG_LEN * k, DIAG_WIDTH * k);
+    m.restore();
     m.fillStyle = '#6c6c62';
     for (const b of this.buildings) {
       m.fillRect(b.x * k, b.y * k, Math.max(1, b.w * k), Math.max(1, b.h * k));
@@ -438,7 +498,7 @@ class World {
     const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
     const rx = cx === PLAZA_CX ? AVENUE_ROAD : ROAD;
     const ry = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
-    return (x % CELL) < rx || (y % CELL) < ry;
+    return (x % CELL) < rx || (y % CELL) < ry || inDiagonalBand(x, y);
   }
 
   inRotondaRing(x, y) {
