@@ -250,25 +250,76 @@ class Renderer {
     ctx.fillRect(px(tx - 2), px(ty - 2), 4, 4);
   }
 
+  // Arbol del cantero de la avenida: tronco extruido y copa de varios bollos,
+  // para que se lea como arbol y no como una mancha verde redonda.
+  drawArbol(p) {
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x < -30 || y < -40 || x > RW + 30 || y > RH + 30) return;
+    const H = 46 * p.s;
+    let dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL;
+    // Con la camara encima la extrusion da cero y el arbol quedaba como un bollo
+    // verde sin tronco: se le fuerza un alto minimo, hacia arriba por defecto.
+    const len = Math.hypot(dx, dy), MIN = H * 0.62;
+    if (len < MIN) {
+      if (len < 0.01) { dx = 0; dy = -MIN; }
+      else { dx = dx / len * MIN; dy = dy / len * MIN; }
+    }
+    const tx = x + dx, ty = y + dy;
+    ctx.strokeStyle = '#5b452a';
+    ctx.lineWidth = 3.2 * p.s;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+    const sw = Math.sin(G.t * 0.9 + p.x * 0.07) * 0.8;
+    const blobs = [
+      [0, 0, 8.4, '#3f7a38'],
+      [-5.5, -1.5, 6.2, '#4f9143'],
+      [5.5, -1, 6.0, '#356b30'],
+      [0, -5.5, 6.4, '#58a049'],
+      [0, 3.5, 5.6, '#2f6130'],
+    ];
+    for (const [ox, oy, r, col] of blobs) {
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(tx + (ox + sw) * p.s, ty + oy * p.s, r * p.s, 0, TAU);
+      ctx.fill();
+    }
+  }
+
   drawObelisco(o) {
     const ctx = this.ctx;
     const x = o.x - G.cam.x, y = o.y - G.cam.y;
     if (x < -60 || y < -260 || x > RW + 60 || y > RH + 60) return;
     const H = 130;
-    const dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL;
-    const tx = x + dx, ty = y + dy, w = 9;
+    let dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL;
+    // Parado al lado del obelisco la extrusion da casi cero y el monumento se
+    // aplastaba contra el piso. Se le fuerza un largo minimo (y hacia arriba si
+    // estas justo encima) para que siempre se lea como una aguja alta.
+    const len = Math.hypot(dx, dy), MIN = H * 0.55;
+    if (len < MIN) {
+      if (len < 0.01) { dx = 0; dy = -MIN; }
+      else { dx = dx / len * MIN; dy = dy / len * MIN; }
+    }
+    const tx = x + dx, ty = y + dy;
+    const w = 9, tw = w * 0.55; // se afina hacia la punta, como el de verdad
+    // Normal del eje, para que las caras acompanen la direccion en que se proyecta
+    const nl = Math.hypot(dx, dy), nx = -dy / nl, ny = dx / nl;
     ctx.fillStyle = '#6b6a63';
     ctx.fillRect(px(x - w), px(y), w * 2, 4);
-    ctx.fillStyle = '#e8e6de';
-    this.quad(x - w, y, x + w, y, tx + w, ty, tx - w, ty, '#d8d6cc');
-    // Sombra lateral para dar volumen a la cara este
-    this.quad(x, y, x + w, y, tx + w, ty, tx, ty, '#bcb9ae');
-    ctx.fillStyle = '#c8c6bc';
-    ctx.fillRect(px(tx - w), px(ty), w * 2, 1);
+    // Fuste completo
+    this.quad(x - nx * w, y - ny * w, x + nx * w, y + ny * w,
+      tx + nx * tw, ty + ny * tw, tx - nx * tw, ty - ny * tw, '#e0ded4');
+    // Media cara en sombra: siempre la del lado contrario a la luz (arriba-izq)
+    const s = (nx * -0.7 + ny * -0.7) >= 0 ? 1 : -1;
+    this.quad(x, y, x + nx * w * s, y + ny * w * s,
+      tx + nx * tw * s, ty + ny * tw * s, tx, ty, '#b9b6ab');
+    // Punta piramidal, siguiendo el eje del fuste
     ctx.beginPath();
-    ctx.moveTo(tx - w, ty);
-    ctx.lineTo(tx + w, ty);
-    ctx.lineTo(tx, ty - 20);
+    ctx.moveTo(tx - nx * tw, ty - ny * tw);
+    ctx.lineTo(tx + nx * tw, ty + ny * tw);
+    ctx.lineTo(tx + dx / nl * 18, ty + dy / nl * 18);
     ctx.closePath();
     ctx.fillStyle = '#f0eee6';
     ctx.fill();
@@ -862,7 +913,11 @@ class Renderer {
     );
 
     for (const b of vis) this.drawBuilding(b, night);
-    for (const p of props) if (p.t === 'palm') this.drawPalm(p); else if (p.t === 'obelisco') this.drawObelisco(p);
+    for (const p of props) {
+      if (p.t === 'palm') this.drawPalm(p);
+      else if (p.t === 'arbol') this.drawArbol(p);
+      else if (p.t === 'obelisco') this.drawObelisco(p);
+    }
     for (const l of lamps) this.drawLamp(l, night);
     for (const L of lights) if (L) this.drawTrafficLight(L);
 

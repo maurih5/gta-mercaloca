@@ -471,11 +471,19 @@ class World {
     g.save();
     g.translate(PLAZA_PX, PLAZA_PY);
     g.rotate(DIAG_ANG);
-    g.fillStyle = '#8d8d86';
-    g.fillRect(0, -DIAG_WIDTH / 2 - SIDEWALK, DIAG_LEN, SIDEWALK);
-    g.fillRect(0, DIAG_WIDTH / 2, DIAG_LEN, SIDEWALK);
     g.fillStyle = '#34373d';
     g.fillRect(0, -DIAG_WIDTH / 2, DIAG_LEN, DIAG_WIDTH);
+    // La vereda va en tramos, no corrida: donde la diagonal cruza una calle cardinal
+    // tiene que haber asfalto, no un cordon plantado en medio de la bocacalle.
+    g.fillStyle = '#8d8d86';
+    for (let t = 0; t < DIAG_LEN; t += 2) {
+      for (const side of [-DIAG_WIDTH / 2 - SIDEWALK, DIAG_WIDTH / 2]) {
+        const wx = PLAZA_PX + Math.cos(DIAG_ANG) * t - Math.sin(DIAG_ANG) * (side + SIDEWALK / 2);
+        const wy = PLAZA_PY + Math.sin(DIAG_ANG) * t + Math.cos(DIAG_ANG) * (side + SIDEWALK / 2);
+        if (this.onRoadCardinal(wx, wy)) continue; // es bocacalle, la vereda se interrumpe
+        g.fillRect(t, side, 2, SIDEWALK);
+      }
+    }
     g.fillStyle = '#c9a227';
     g.fillRect(0, -1, DIAG_LEN, 2);
     for (let t = 0; t < DIAG_LEN; t += 16) g.fillRect(t, -1, 9, 2);
@@ -577,12 +585,20 @@ class World {
       for (let x = 0; x < WORLD; x += 4) {
         if (this.onRoad(x, midY) && (x % CELL) > AVENUE_ROAD && medianOk(x, midY)) g.fillRect(x, midY - MW / 2, 4, MW);
       }
-      g.fillStyle = '#5c7d45';
-      for (let y = 28; y < WORLD; y += 46) {
-        if (this.onRoad(midX, y) && (y % CELL) > AVENUE_ROAD && medianOk(midX, y)) { g.beginPath(); g.arc(midX, y, MW * 0.95, 0, TAU); g.fill(); }
+      // Los arboles del cantero son props de verdad (se dibujan con volumen en el
+      // renderer), aca solo va la sombra horneada al pie de cada uno.
+      g.fillStyle = 'rgba(0,0,0,.22)';
+      for (let y = 28; y < WORLD; y += 30) {
+        if (this.onRoad(midX, y) && (y % CELL) > AVENUE_ROAD && medianOk(midX, y)) {
+          this.props.push({ t: 'arbol', x: midX, y, s: rnd(0.9, 1.25) });
+          g.beginPath(); g.ellipse(midX + 4, y + 5, MW * 0.8, MW * 0.5, 0, 0, TAU); g.fill();
+        }
       }
-      for (let x = 28; x < WORLD; x += 46) {
-        if (this.onRoad(x, midY) && (x % CELL) > AVENUE_ROAD && medianOk(x, midY)) { g.beginPath(); g.arc(x, midY, MW * 0.95, 0, TAU); g.fill(); }
+      for (let x = 28; x < WORLD; x += 30) {
+        if (this.onRoad(x, midY) && (x % CELL) > AVENUE_ROAD && medianOk(x, midY)) {
+          this.props.push({ t: 'arbol', x, y: midY, s: rnd(0.9, 1.25) });
+          g.beginPath(); g.ellipse(x + 4, midY + 5, MW * 0.8, MW * 0.5, 0, 0, TAU); g.fill();
+        }
       }
     }
 
@@ -699,6 +715,16 @@ class World {
     rg.addColorStop(1, 'rgba(0,0,0,.55)');
     vg.fillStyle = rg;
     vg.fillRect(0, 0, RW, RH);
+  }
+
+  // Solo la grilla cardinal, sin contar la diagonal: sirve para saber donde la
+  // diagonal cruza una bocacalle y tiene que cortar su vereda.
+  onRoadCardinal(x, y) {
+    if (inPlazaMayo(x, y)) return false;
+    const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
+    const rx = cx === PLAZA_CX ? AVENUE_ROAD : ROAD;
+    const ry = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
+    return (x % CELL) < rx || (y % CELL) < ry;
   }
 
   onRoad(x, y) {
