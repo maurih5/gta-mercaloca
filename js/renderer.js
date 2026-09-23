@@ -685,11 +685,39 @@ class Renderer {
     if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#f5f0e0', 3);
     for (const c of G.cops) dot(c, '#4aa3ff');
     for (const c of G.cars) if (c.chase && c.hp > 0) dot(c, '#2a6aff', 3);
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(px((P.x - sx) * k) - 2, px((P.y - sy) * k) - 2, 4, 4);
+
+    // Marcador del jugador: bien resaltado, con anillo pulsante y flecha de rumbo
+    const cx = (P.x - sx) * k, cy = (P.y - sy) * k;
+    const now = (typeof performance !== 'undefined') ? performance.now() : 0;
+    const pulse = 4 + Math.sin(now / 180) * 1.6;
+    ctx.strokeStyle = 'rgba(255,211,74,.85)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, pulse + 4, 0, TAU);
+    ctx.stroke();
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4.5, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#ffd34a';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3.2, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(P.ang) * 10, cy + Math.sin(P.ang) * 10);
+    ctx.stroke();
+    ctx.strokeStyle = '#ffd34a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(P.ang) * 10, cy + Math.sin(P.ang) * 10);
+    ctx.stroke();
 
     this.text('MAPA', RW / 2, 12, '#ffd34a', 10, 'center');
-    this.text('M cerrar · +/- zoom', RW / 2, RH - 10, '#ccc', 7, 'center');
+    this.text('M cerrar · +/- o rueda: zoom', RW / 2, RH - 10, '#ccc', 7, 'center');
   }
 
   text(t, x, y, col = '#fff', size = 8, align = 'left') {
