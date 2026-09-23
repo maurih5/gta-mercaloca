@@ -588,13 +588,13 @@ class World {
       // Los arboles del cantero son props de verdad (se dibujan con volumen en el
       // renderer), aca solo va la sombra horneada al pie de cada uno.
       g.fillStyle = 'rgba(0,0,0,.22)';
-      for (let y = 28; y < WORLD; y += 30) {
+      for (let y = 28; y < WORLD; y += 38) {
         if (this.onRoad(midX, y) && (y % CELL) > AVENUE_ROAD && medianOk(midX, y)) {
           this.props.push({ t: 'arbol', x: midX, y, s: rnd(0.9, 1.25) });
           g.beginPath(); g.ellipse(midX + 4, y + 5, MW * 0.8, MW * 0.5, 0, 0, TAU); g.fill();
         }
       }
-      for (let x = 28; x < WORLD; x += 30) {
+      for (let x = 28; x < WORLD; x += 38) {
         if (this.onRoad(x, midY) && (x % CELL) > AVENUE_ROAD && medianOk(x, midY)) {
           this.props.push({ t: 'arbol', x, y: midY, s: rnd(0.9, 1.25) });
           g.beginPath(); g.ellipse(x + 4, midY + 5, MW * 0.8, MW * 0.5, 0, 0, TAU); g.fill();
