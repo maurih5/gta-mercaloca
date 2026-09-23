@@ -153,6 +153,14 @@ class Renderer {
       ctx.fillRect(px(ccx - cs * 0.75), px(ccy - cs * 0.22), cs * 1.5, cs * 0.44);
     }
 
+    if (b.casaRosada) {
+      const bcx = rx + b.w / 2, bs = Math.min(b.w, b.h) * 0.2;
+      ctx.fillStyle = '#f5ead6';
+      ctx.fillRect(px(bcx - bs), px(ry + b.h * 0.6), bs * 2, bs * 0.7);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(px(bcx - bs * 0.12), px(ry + b.h * 0.1), bs * 0.24, bs * 0.9);
+    }
+
     if (det === 'ac' || b.ac) {
       for (let i = 0; i < 2; i++) {
         const ax2 = rx + b.w * (0.22 + i * 0.3), ay2 = ry + b.h * 0.2;
@@ -235,6 +243,28 @@ class Renderer {
     }
     ctx.fillStyle = '#4a3a22';
     ctx.fillRect(px(tx - 2), px(ty - 2), 4, 4);
+  }
+
+  drawObelisco(o) {
+    const ctx = this.ctx;
+    const x = o.x - G.cam.x, y = o.y - G.cam.y;
+    if (x < -60 || y < -180 || x > RW + 60 || y > RH + 60) return;
+    const H = 90;
+    const dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL;
+    const tx = x + dx, ty = y + dy, w = 7;
+    ctx.fillStyle = '#6b6a63';
+    ctx.fillRect(px(x - w), px(y), w * 2, 4);
+    ctx.fillStyle = '#e8e6de';
+    this.quad(x - w, y, x + w, y, tx + w, ty, tx - w, ty, '#d8d6cc');
+    ctx.fillStyle = '#c8c6bc';
+    ctx.fillRect(px(tx - w), px(ty), w * 2, 1);
+    ctx.beginPath();
+    ctx.moveTo(tx - w, ty);
+    ctx.lineTo(tx + w, ty);
+    ctx.lineTo(tx, ty - 14);
+    ctx.closePath();
+    ctx.fillStyle = '#f0eee6';
+    ctx.fill();
   }
 
   drawTrafficLight(L) {
@@ -616,6 +646,8 @@ class Renderer {
     };
     for (const pk of G.pickups) dot(pk, pk.kind === 'cash' ? '#5ad25a' : '#ff5a5a');
     for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
+    for (const cr of casaRosada) dot({ x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }, '#ff8fc0', 3);
+    if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#f5f0e0', 3);
     for (const c of G.cops) dot(c, '#4aa3ff');
     for (const c of G.cars) if (c.chase && c.hp > 0) dot(c, '#2a6aff', 3);
     ctx.fillStyle = '#fff';
@@ -761,7 +793,7 @@ class Renderer {
     );
 
     for (const b of vis) this.drawBuilding(b, night);
-    for (const p of props) if (p.t === 'palm') this.drawPalm(p);
+    for (const p of props) if (p.t === 'palm') this.drawPalm(p); else if (p.t === 'obelisco') this.drawObelisco(p);
     for (const l of lamps) this.drawLamp(l, night);
     for (const L of lights) this.drawTrafficLight(L);
 
@@ -820,6 +852,7 @@ const drawGround = () => renderer.drawGround();
 const drawBuilding = (b, night) => renderer.drawBuilding(b, night);
 const drawPickup = pk => renderer.drawPickup(pk);
 const drawPalm = p => renderer.drawPalm(p);
+const drawObelisco = o => renderer.drawObelisco(o);
 const drawTrafficLight = L => renderer.drawTrafficLight(L);
 const drawLamp = (l, night) => renderer.drawLamp(l, night);
 const drawGuy = (e, faceKey, shirt, pants, hurt) => renderer.drawGuy(e, faceKey, shirt, pants, hurt);

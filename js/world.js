@@ -8,6 +8,32 @@ const props = [];
 const lamps = [];
 const lights = [];
 const hospitals = [];
+const water = [];
+const casaRosada = [];
+let obelisco = null;
+
+// Curva del riachuelo: entra por el borde norte, cruza el centro y sale por el este
+const riverCurve = [
+  { x: WORLD * 0.30, y: 0 },
+  { x: WORLD * 0.55, y: WORLD * 0.55 },
+  { x: WORLD, y: WORLD * 0.68 },
+];
+const riverPts = (() => {
+  const [a, b, c] = riverCurve, pts = [];
+  for (let i = 0; i <= 100; i++) {
+    const t = i / 100, mt = 1 - t;
+    pts.push({
+      x: mt * mt * a.x + 2 * mt * t * b.x + t * t * c.x,
+      y: mt * mt * a.y + 2 * mt * t * b.y + t * t * c.y,
+    });
+  }
+  return pts;
+})();
+function distToRiver(x, y) {
+  let best = Infinity;
+  for (const p of riverPts) best = Math.min(best, Math.hypot(x - p.x, y - p.y));
+  return best;
+}
 
 // Buffers gráficos pre-renderizados del mundo e iluminación
 let GROUND = null, GCTX = null, MINI = null;
@@ -21,6 +47,8 @@ class World {
     this.lamps = lamps;
     this.lights = lights;
     this.hospitals = hospitals;
+    this.water = water;
+    this.casaRosada = casaRosada;
   }
 
   /**
@@ -33,16 +61,41 @@ class World {
     this.lamps.length = 0;
     this.lights.length = 0;
     this.hospitals.length = 0;
+    this.water.length = 0;
+    this.casaRosada.length = 0;
+    obelisco = null;
+
+    const plazaCx = GRID >> 1, plazaCy = GRID >> 1;
 
     let id = 0;
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
         const bx = cx * CELL + ROAD, by = cy * CELL + ROAD;
         const inner = CELL - ROAD;
-        const park = (cx + cy) % 9 === 4;
+        const cxCenter = bx + inner / 2, cyCenter = by + inner / 2;
+        const isPlaza = cx === plazaCx && cy === plazaCy;
+        const d2River = distToRiver(cxCenter, cyCenter);
+
+        if (d2River < RIVER_HALF) {
+          this.water.push({ x: bx, y: by, w: inner, h: inner });
+          continue;
+        }
+        if (d2River < RIVER_HALF + CELL * 0.4 && Math.hypot(cxCenter - WORLD, cyCenter - WORLD * 0.68) < BEACH_RADIUS) {
+          this.props.push({ t: 'beach', x: bx, y: by, w: inner, h: inner });
+          continue;
+        }
+
+        const park = !isPlaza && (cx + cy) % 9 === 4;
 
         if (park) {
           this.props.push({ t: 'park', x: bx, y: by, w: inner, h: inner });
+          continue;
+        }
+
+        if (isPlaza) {
+          this.props.push({ t: 'park', x: bx, y: by, w: inner, h: inner });
+          obelisco = { x: cxCenter - 5, y: cyCenter - 5, w: 10, h: 10 };
+          this.props.push({ t: 'obelisco', x: cxCenter, y: cyCenter });
           continue;
         }
 
@@ -133,6 +186,23 @@ class World {
         this.hospitals.push(best);
       }
     }
+
+    // Casa Rosada: edificio existente cerca del centro, pintado de rosa
+    {
+      const tx = WORLD * 0.35, ty = WORLD * 0.55;
+      let best = null, bd = Infinity;
+      for (const b of this.buildings) {
+        if (b.hospital || b.casaRosada || b.ty.k === 'torre') continue;
+        const d = Math.hypot(b.x + b.w / 2 - tx, b.y + b.h / 2 - ty);
+        if (d < bd) { bd = d; best = b; }
+      }
+      if (best) {
+        best.casaRosada = true;
+        best.col = '#d88fa0';
+        best.roofCol = '#f5ead6';
+        this.casaRosada.push(best);
+      }
+    }
   }
 
   /**
@@ -184,6 +254,23 @@ class World {
         g.fillStyle = '#9a8a6a'; // Senderito
         g.fillRect(p.x, p.y + p.h / 2 - 5, p.w, 10);
         g.fillRect(p.x + p.w / 2 - 5, p.y, 10, p.h);
+      } else if (p.t === 'beach') {
+        g.fillStyle = '#dfc98a';
+        g.fillRect(p.x, p.y, p.w, p.h);
+        g.fillStyle = 'rgba(150,120,60,.18)';
+        for (let i = 0; i < 24; i++) {
+          g.fillRect(p.x + rnd(0, p.w), p.y + rnd(0, p.h), rnd(2, 5), rnd(2, 4));
+        }
+      }
+    }
+
+    // Riachuelo: cauce azul horneado
+    for (const w2 of this.water) {
+      g.fillStyle = '#3f7ea6';
+      g.fillRect(w2.x, w2.y, w2.w, w2.h);
+      g.fillStyle = 'rgba(255,255,255,.12)';
+      for (let i = 0; i < 12; i++) {
+        g.fillRect(w2.x + rnd(0, w2.w), w2.y + rnd(0, w2.h), rnd(6, 16), 2);
       }
     }
 
@@ -268,6 +355,14 @@ class World {
     for (const b of this.buildings) {
       m.fillRect(b.x * k, b.y * k, Math.max(1, b.w * k), Math.max(1, b.h * k));
     }
+    m.fillStyle = '#3f7ea6';
+    for (const w2 of this.water) {
+      m.fillRect(w2.x * k, w2.y * k, Math.max(1, w2.w * k), Math.max(1, w2.h * k));
+    }
+    m.fillStyle = '#dfc98a';
+    for (const p of this.props) {
+      if (p.t === 'beach') m.fillRect(p.x * k, p.y * k, Math.max(1, p.w * k), Math.max(1, p.h * k));
+    }
 
     // Lightmap y viñeta
     LIGHT = document.createElement('canvas');
@@ -323,6 +418,14 @@ class World {
       if (x + r > b.x && x - r < b.x + b.w && y + r > b.y && y - r < b.y + b.h) {
         return b;
       }
+    }
+    for (const w of this.water) {
+      if (x + r > w.x && x - r < w.x + w.w && y + r > w.y && y - r < w.y + w.h) {
+        return w;
+      }
+    }
+    if (obelisco && x + r > obelisco.x && x - r < obelisco.x + obelisco.w && y + r > obelisco.y && y - r < obelisco.y + obelisco.h) {
+      return obelisco;
     }
     return null;
   }
@@ -441,3 +544,4 @@ const nearestDoor = (x, y, maxD) => world.nearestDoor(x, y, maxD);
 const dayT = () => world.dayT();
 const ambient = () => world.ambient();
 const darkness = () => world.darkness();
+const getObelisco = () => obelisco;

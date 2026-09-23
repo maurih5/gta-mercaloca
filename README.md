@@ -66,9 +66,9 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 
 ### 🗺️ Mundo & Ubicaciones
 - [x] Ampliar el mapa a 24x24 (#38)
-- [ ] Riachuelo que cruza el mapa y desemboca en la playa (#39)
-- [ ] Obelisco como landmark navegable (#33)
-- [ ] Casa Rosada como landmark, con actividad de NPCs (#34)
+- [x] Riachuelo que cruza el mapa y desemboca en la playa (#39)
+- [x] Obelisco como landmark navegable (#33)
+- [x] Casa Rosada como landmark, con actividad de NPCs (#34)
 - [ ] Supermercado Coto (con carne) (#30)
 - [ ] Supermercado económico estilo Día (sin carne, más barato) (#31)
 - [ ] Poder robar los supermercados: alarma, botín, testigos, respuesta policial (#32)

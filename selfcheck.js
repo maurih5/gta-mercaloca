@@ -29,12 +29,14 @@ const api = new Function(js + `
          startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
          PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
          lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
-         bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup};`)();
+         bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup,
+         water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
        lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
-       bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup} = api;
+       bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup,
+       water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS} = api;
 
 // --- helpers de color ---
 assert.equal(shade('#808080', 1), 'rgb(128,128,128)');
@@ -99,6 +101,38 @@ for(const h of hospitals){
 }
 assert.ok(dist(hospitals[0], hospitals[1]) > CELL * 3, 'los hospitales tienen que estar lejos entre si: ' + dist(hospitals[0], hospitals[1]));
 
+// --- riachuelo, playa, obelisco y casa rosada ---
+{
+  const p0 = riverCurve[0], p2 = riverCurve[2], eps = 4;
+  const onBorder = p => (Math.abs(p.x) < eps ? 'w' : Math.abs(p.x - WORLD) < eps ? 'e'
+    : Math.abs(p.y) < eps ? 'n' : Math.abs(p.y - WORLD) < eps ? 's' : null);
+  const b0 = onBorder(p0), b2 = onBorder(p2);
+  assert.ok(b0, 'el riachuelo tiene que arrancar pegado a un borde del mapa: ' + JSON.stringify(p0));
+  assert.ok(b2, 'el riachuelo tiene que terminar pegado a un borde del mapa: ' + JSON.stringify(p2));
+  assert.notEqual(b0, b2, 'el riachuelo tiene que cruzar el mapa entre dos bordes distintos: ' + b0 + '/' + b2);
+}
+assert.ok(props.some(p => p.t === 'beach'), 'tiene que existir una playa en la desembocadura del riachuelo');
+{
+  const w0 = water[0], cx = w0.x + w0.w / 2, cy = w0.y + w0.h / 2;
+  assert.ok(hitBuilding(cx, cy, 3), 'el riachuelo tiene que bloquear el paso como un edificio: ' + JSON.stringify(w0));
+}
+{
+  const ob = getObelisco();
+  assert.ok(ob, 'el obelisco tiene que existir');
+  assert.ok(ob.w < 20, 'el obelisco tiene que ser chico para poder rodearlo: ' + ob.w);
+  assert.ok(!buildings.includes(ob), 'el obelisco no puede ser un edificio mas de la ciudad');
+  const cx = ob.x + ob.w / 2, cy = ob.y + ob.h / 2, r = ob.w / 2 + 8;
+  for (let i = 0; i < 16; i++) {
+    const a = i / 16 * Math.PI * 2;
+    const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+    assert.ok(!hitBuilding(px, py, 3), 'el obelisco tiene que ser navegable por el perimetro: ' + JSON.stringify({ px, py }));
+  }
+}
+assert.equal(casaRosada.length, 1, 'tiene que existir una sola Casa Rosada: ' + casaRosada.length);
+assert.ok(buildings.includes(casaRosada[0]), 'la Casa Rosada tiene que ser un edificio real de la ciudad');
+assert.ok(casaRosada[0].door, 'la Casa Rosada tiene que tener puerta');
+assert.ok(!casaRosada[0].hospital, 'la Casa Rosada no puede ser tambien un hospital');
+
 // --- ciclo dia/noche: siempre color valido y oscuridad en [0,1] ---
 for(let t=0; t<DAY*2; t+=1.7){
   G.t = t;
@@ -114,6 +148,11 @@ assert.equal(G.state, 'play');
 assert.equal(G.cars.length, CAR_TARGET); assert.equal(G.peds.length, PED_TARGET);
 assert.equal(G.pickups.length, 18);
 assert.ok(PEDTYPE.length >= 5 && CARMODEL.length >= 6, 'variedad de peatones y autos');
+// guardias fijos en la puerta de la Casa Rosada
+assert.equal(G.guards.length, CASA_ROSADA_GUARDS, 'tienen que spawnear los guardias de la Casa Rosada: ' + G.guards.length);
+for (const g of G.guards) {
+  assert.ok(dist(g, casaRosada[0].door) < 40, 'el guardia tiene que estar posta en la puerta de la Casa Rosada');
+}
 // todo auto arranca sobre la calle y alineado a un eje
 for(const c of G.cars){
   assert.ok(onRoad(c.x, c.y), 'auto fuera de la calle al spawnear');
@@ -164,6 +203,10 @@ for(const p of G.peds){
 // nadie trabado mucho tiempo contra una pared
 const stuckPeds = G.peds.filter(p => p.hp > 0 && (p.stuck || 0) > 1.2).length;
 assert.ok(stuckPeds === 0, 'peatones trabados contra un borde: ' + stuckPeds);
+// los guardias de la Casa Rosada son postas fijas: siguen en la puerta despues de 60s de simulacion
+for (const g of G.guards) {
+  assert.ok(dist(g, casaRosada[0].door) < 40, 'el guardia se movio de su posta tras la simulacion: ' + dist(g, casaRosada[0].door));
+}
 // toSidewalk siempre devuelve un punto dentro de la franja de vereda
 for(let i=0;i<300;i++){
   const t = toSidewalk(Math.random()*WORLD, Math.random()*WORLD);
