@@ -248,20 +248,22 @@ class Renderer {
   drawObelisco(o) {
     const ctx = this.ctx;
     const x = o.x - G.cam.x, y = o.y - G.cam.y;
-    if (x < -60 || y < -180 || x > RW + 60 || y > RH + 60) return;
-    const H = 90;
+    if (x < -60 || y < -260 || x > RW + 60 || y > RH + 60) return;
+    const H = 130;
     const dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL;
-    const tx = x + dx, ty = y + dy, w = 7;
+    const tx = x + dx, ty = y + dy, w = 9;
     ctx.fillStyle = '#6b6a63';
     ctx.fillRect(px(x - w), px(y), w * 2, 4);
     ctx.fillStyle = '#e8e6de';
     this.quad(x - w, y, x + w, y, tx + w, ty, tx - w, ty, '#d8d6cc');
+    // Sombra lateral para dar volumen a la cara este
+    this.quad(x, y, x + w, y, tx + w, ty, tx, ty, '#bcb9ae');
     ctx.fillStyle = '#c8c6bc';
     ctx.fillRect(px(tx - w), px(ty), w * 2, 1);
     ctx.beginPath();
     ctx.moveTo(tx - w, ty);
     ctx.lineTo(tx + w, ty);
-    ctx.lineTo(tx, ty - 14);
+    ctx.lineTo(tx, ty - 20);
     ctx.closePath();
     ctx.fillStyle = '#f0eee6';
     ctx.fill();
@@ -534,6 +536,7 @@ class Renderer {
         any = true;
       }
       for (const L of lights) {
+        if (!L) continue;
         const x = L.x - G.cam.x, y = L.y - G.cam.y;
         if (x < -ROAD - 40 || y < -ROAD - 40 || x > RW + ROAD + 40 || y > RH + ROAD + 40) continue;
         const off = ROAD / 2 + 4, H = 19;
@@ -856,7 +859,7 @@ class Renderer {
     for (const b of vis) this.drawBuilding(b, night);
     for (const p of props) if (p.t === 'palm') this.drawPalm(p); else if (p.t === 'obelisco') this.drawObelisco(p);
     for (const l of lamps) this.drawLamp(l, night);
-    for (const L of lights) this.drawTrafficLight(L);
+    for (const L of lights) if (L) this.drawTrafficLight(L);
 
     if (P) {
       if (P.car) this.drawCar(P.car, night);

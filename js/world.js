@@ -11,6 +11,7 @@ const hospitals = [];
 const water = [];
 const casaRosada = [];
 let obelisco = null;
+const PLAZA_CX = GRID >> 1, PLAZA_CY = GRID >> 1;
 
 // Curva del riachuelo: entra por el borde norte, cruza el centro y sale por el este
 const riverCurve = [
@@ -65,15 +66,15 @@ class World {
     this.casaRosada.length = 0;
     obelisco = null;
 
-    const plazaCx = GRID >> 1, plazaCy = GRID >> 1;
-
     let id = 0;
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
-        const bx = cx * CELL + ROAD, by = cy * CELL + ROAD;
-        const inner = CELL - ROAD;
+        // Fila/columna de la avenida central: banda de camino mas ancha en ese eje
+        const roadW = Math.max(cx === PLAZA_CX ? AVENUE_ROAD : ROAD, cy === PLAZA_CY ? AVENUE_ROAD : ROAD);
+        const bx = cx * CELL + roadW, by = cy * CELL + roadW;
+        const inner = CELL - roadW;
         const cxCenter = bx + inner / 2, cyCenter = by + inner / 2;
-        const isPlaza = cx === plazaCx && cy === plazaCy;
+        const isPlaza = cx === PLAZA_CX && cy === PLAZA_CY;
         const d2River = distToRiver(cxCenter, cyCenter);
 
         if (d2River < RIVER_HALF) {
@@ -93,8 +94,8 @@ class World {
         }
 
         if (isPlaza) {
-          this.props.push({ t: 'park', x: bx, y: by, w: inner, h: inner });
           obelisco = { x: cxCenter - 5, y: cyCenter - 5, w: 10, h: 10 };
+          this.props.push({ t: 'rotonda', x: cxCenter, y: cyCenter, rIsland: ROTONDA_ISLAND_R, rRing: ROTONDA_R });
           this.props.push({ t: 'obelisco', x: cxCenter, y: cyCenter });
           continue;
         }
@@ -156,9 +157,15 @@ class World {
       }
     }
 
-    // Semáforos: uno por bocacalle con fases desfasadas en damero
+    // Semáforos: uno por bocacalle con fases desfasadas en damero.
+    // La bocacalle de la plaza no tiene semaforo (es una rotonda real) pero se empuja
+    // `null` para no correr el indice `gy*GRID+gx` que usa lightAhead().
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
+        if (cx === PLAZA_CX && cy === PLAZA_CY) {
+          this.lights.push(null);
+          continue;
+        }
         this.lights.push({
           cx,
           cy,
@@ -221,8 +228,10 @@ class World {
     // Manzanas: vereda + interior
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
-        const bx = cx * CELL + ROAD - SIDEWALK, by = cy * CELL + ROAD - SIDEWALK;
-        const s = CELL - ROAD + SIDEWALK * 2;
+        if (cx === PLAZA_CX && cy === PLAZA_CY) continue; // la rotonda se hornea aparte, mas abajo
+        const roadW = Math.max(cx === PLAZA_CX ? AVENUE_ROAD : ROAD, cy === PLAZA_CY ? AVENUE_ROAD : ROAD);
+        const bx = cx * CELL + roadW - SIDEWALK, by = cy * CELL + roadW - SIDEWALK;
+        const s = CELL - roadW + SIDEWALK * 2;
         g.fillStyle = '#8d8d86';
         g.fillRect(bx, by, s, s);
         g.fillStyle = '#7a7a73';
@@ -261,6 +270,30 @@ class World {
         for (let i = 0; i < 24; i++) {
           g.fillRect(p.x + rnd(0, p.w), p.y + rnd(0, p.h), rnd(2, 5), rnd(2, 4));
         }
+      } else if (p.t === 'rotonda') {
+        // Anillo de asfalto que circulan los autos
+        g.fillStyle = '#33363c';
+        g.beginPath();
+        g.arc(p.x, p.y, p.rRing, 0, TAU);
+        g.fill();
+        // Marcas circulares concentricas (division de carriles del anillo)
+        g.strokeStyle = 'rgba(235,235,235,.4)';
+        g.lineWidth = 2;
+        g.setLineDash([10, 8]);
+        g.beginPath();
+        g.arc(p.x, p.y, (p.rIsland + p.rRing) / 2, 0, TAU);
+        g.stroke();
+        g.setLineDash([]);
+        // Cordon entre anillo e isla
+        g.fillStyle = '#8d8d86';
+        g.beginPath();
+        g.arc(p.x, p.y, p.rIsland + 4, 0, TAU);
+        g.fill();
+        // Isla peatonal central
+        g.fillStyle = '#5a6247';
+        g.beginPath();
+        g.arc(p.x, p.y, p.rIsland, 0, TAU);
+        g.fill();
       }
     }
 
@@ -276,16 +309,26 @@ class World {
 
     // Líneas divisoras y cebras
     for (let i = 0; i <= GRID; i++) {
+      const isAveCol = i === PLAZA_CX, isAveRow = i === PLAZA_CY;
       const rx = i * CELL, ry = i * CELL;
+      const rw = isAveCol ? AVENUE_ROAD : ROAD, rh = isAveRow ? AVENUE_ROAD : ROAD;
       g.fillStyle = '#c9a227';
       for (let y = 0; y < WORLD; y += 16) {
-        if (this.onRoad(rx + ROAD / 2, y) && (y % CELL) > ROAD) {
-          g.fillRect(rx + ROAD / 2 - 1, y, 2, 9);
+        if (this.onRoad(rx + rw / 2, y) && (y % CELL) > rw) {
+          g.fillRect(rx + rw / 2 - 1, y, 2, 9);
+          if (isAveCol) {
+            g.fillRect(rx + rw / 2 - 1 - AVENUE_LANE * 1.4, y, 2, 9);
+            g.fillRect(rx + rw / 2 - 1 + AVENUE_LANE * 1.4, y, 2, 9);
+          }
         }
       }
       for (let x = 0; x < WORLD; x += 16) {
-        if (this.onRoad(x, ry + ROAD / 2) && (x % CELL) > ROAD) {
-          g.fillRect(x, ry + ROAD / 2 - 1, 9, 2);
+        if (this.onRoad(x, ry + rh / 2) && (x % CELL) > rh) {
+          g.fillRect(x, ry + rh / 2 - 1, 9, 2);
+          if (isAveRow) {
+            g.fillRect(x, ry + rh / 2 - 1 - AVENUE_LANE * 1.4, 9, 2);
+            g.fillRect(x, ry + rh / 2 - 1 + AVENUE_LANE * 1.4, 9, 2);
+          }
         }
       }
     }
@@ -293,12 +336,14 @@ class World {
     g.fillStyle = 'rgba(235,235,235,.55)';
     for (let cy = 0; cy <= GRID; cy++) {
       for (let cx = 0; cx <= GRID; cx++) {
+        if (cx === PLAZA_CX && cy === PLAZA_CY) continue; // sin cebras: es la rotonda
         const ix = cx * CELL, iy = cy * CELL;
-        for (let k = 3; k < ROAD - 3; k += 8) {
+        const rw = cx === PLAZA_CX ? AVENUE_ROAD : ROAD, rh = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
+        for (let k = 3; k < Math.min(rw, rh) - 3; k += 8) {
           g.fillRect(ix + k, iy - 9, 5, 7);
-          g.fillRect(ix + k, iy + ROAD + 2, 5, 7);
+          g.fillRect(ix + k, iy + rh + 2, 5, 7);
           g.fillRect(ix - 9, iy + k, 7, 5);
-          g.fillRect(ix + ROAD + 2, iy + k, 7, 5);
+          g.fillRect(ix + rw + 2, iy + k, 7, 5);
         }
       }
     }
@@ -387,7 +432,16 @@ class World {
   }
 
   onRoad(x, y) {
-    return (x % CELL) < ROAD || (y % CELL) < ROAD;
+    const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
+    const rx = cx === PLAZA_CX ? AVENUE_ROAD : ROAD;
+    const ry = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
+    return (x % CELL) < rx || (y % CELL) < ry;
+  }
+
+  inRotondaRing(x, y) {
+    if (!obelisco) return false;
+    const d = Math.hypot(x - (obelisco.x + obelisco.w / 2), y - (obelisco.y + obelisco.h / 2));
+    return d > ROTONDA_ISLAND_R && d < ROTONDA_R;
   }
 
   lightState(L, horiz) {
@@ -455,6 +509,7 @@ class World {
   inPark(x, y) {
     for (const pk of this.props) {
       if (pk.t === 'park' && x > pk.x && x < pk.x + pk.w && y > pk.y && y < pk.y + pk.h) return true;
+      if (pk.t === 'rotonda' && Math.hypot(x - pk.x, y - pk.y) < pk.rIsland) return true;
     }
     return false;
   }
@@ -481,15 +536,19 @@ class World {
     return Math.abs(ox - tX) < Math.abs(oy - tY) ? { x: bx + tX, y } : { x, y: by + tY };
   }
 
-  laneSnap(x, y, ang) {
+  laneSnap(x, y, ang, laneBias = 0) {
     const horiz = Math.abs(Math.cos(ang)) > 0.5;
-    const LANE = ROAD * 0.24;
+    const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
+    const isAve = horiz ? cy === PLAZA_CY : cx === PLAZA_CX;
+    const roadW = isAve ? AVENUE_ROAD : ROAD;
+    const LANE = isAve ? AVENUE_LANE : ROAD * 0.24;
+    const extra = isAve ? LANE * 1.4 * laneBias : 0;
     if (horiz) {
-      const cy2 = Math.round((y - ROAD / 2) / CELL) * CELL + ROAD / 2;
-      return { x, y: cy2 + (Math.cos(ang) > 0 ? LANE : -LANE), ang: Math.cos(ang) > 0 ? 0 : Math.PI };
+      const cy2 = Math.round((y - roadW / 2) / CELL) * CELL + roadW / 2;
+      return { x, y: cy2 + (Math.cos(ang) > 0 ? LANE + extra : -LANE - extra), ang: Math.cos(ang) > 0 ? 0 : Math.PI };
     }
-    const cx2 = Math.round((x - ROAD / 2) / CELL) * CELL + ROAD / 2;
-    return { x: cx2 + (Math.sin(ang) > 0 ? -LANE : LANE), y, ang: Math.sin(ang) > 0 ? Math.PI / 2 : -Math.PI / 2 };
+    const cx2 = Math.round((x - roadW / 2) / CELL) * CELL + roadW / 2;
+    return { x: cx2 + (Math.sin(ang) > 0 ? -LANE - extra : LANE + extra), y, ang: Math.sin(ang) > 0 ? Math.PI / 2 : -Math.PI / 2 };
   }
 
   nearestDoor(x, y, maxD) {
@@ -539,7 +598,8 @@ const inPark = (x, y) => world.inPark(x, y);
 const pedBlocked = (x, y, r) => world.pedBlocked(x, y, r);
 const onSidewalk = (x, y) => world.onSidewalk(x, y);
 const toSidewalk = (x, y) => world.toSidewalk(x, y);
-const laneSnap = (x, y, ang) => world.laneSnap(x, y, ang);
+const laneSnap = (x, y, ang, laneBias) => world.laneSnap(x, y, ang, laneBias);
+const inRotondaRing = (x, y) => world.inRotondaRing(x, y);
 const nearestDoor = (x, y, maxD) => world.nearestDoor(x, y, maxD);
 const dayT = () => world.dayT();
 const ambient = () => world.ambient();

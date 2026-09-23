@@ -2,7 +2,7 @@
    GTA MERCALOCA - Constantes y Configuración General
    ========================================================================= */
 
-const VERSION = 'v25-0619202';
+const VERSION = 'v27-b213cab';
 
 const CREW = [
   {id:'p1', name:'EL SMOKE',  img:'img/p1.jpeg', crop:[0.42,0.11,0.25,0.29], shirt:'#3f9a4a', pants:'#232323'},
@@ -29,6 +29,15 @@ const FOCAL = 300;                      // menor = mas perspectiva en la extrusi
 const CELL = 190, ROAD = 56, SIDEWALK = 10;
 const GRID = 24, WORLD = CELL * GRID;
 const MARGIN = 8;
+
+// Avenida central (9 de Julio): fila/columna de la grilla que pasa por la plaza,
+// mucho mas ancha que una calle comun, 2 carriles por sentido
+const AVENUE_ROAD = 108;
+const AVENUE_LANE = AVENUE_ROAD * 0.24;
+
+// Rotonda del obelisco: radio del anillo de circulacion y de la isla peatonal central
+const ROTONDA_R = 58;
+const ROTONDA_ISLAND_R = 26;
 
 // Riachuelo: ancho del cauce y radio de la playa en la desembocadura
 const RIVER_HALF = CELL * 0.55;

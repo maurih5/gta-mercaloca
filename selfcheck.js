@@ -30,13 +30,15 @@ const api = new Function(js + `
          PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
          lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
          bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup,
-         water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS};`)();
+         water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
+         AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
        lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
        bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup,
-       water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS} = api;
+       water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
+       AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing} = api;
 
 // --- helpers de color ---
 assert.equal(shade('#808080', 1), 'rgb(128,128,128)');
@@ -58,7 +60,10 @@ for(let i=0;i<300;i++){
 }
 
 // --- semaforos ---
-assert.equal(lights.length, GRID*GRID, 'un semaforo por bocacalle');
+// La bocacalle de la plaza no tiene semaforo (es rotonda real) pero se empuja `null`
+// para no correr el indice plano gy*GRID+gx que usa lightAhead().
+assert.equal(lights.length, GRID*GRID, 'un semaforo por bocacalle (o null en la rotonda)');
+assert.equal(lights[PLAZA_CY*GRID+PLAZA_CX], null, 'la rotonda de la plaza no tiene semaforo');
 {
   const N = 2000, t0 = G.t;
   let bothGreen = 0, greenH = 0, greenV = 0;
@@ -121,6 +126,16 @@ assert.ok(props.some(p => p.t === 'beach'), 'tiene que existir una playa en la d
   assert.ok(ob, 'el obelisco tiene que existir');
   assert.ok(ob.w < 20, 'el obelisco tiene que ser chico para poder rodearlo: ' + ob.w);
   assert.ok(!buildings.includes(ob), 'el obelisco no puede ser un edificio mas de la ciudad');
+{
+  // Avenida ancha: un punto a mitad de camino entre ROAD y AVENUE_ROAD (offset dentro
+  // de la celda) tiene que dar camino en la fila/columna de la plaza, cosa que con el
+  // ancho de calle comun (ROAD) daria false.
+  const off = (ROAD + AVENUE_ROAD) / 2;
+  const y = PLAZA_CY * CELL + off, x = PLAZA_CX * CELL + off;
+  assert.ok(onRoad(WORLD * 0.1, y), 'la fila de la avenida central tiene que ser mas ancha que una calle comun');
+  assert.ok(onRoad(x, WORLD * 0.1), 'la columna de la avenida central tiene que ser mas ancha que una calle comun');
+  assert.ok(!onRoad(WORLD * 0.1, (PLAZA_CY + 1) * CELL + off), 'lejos de la avenida el ancho vuelve a ser el normal');
+}
   const cx = ob.x + ob.w / 2, cy = ob.y + ob.h / 2, r = ob.w / 2 + 8;
   for (let i = 0; i < 16; i++) {
     const a = i / 16 * Math.PI * 2;
@@ -211,6 +226,15 @@ for (const g of G.guards) {
 for(let i=0;i<300;i++){
   const t = toSidewalk(Math.random()*WORLD, Math.random()*WORLD);
   assert.ok(onSidewalk(t.x, t.y), 'toSidewalk devolvio un punto que no es vereda');
+}
+// rotonda del obelisco: los autos que circulan el anillo no quedan dando vueltas para siempre
+{
+  const ob = getObelisco(), ocx = ob.x + ob.w/2, ocy = ob.y + ob.h/2;
+  for(const c of G.cars){
+    if(c.ai && c.hp > 0 && inRotondaRing(c.x, c.y)){
+      assert.ok((c.ringArc||0) < Math.PI * 3, 'auto dando vueltas sin salir de la rotonda: ' + c.ringArc);
+    }
+  }
 }
 // el trafico tiene que FLUIR: la mayoria de los autos en movimiento, no un embotellamiento
 const traffic = G.cars.filter(c => c.ai && c.hp > 0);
