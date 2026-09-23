@@ -6,9 +6,11 @@ class InputManager {
   constructor() {
     this.keys = {};
     this.touchAxis = { x: 0, y: 0 };
+    this.wheel = 0;
     this._preventCodes = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
     this._boundDown = this.onKeyDown.bind(this);
     this._boundUp = this.onKeyUp.bind(this);
+    this._boundWheel = this.onWheel.bind(this);
     this.attach();
   }
 
@@ -16,13 +18,26 @@ class InputManager {
     if (typeof addEventListener !== 'undefined') {
       addEventListener('keydown', this._boundDown);
       addEventListener('keyup', this._boundUp);
+      addEventListener('wheel', this._boundWheel, { passive: false });
     }
+  }
+
+  onWheel(e) {
+    if (typeof G !== 'undefined' && G.mapOpen) e.preventDefault();
+    this.wheel += e.deltaY;
+  }
+
+  consumeWheel() {
+    const w = this.wheel;
+    this.wheel = 0;
+    return w;
   }
 
   detach() {
     if (typeof removeEventListener !== 'undefined') {
       removeEventListener('keydown', this._boundDown);
       removeEventListener('keyup', this._boundUp);
+      removeEventListener('wheel', this._boundWheel);
     }
   }
 

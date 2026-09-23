@@ -25,6 +25,10 @@ function frame(now) {
       const f = 1 + MAP_ZOOM_RATE * dt;
       if (keys.Equal || keys.NumpadAdd) G.mapZoom = clamp(G.mapZoom * f, MAP_MIN_ZOOM, MAP_MAX_ZOOM);
       if (keys.Minus || keys.NumpadSubtract) G.mapZoom = clamp(G.mapZoom / f, MAP_MIN_ZOOM, MAP_MAX_ZOOM);
+      const wheel = input.consumeWheel();
+      if (wheel) G.mapZoom = clamp(G.mapZoom * Math.pow(1.0015, -wheel), MAP_MIN_ZOOM, MAP_MAX_ZOOM);
+    } else {
+      input.consumeWheel();
     }
     if (touchController) touchController.syncMapButtons();
 
