@@ -69,27 +69,31 @@ class World {
     let id = 0;
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
-        // Fila/columna de la avenida central: banda de camino mas ancha en ese eje
-        const roadW = Math.max(cx === PLAZA_CX ? AVENUE_ROAD : ROAD, cy === PLAZA_CY ? AVENUE_ROAD : ROAD);
-        const bx = cx * CELL + roadW, by = cy * CELL + roadW;
-        const inner = CELL - roadW;
-        const cxCenter = bx + inner / 2, cyCenter = by + inner / 2;
+        // Fila/columna de la avenida central: banda de camino mas ancha SOLO en ese eje
+        // (el ancho de la calle vertical a la izquierda de la celda y el de la horizontal
+        // arriba son independientes, no hay que agrandar el eje que no es avenida)
+        const roadX = cx === PLAZA_CX ? AVENUE_ROAD : ROAD;
+        const roadY = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
+        const bx = cx * CELL + roadX, by = cy * CELL + roadY;
+        const innerW = CELL - roadX, innerH = CELL - roadY;
+        const inner = Math.min(innerW, innerH); // lotes siguen siendo cuadrados, tamano acotado por el eje mas angosto
+        const cxCenter = bx + innerW / 2, cyCenter = by + innerH / 2;
         const isPlaza = cx === PLAZA_CX && cy === PLAZA_CY;
         const d2River = distToRiver(cxCenter, cyCenter);
 
         if (d2River < RIVER_HALF) {
-          this.water.push({ x: bx, y: by, w: inner, h: inner });
+          this.water.push({ x: bx, y: by, w: innerW, h: innerH });
           continue;
         }
         if (d2River < RIVER_HALF + CELL * 0.4 && Math.hypot(cxCenter - WORLD, cyCenter - WORLD * 0.68) < BEACH_RADIUS) {
-          this.props.push({ t: 'beach', x: bx, y: by, w: inner, h: inner });
+          this.props.push({ t: 'beach', x: bx, y: by, w: innerW, h: innerH });
           continue;
         }
 
         const park = !isPlaza && (cx + cy) % 9 === 4;
 
         if (park) {
-          this.props.push({ t: 'park', x: bx, y: by, w: inner, h: inner });
+          this.props.push({ t: 'park', x: bx, y: by, w: innerW, h: innerH });
           continue;
         }
 
@@ -229,24 +233,23 @@ class World {
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
         if (cx === PLAZA_CX && cy === PLAZA_CY) continue; // la rotonda se hornea aparte, mas abajo
-        const roadW = Math.max(cx === PLAZA_CX ? AVENUE_ROAD : ROAD, cy === PLAZA_CY ? AVENUE_ROAD : ROAD);
-        const bx = cx * CELL + roadW - SIDEWALK, by = cy * CELL + roadW - SIDEWALK;
-        const s = CELL - roadW + SIDEWALK * 2;
+        const roadX = cx === PLAZA_CX ? AVENUE_ROAD : ROAD;
+        const roadY = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
+        const bx = cx * CELL + roadX - SIDEWALK, by = cy * CELL + roadY - SIDEWALK;
+        const sw = CELL - roadX + SIDEWALK * 2, sh = CELL - roadY + SIDEWALK * 2;
         g.fillStyle = '#8d8d86';
-        g.fillRect(bx, by, s, s);
+        g.fillRect(bx, by, sw, sh);
         g.fillStyle = '#7a7a73';
-        g.fillRect(bx, by, s, 2);
-        g.fillRect(bx, by, 2, s);
+        g.fillRect(bx, by, sw, 2);
+        g.fillRect(bx, by, 2, sh);
         g.fillStyle = '#5a6247';
-        g.fillRect(bx + SIDEWALK, by + SIDEWALK, s - SIDEWALK * 2, s - SIDEWALK * 2);
+        g.fillRect(bx + SIDEWALK, by + SIDEWALK, sw - SIDEWALK * 2, sh - SIDEWALK * 2);
 
         // Juntas de la vereda
         g.fillStyle = 'rgba(0,0,0,.10)';
-        for (let i = 0; i < s; i += 14) {
-          g.fillRect(bx + i, by, 1, SIDEWALK);
-          g.fillRect(bx + i, by + s - SIDEWALK, 1, SIDEWALK);
-          g.fillRect(bx, by + i, SIDEWALK, 1);
-          g.fillRect(bx + s - SIDEWALK, by + i, SIDEWALK, 1);
+        for (let i = 0; i < Math.max(sw, sh); i += 14) {
+          if (i < sw) { g.fillRect(bx + i, by, 1, SIDEWALK); g.fillRect(bx + i, by + sh - SIDEWALK, 1, SIDEWALK); }
+          if (i < sh) { g.fillRect(bx, by + i, SIDEWALK, 1); g.fillRect(bx + sw - SIDEWALK, by + i, SIDEWALK, 1); }
         }
       }
     }
