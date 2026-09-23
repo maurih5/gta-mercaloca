@@ -23,6 +23,8 @@ const G = {
   msg: '',
   msgT: 0,
   paused: false,
+  mapOpen: false,
+  mapZoom: MAP_MIN_ZOOM,
   flash: 0,
   busted: 0,
   bustT: 0,
@@ -79,6 +81,8 @@ class Game {
     G.money = 0;
     G.state = 'play';
     G.paused = false;
+    G.mapOpen = false;
+    G.mapZoom = MAP_MIN_ZOOM;
     G.shake = 0;
     G.busted = 0;
     G.bustT = 0;

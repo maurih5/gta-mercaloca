@@ -227,6 +227,19 @@ class TouchController {
       () => {}
     );
 
+    // Mapa global
+    bindBtn(
+      'btn-map',
+      () => {
+        if (!G.paused) G.mapOpen = !G.mapOpen;
+      },
+      () => {}
+    );
+
+    // Zoom del mapa (mismo mecanismo que las teclas +/-)
+    bindBtn('btn-zoom-in', () => { keys.Equal = true; }, () => { keys.Equal = false; });
+    bindBtn('btn-zoom-out', () => { keys.Minus = true; }, () => { keys.Minus = false; });
+
     // Botón manual de toggle en pantalla
     if (this.toggleBtn) {
       this.toggleBtn.onclick = e => {
@@ -236,6 +249,11 @@ class TouchController {
         this.updateVisibility();
       };
     }
+  }
+
+  syncMapButtons() {
+    const z = document.getElementById('touch-zoom');
+    if (z) z.classList.toggle('show', !!(typeof G !== 'undefined' && G.mapOpen));
   }
 
   bindGlobalTouch() {

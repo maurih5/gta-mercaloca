@@ -16,6 +16,8 @@ Juego estilo GTA top-down retro 2D desarrollado en HTML5 Canvas y JavaScript van
 | <kbd>Espacio</kbd> | Disparar arma |
 | <kbd>E</kbd> | Entrar / Salir de un auto |
 | <kbd>Shift</kbd> | Correr (a pie) |
+| <kbd>M</kbd> | Mapa global |
+| <kbd>+</kbd> <kbd>-</kbd> | Zoom del mapa (con el mapa abierto) |
 | <kbd>P</kbd> | Pausa |
 
 ---
