@@ -11,6 +11,7 @@ const G = {
   faces: {},
   cars: [],
   peds: [],
+  guards: [],
   cops: [],
   bullets: [],
   pickups: [],
@@ -50,6 +51,7 @@ class Game {
     G.cam.y = clamp(s.y - RH / 2, 0, WORLD - RH);
     G.cars = [];
     G.peds = [];
+    G.guards = [];
     G.cops = [];
     G.bullets = [];
     G.pickups = [];
@@ -66,6 +68,11 @@ class Game {
     }
     for (let i = 0; i < 18; i++) {
       G.pickups.push(makePickup());
+    }
+    if (casaRosada.length) {
+      for (let i = 0; i < CASA_ROSADA_GUARDS; i++) {
+        G.guards.push(makeGuard(casaRosada[0], i, CASA_ROSADA_GUARDS));
+      }
     }
 
     G.wanted = 0;
@@ -158,6 +165,7 @@ class Game {
     if (G.msgT > 0) G.msgT -= dt;
     G.shake = Math.max(0, G.shake - dt * 22);
     G.flash = Math.max(0, G.flash - dt * 4);
+    G.guards = G.guards.filter(g => g.hp > 0);
     const P = G.player;
     if (!P) return;
 

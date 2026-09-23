@@ -67,6 +67,36 @@ class EntityManager {
     return this.makePedAt(s.x, s.y);
   }
 
+  makeGuard(building, i, n) {
+    const door = building.door;
+    const tx = (door.s === 'n' || door.s === 's') ? 1 : 0;
+    const ty = (door.s === 'n' || door.s === 's') ? 0 : 1;
+    const off = (i - (n - 1) / 2) * 14;
+    const x = door.x + tx * off + door.ox * 1.4;
+    const y = door.y + ty * off + door.oy * 1.4;
+    return {
+      kind: 'ped',
+      ty: PEDTYPE[0],
+      def: null,
+      face: 'ped0',
+      shirt: '#1d1d22',
+      pants: '#14213d',
+      x,
+      y,
+      ang: Math.atan2(-door.oy, -door.ox),
+      r: 5,
+      hp: 30,
+      walk: 0,
+      tt: 0,
+      sped: 0,
+      chat: 0,
+      inside: null,
+      doorT: 0,
+      fade: 1,
+      target: null,
+    };
+  }
+
   makeCar(x, y, cop = false) {
     const m = cop
       ? { k: 'patrol', w: 24, h: 11, cruise: 78 }
@@ -192,6 +222,7 @@ const makeCar = (x, y, cop) => entities.makeCar(x, y, cop);
 const makeCop = () => entities.makeCop();
 const makeChaser = () => entities.makeChaser();
 const makePickup = () => entities.makePickup();
+const makeGuard = (building, i, n) => entities.makeGuard(building, i, n);
 const boom = (x, y, n, col, pow) => entities.boom(x, y, n, col, pow);
 const puff = (x, y, col, n, rise) => entities.puff(x, y, col, n, rise);
 const decal = (x, y, r, col) => entities.decal(x, y, r, col);

@@ -2,7 +2,7 @@
    GTA MERCALOCA - Constantes y Configuración General
    ========================================================================= */
 
-const VERSION = 'v17-1f7b45c';
+const VERSION = 'v19-2bac213';
 
 const CREW = [
   {id:'p1', name:'EL SMOKE',  img:'img/p1.jpeg', crop:[0.42,0.11,0.25,0.29], shirt:'#3f9a4a', pants:'#232323'},
@@ -29,6 +29,13 @@ const FOCAL = 300;                      // menor = mas perspectiva en la extrusi
 const CELL = 190, ROAD = 56, SIDEWALK = 10;
 const GRID = 24, WORLD = CELL * GRID;
 const MARGIN = 8;
+
+// Riachuelo: ancho del cauce y radio de la playa en la desembocadura
+const RIVER_HALF = CELL * 0.55;
+const BEACH_RADIUS = CELL * 1.8;
+
+// Casa Rosada: cantidad de guardias fijos en la puerta
+const CASA_ROSADA_GUARDS = 3;
 
 // Semaforos
 const LIGHT_CYCLE = 11, GREEN = 4.6, AMBER = 0.9;  // por eje: 4.6s verde, 0.9 amarillo, resto rojo
