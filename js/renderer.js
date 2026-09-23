@@ -256,15 +256,11 @@ class Renderer {
     const ctx = this.ctx;
     const x = p.x - G.cam.x, y = p.y - G.cam.y;
     if (x < -30 || y < -40 || x > RW + 30 || y > RH + 30) return;
-    const H = 46 * p.s;
-    let dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL;
-    // Con la camara encima la extrusion da cero y el arbol quedaba como un bollo
-    // verde sin tronco: se le fuerza un alto minimo, hacia arriba por defecto.
-    const len = Math.hypot(dx, dy), MIN = H * 0.62;
-    if (len < MIN) {
-      if (len < 0.01) { dx = 0; dy = -MIN; }
-      else { dx = dx / len * MIN; dy = dy / len * MIN; }
-    }
+    // Bajito, como las palmeras. El alto sale de la extrusion natural mas un
+    // empujon fijo hacia arriba: si se normalizara a un largo minimo, al caminar
+    // alrededor el tronco giraria como aguja de reloj.
+    const H = 22 * p.s;
+    const dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL - 7 * p.s;
     const tx = x + dx, ty = y + dy;
     ctx.strokeStyle = '#5b452a';
     ctx.lineWidth = 3.2 * p.s;
@@ -274,11 +270,11 @@ class Renderer {
     ctx.stroke();
     const sw = Math.sin(G.t * 0.9 + p.x * 0.07) * 0.8;
     const blobs = [
-      [0, 0, 8.4, '#3f7a38'],
-      [-5.5, -1.5, 6.2, '#4f9143'],
-      [5.5, -1, 6.0, '#356b30'],
-      [0, -5.5, 6.4, '#58a049'],
-      [0, 3.5, 5.6, '#2f6130'],
+      [0, 0, 6.2, '#3f7a38'],
+      [-4, -1, 4.6, '#4f9143'],
+      [4, -0.8, 4.4, '#356b30'],
+      [0, -4, 4.8, '#58a049'],
+      [0, 2.6, 4.0, '#2f6130'],
     ];
     for (const [ox, oy, r, col] of blobs) {
       ctx.fillStyle = col;
@@ -292,34 +288,27 @@ class Renderer {
     const ctx = this.ctx;
     const x = o.x - G.cam.x, y = o.y - G.cam.y;
     if (x < -60 || y < -260 || x > RW + 60 || y > RH + 60) return;
-    const H = 130;
-    let dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL;
-    // Parado al lado del obelisco la extrusion da casi cero y el monumento se
-    // aplastaba contra el piso. Se le fuerza un largo minimo (y hacia arriba si
-    // estas justo encima) para que siempre se lea como una aguja alta.
-    const len = Math.hypot(dx, dy), MIN = H * 0.55;
-    if (len < MIN) {
-      if (len < 0.01) { dx = 0; dy = -MIN; }
-      else { dx = dx / len * MIN; dy = dy / len * MIN; }
-    }
+    // El barrido de la extrusion radial crece con H: con 130 el obelisco giraba
+    // como aguja de reloj al caminarle alrededor. Se baja el alto proyectado y
+    // la mayor parte del largo pasa a ser un empujon fijo hacia arriba, que no
+    // depende de donde este la camara.
+    const H = 52;
+    const dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL - 74;
     const tx = x + dx, ty = y + dy;
+    // Ancho siempre horizontal: la base es un cuadrado fijo en el piso y no gira
+    // con la camara, igual que el techo de los edificios.
     const w = 9, tw = w * 0.55; // se afina hacia la punta, como el de verdad
-    // Normal del eje, para que las caras acompanen la direccion en que se proyecta
-    const nl = Math.hypot(dx, dy), nx = -dy / nl, ny = dx / nl;
     ctx.fillStyle = '#6b6a63';
     ctx.fillRect(px(x - w), px(y), w * 2, 4);
     // Fuste completo
-    this.quad(x - nx * w, y - ny * w, x + nx * w, y + ny * w,
-      tx + nx * tw, ty + ny * tw, tx - nx * tw, ty - ny * tw, '#e0ded4');
-    // Media cara en sombra: siempre la del lado contrario a la luz (arriba-izq)
-    const s = (nx * -0.7 + ny * -0.7) >= 0 ? 1 : -1;
-    this.quad(x, y, x + nx * w * s, y + ny * w * s,
-      tx + nx * tw * s, ty + ny * tw * s, tx, ty, '#b9b6ab');
-    // Punta piramidal, siguiendo el eje del fuste
+    this.quad(x - w, y, x + w, y, tx + tw, ty, tx - tw, ty, '#e0ded4');
+    // Media cara en sombra: siempre la misma, el sol no se mueve con la camara
+    this.quad(x, y, x + w, y, tx + tw, ty, tx, ty, '#b9b6ab');
+    // Punta piramidal
     ctx.beginPath();
-    ctx.moveTo(tx - nx * tw, ty - ny * tw);
-    ctx.lineTo(tx + nx * tw, ty + ny * tw);
-    ctx.lineTo(tx + dx / nl * 18, ty + dy / nl * 18);
+    ctx.moveTo(tx - tw, ty);
+    ctx.lineTo(tx + tw, ty);
+    ctx.lineTo(tx, ty - 18);
     ctx.closePath();
     ctx.fillStyle = '#f0eee6';
     ctx.fill();
