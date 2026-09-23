@@ -237,7 +237,7 @@ class Game {
 
       const nx = car.x + Math.cos(car.ang) * car.spd * dt;
       const ny = car.y + Math.sin(car.ang) * car.spd * dt;
-      if (hitBuilding(nx, ny, 9)) {
+      if (hitBuilding(nx, ny, 9) || hitCarBlock(nx, ny, 9)) {
         const dmg = Math.abs(car.spd) / 12;
         if (dmg > 3) {
           car.hp -= dmg;
@@ -653,7 +653,7 @@ class Game {
       }
 
       const CR = c.h * 0.5 + 1;
-      const carBlocked = (x2, y2) => hitBuilding(x2, y2, CR) || x2 < 10 || y2 < 10 || x2 > WORLD - 10 || y2 > WORLD - 10;
+      const carBlocked = (x2, y2) => hitBuilding(x2, y2, CR) || hitCarBlock(x2, y2, CR) || x2 < 10 || y2 < 10 || x2 > WORLD - 10 || y2 > WORLD - 10;
       const nx = c.x + Math.cos(c.ang) * c.spd * dt;
       const ny = c.y + Math.sin(c.ang) * c.spd * dt;
 
@@ -820,13 +820,13 @@ class Game {
       const nx2 = c.x + Math.cos(c.ang) * c.spd * dt;
       const ny2 = c.y + Math.sin(c.ang) * c.spd * dt;
 
-      if (hitBuilding(nx2, ny2, CR2) || nx2 < 10 || ny2 < 10 || nx2 > WORLD - 10 || ny2 > WORLD - 10) {
+      if (hitBuilding(nx2, ny2, CR2) || hitCarBlock(nx2, ny2, CR2) || nx2 < 10 || ny2 < 10 || nx2 > WORLD - 10 || ny2 > WORLD - 10) {
         let got = false;
         for (const t2 of [0.7, -0.7, 1.5, -1.5, 2.4, -2.4, Math.PI]) {
           const a2 = c.ang + t2;
           const tx3 = c.x + Math.cos(a2) * (Math.abs(c.spd) * dt + CR2 + 6);
           const ty3 = c.y + Math.sin(a2) * (Math.abs(c.spd) * dt + CR2 + 6);
-          if (!hitBuilding(tx3, ty3, CR2) && tx3 > 10 && ty3 > 10 && tx3 < WORLD - 10 && ty3 < WORLD - 10) {
+          if (!hitBuilding(tx3, ty3, CR2) && !hitCarBlock(tx3, ty3, CR2) && tx3 > 10 && ty3 > 10 && tx3 < WORLD - 10 && ty3 < WORLD - 10) {
             c.ang = a2;
             got = true;
             break;

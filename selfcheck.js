@@ -32,7 +32,8 @@ const api = new Function(js + `
          bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup,
          water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
-         ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver};`)();
+         ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
@@ -40,7 +41,8 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup,
        water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
-       ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver} = api;
+       ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1} = api;
 
 // --- helpers de color ---
 assert.equal(shade('#808080', 1), 'rgb(128,128,128)');
@@ -53,7 +55,10 @@ for(let i=0;i<50;i++){ const h = hash(i); assert.ok(h >= -1 && h <= 1 && hash(i)
 // --- mundo ---
 buildCity(); bakeGround();
 assert.ok(buildings.length > 100, 'ciudad generada: ' + buildings.length);
-assert.ok(lamps.length > 0 && lamps.length % 4 === 0, 'faroles: ' + lamps.length);   // 1 por esquina
+// 1 por esquina, menos las que se trago el rio
+assert.ok(lamps.length > GRID * GRID * 0.8, 'faroles: ' + lamps.length);
+assert.ok(lamps.every(l => !inWater(l.x, l.y)), 'no puede haber un farol plantado en el agua');
+assert.ok(props.every(p => p.t !== 'palm' || !inWater(p.x, p.y)), 'no puede haber una palmera plantada en el agua');
 assert.ok(props.some(p => p.t === 'park') && props.some(p => p.t === 'palm'), 'parques y palmeras');
 for(const b of buildings) assert.ok(b.H > 0 && b.w > 0 && b.h > 0, 'edificio con volumen valido');
 for(let i=0;i<300;i++){
@@ -69,7 +74,10 @@ assert.equal(lights[PLAZA_CY*GRID+PLAZA_CX], null, 'la rotonda de la plaza no ti
 {
   const N = 2000, t0 = G.t;
   let bothGreen = 0, greenH = 0, greenV = 0;
-  for(const L of [lights[0], lights[7], lights[GRID*3+5]]){
+  // El rio puede dejar alguna bocacalle sin semaforo (null), asi que se toman los que existen
+  const probes = [lights[0], lights[7], lights[GRID*3+5]].filter(Boolean);
+  assert.ok(probes.length && probes[0] === lights[0], 'las bocacalles de muestra tienen que tener semaforo');
+  for(const L of probes){
     for(let i=0;i<N;i++){
       G.t = i/N*LIGHT_CYCLE*2;
       const h = lightState(L, true), v = lightState(L, false);
@@ -120,8 +128,10 @@ assert.ok(dist(hospitals[0], hospitals[1]) > CELL * 3, 'los hospitales tienen qu
 }
 assert.ok(props.some(p => p.t === 'beach'), 'tiene que existir una playa en la desembocadura del riachuelo');
 {
-  const w0 = water[0], cx = w0.x + w0.w / 2, cy = w0.y + w0.h / 2;
-  assert.ok(hitBuilding(cx, cy, 3), 'el riachuelo tiene que bloquear el paso como un edificio: ' + JSON.stringify(w0));
+  // El cauce ahora es una cadena de circulos, no un rect por celda
+  const w0 = water[Math.floor(water.length / 2)];
+  assert.ok(w0.r > 0, 'cada tramo del cauce tiene que tener radio: ' + JSON.stringify(w0));
+  assert.ok(hitBuilding(w0.x, w0.y, 3), 'el riachuelo tiene que bloquear el paso como un edificio: ' + JSON.stringify(w0));
 }
 {
   const ob = getObelisco();
@@ -149,6 +159,45 @@ assert.equal(casaRosada.length, 1, 'tiene que existir una sola Casa Rosada: ' + 
 assert.ok(buildings.includes(casaRosada[0]), 'la Casa Rosada tiene que ser un edificio real de la ciudad');
 assert.ok(casaRosada[0].door, 'la Casa Rosada tiene que tener puerta');
 assert.ok(!casaRosada[0].hospital, 'la Casa Rosada no puede ser tambien un hospital');
+
+// --- el cauce rompe la tierra: orilla irregular, no cuadras de agua ---
+{
+  let minW = Infinity, maxW = -Infinity;
+  for (let i = 0; i <= 40; i++) { const w = riverWidthAt(i / 40); minW = Math.min(minW, w); maxW = Math.max(maxW, w); }
+  assert.ok(maxW - minW > RIVER_HALF * 0.4,
+    'el cauce tiene que variar de ancho, si no son cuadras con agua: ' + minW.toFixed(0) + '-' + maxW.toFixed(0));
+  // La orilla no puede caer siempre en el borde de una celda de grilla
+  const edges = new Set();
+  for (let i = 0; i < riverCurve.length * 30; i++) {
+    const t = i / (riverCurve.length * 30);
+    const p = { x: WORLD * 0.3 + t * WORLD * 0.5, y: t * WORLD * 0.6 };
+    if (inWater(p.x, p.y)) edges.add(Math.round(p.x % CELL));
+  }
+  assert.ok(edges.size > 3, 'la orilla tiene que cortar las manzanas en cualquier lado, no en el borde de celda: ' + edges.size);
+  assert.ok(water.every(c => c.r > 0 && !('w' in c)), 'el cauce se guarda como circulos, no como rects de celda');
+}
+
+// --- Plaza de Mayo: explanada maciza de varias cuadras frente a la Casa Rosada ---
+{
+  const pm = props.find(p => p.t === 'plazaMayo');
+  assert.ok(pm, 'tiene que existir la explanada de la Plaza de Mayo');
+  assert.ok(pm.w > CELL && pm.h > CELL, 'la plaza tiene que medir varias cuadras: ' + pm.w + 'x' + pm.h);
+  const mx = pm.x + pm.w / 2, my = pm.y + pm.h / 2;
+  assert.ok(!onRoad(mx, my), 'adentro de la explanada no puede haber calle');
+  assert.ok(inPark(mx, my), 'la explanada se tiene que poder caminar como espacio verde');
+  assert.ok(onRoad(PM_X0 + ROAD / 2, my), 'el borde exterior de la plaza sigue siendo calle');
+  // El cruce interno que se borro frena autos pero no peatones
+  const ix = PM_X0 + CELL + ROAD / 2, iy = pm.y + pm.h / 2;
+  assert.ok(hitCarBlock(ix, iy, 4), 'ningun auto puede cruzar la explanada: ' + ix + ',' + iy);
+  assert.ok(!hitBuilding(ix, iy, 4), 'pero a pie la explanada se camina igual');
+  // La Casa Rosada da al oeste, de frente a la plaza, y es mas grande que un edificio comun
+  const cr = casaRosada[0];
+  assert.equal(cr.door.s, 'w', 'la Casa Rosada tiene que mirar a la plaza (oeste): ' + cr.door.s);
+  assert.ok(cr.x > mx, 'la Casa Rosada va al este de la explanada');
+  const comun = buildings.filter(b => !b.casaRosada).reduce((m, b) => Math.max(m, b.w * b.h), 0);
+  assert.ok(cr.w * cr.h > comun, 'la Casa Rosada tiene que ser el edificio mas grande: ' + (cr.w * cr.h).toFixed(0) + ' vs ' + comun.toFixed(0));
+  assert.ok(props.some(p => p.t === 'piramide'), 'tiene que estar la piramide al medio de la plaza');
+}
 
 // --- puentes: la avenida cruza el riachuelo sin bloquear ---
 {

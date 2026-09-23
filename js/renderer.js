@@ -154,11 +154,16 @@ class Renderer {
     }
 
     if (b.casaRosada) {
-      const bcx = rx + b.w / 2, bs = Math.min(b.w, b.h) * 0.2;
+      // Da al oeste: balcon corrido sobre la plaza y mastil con bandera en el techo
+      const bcy = ry + b.h / 2, bs = Math.min(b.w, b.h) * 0.3;
       ctx.fillStyle = '#f5ead6';
-      ctx.fillRect(px(bcx - bs), px(ry + b.h * 0.6), bs * 2, bs * 0.7);
+      ctx.fillRect(px(rx + b.w * 0.08), px(bcy - b.h * 0.22), b.w * 0.2, b.h * 0.44);
+      ctx.fillStyle = '#e8dcc4'; // patio/cupula central
+      ctx.fillRect(px(rx + b.w * 0.36), px(bcy - bs), b.w * 0.28, bs * 2);
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(px(bcx - bs * 0.12), px(ry + b.h * 0.1), bs * 0.24, bs * 0.9);
+      ctx.fillRect(px(rx + b.w * 0.5), px(ry + b.h * 0.08), 2.5, b.h * 0.16);
+      ctx.fillStyle = '#74acdf'; // celeste y blanco
+      ctx.fillRect(px(rx + b.w * 0.5 + 2), px(ry + b.h * 0.08), 9, 6);
     }
 
     if (det === 'ac' || b.ac) {

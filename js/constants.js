@@ -2,7 +2,7 @@
    GTA MERCALOCA - Constantes y Configuración General
    ========================================================================= */
 
-const VERSION = 'v33-cea7fb0';
+const VERSION = 'v35-217cf94';
 
 const CREW = [
   {id:'p1', name:'EL SMOKE',  img:'img/p1.jpeg', crop:[0.42,0.11,0.25,0.29], shirt:'#3f9a4a', pants:'#232323'},
@@ -39,9 +39,18 @@ const AVENUE_LANE = AVENUE_ROAD * 0.24;
 const ROTONDA_R = 58;
 const ROTONDA_ISLAND_R = 26;
 
-// Riachuelo: ancho del cauce y radio de la playa en la desembocadura
+// Riachuelo: ancho base del cauce y radio de la playa en la desembocadura.
+// El ancho real varia a lo largo de la curva (RIVER_WOBBLE) para que la orilla
+// muerda las manzanas en vez de cortarlas en cuadrados de grilla.
 const RIVER_HALF = CELL * 0.55;
+const RIVER_WOBBLE = 0.42;
 const BEACH_RADIUS = CELL * 1.8;
+
+// Puentes: medio ancho del corredor sobre la avenida donde el agua no existe
+const BRIDGE_HALF = AVENUE_ROAD * 0.62;
+
+// Plaza de Mayo: explanada maciza de 2x2 celdas, sin calles cruzandola
+const PLAZA_MAYO_CELLS = 2;
 
 // Casa Rosada: cantidad de guardias fijos en la puerta
 const CASA_ROSADA_GUARDS = 3;
