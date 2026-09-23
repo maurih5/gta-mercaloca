@@ -31,14 +31,16 @@ const api = new Function(js + `
          lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
          bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup,
          water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
-         AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing};`)();
+         AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
+         ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
        lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
        bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup,
        water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
-       AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing} = api;
+       AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
+       ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver} = api;
 
 // --- helpers de color ---
 assert.equal(shade('#808080', 1), 'rgb(128,128,128)');
@@ -148,6 +150,35 @@ assert.ok(buildings.includes(casaRosada[0]), 'la Casa Rosada tiene que ser un ed
 assert.ok(casaRosada[0].door, 'la Casa Rosada tiene que tener puerta');
 assert.ok(!casaRosada[0].hospital, 'la Casa Rosada no puede ser tambien un hospital');
 
+// --- puentes: la avenida cruza el riachuelo sin bloquear ---
+{
+  for (let t = 0; t <= DIAG_LEN; t += 10) {
+    // columna avenida (PLAZA_CX) atravesando el rio en Y
+    const x = PLAZA_PX, y = t;
+    if (distToRiver(x, y) < RIVER_HALF) {
+      assert.ok(!hitBuilding(x, y, 3), 'la avenida (columna) tiene que cruzar el puente sin chocar: ' + JSON.stringify({x,y}));
+    }
+  }
+  for (let t = 0; t <= WORLD; t += 10) {
+    const x = t, y = PLAZA_PY;
+    if (distToRiver(x, y) < RIVER_HALF) {
+      assert.ok(!hitBuilding(x, y, 3), 'la avenida (fila) tiene que cruzar el puente sin chocar: ' + JSON.stringify({x,y}));
+    }
+  }
+}
+
+// --- diagonal: banda recta de la plaza a la Casa Rosada, transitable ---
+{
+  let sawBand = false;
+  for (let t = 5; t < DIAG_LEN; t += 10) {
+    const x = PLAZA_PX + DIAG_UX * t, y = PLAZA_PY + DIAG_UY * t;
+    assert.ok(inDiagonalBand(x, y), 'punto sobre el eje de la diagonal tiene que caer en la banda: ' + JSON.stringify({x,y}));
+    assert.ok(onRoad(x, y), 'la diagonal tiene que ser camino transitable: ' + JSON.stringify({x,y}));
+    sawBand = true;
+  }
+  assert.ok(sawBand, 'la diagonal tiene longitud positiva');
+}
+
 // --- ciclo dia/noche: siempre color valido y oscuridad en [0,1] ---
 for(let t=0; t<DAY*2; t+=1.7){
   G.t = t;
@@ -235,6 +266,11 @@ for(let i=0;i<300;i++){
       assert.ok((c.ringArc||0) < Math.PI * 3, 'auto dando vueltas sin salir de la rotonda: ' + c.ringArc);
     }
   }
+}
+// diagonal: ningun auto queda trabado (stopT alto) mientras esta en la banda de la diagonal
+{
+  const stuckInDiag = G.cars.filter(c => c.ai && c.hp > 0 && inDiagonalBand(c.x, c.y) && c.stopT > 4).length;
+  assert.equal(stuckInDiag, 0, 'auto trabado en la diagonal: ' + stuckInDiag);
 }
 // el trafico tiene que FLUIR: la mayoria de los autos en movimiento, no un embotellamiento
 const traffic = G.cars.filter(c => c.ai && c.hp > 0);
