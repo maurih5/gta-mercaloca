@@ -693,9 +693,59 @@ class Game {
         c.y = ny;
       }
 
+      const ob = getObelisco();
+      // Distancia al obelisco, no celda de grilla: el centro de la rotonda no cae simetrico
+      // dentro de su celda (la avenida es mas ancha que ROAD), asi que el anillo se sale
+      // del cuadrado de la celda por un lado. Un gate por distancia evita que un auto
+      // todavia circulando el anillo "salga" de la plaza por error y reinicie ringArc.
+      const inPlazaCell = !!ob && dist(c, { x: ob.x + ob.w / 2, y: ob.y + ob.h / 2 }) < ROTONDA_R + 24;
+      const ringMid = (ROTONDA_ISLAND_R + ROTONDA_R) / 2;
+      if (inPlazaCell && ob && (c.inRing || inRotondaRing(c.x, c.y))) {
+        // Circulando la rotonda: navega tangente al circulo (sentido antihorario, mano derecha).
+        const ocx = ob.x + ob.w / 2, ocy = ob.y + ob.h / 2;
+        const rad = Math.atan2(c.y - ocy, c.x - ocx);
+        const tangent = rad - Math.PI / 2;
+        c.inRing = true;
+        c.turned = false;
+        c.ringArc = (c.ringArc || 0) + Math.abs(dt * c.spd) / ringMid;
+        // Mantiene el radio pegado al carril medio del anillo.
+        const d = Math.hypot(c.x - ocx, c.y - ocy);
+        const dClamped = clamp(d, ROTONDA_ISLAND_R + 2, ROTONDA_R - 2);
+        c.x = ocx + Math.cos(rad) * lerp(d, ringMid, dt * 2 + (dClamped !== d ? 1 : 0));
+        c.y = ocy + Math.sin(rad) * lerp(d, ringMid, dt * 2 + (dClamped !== d ? 1 : 0));
+        // Sale por la primer salida cardinal alineada, despues de dar al menos un buen tramo de vuelta.
+        const cardinals = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+        const aligned = cardinals.some(a => Math.abs(((tangent - a + Math.PI) % TAU + TAU) % TAU - Math.PI) < 0.12);
+        if (c.ringArc > Math.PI * 0.9 && aligned) {
+          c.inRing = false;
+          c.turned = true;
+          const exitAng = cardinals.reduce((best, a) =>
+            Math.abs(((tangent - a + Math.PI) % TAU + TAU) % TAU - Math.PI) <
+            Math.abs(((tangent - best + Math.PI) % TAU + TAU) % TAU - Math.PI) ? a : best, 0);
+          const L = laneSnap(c.x, c.y, exitAng);
+          c.x = L.x;
+          c.y = L.y;
+          c.ang = L.ang;
+        } else {
+          c.ang = tangent;
+        }
+      } else if (inPlazaCell && !c.inRing && !c.turned) {
+        // Llega a la bocacalle ancha de la plaza: entra siempre a la rotonda (no cruza derecho).
+        c.turned = true;
+        c.inRing = true;
+        c.ringArc = 0;
+      } else if (!inPlazaCell) {
+        c.inRing = false;
+        c.ringArc = 0;
+      }
+
       const ox = ((c.x % CELL) + CELL) % CELL, oy = ((c.y % CELL) + CELL) % CELL;
-      const atCross = ox < ROAD && oy < ROAD;
-      if (atCross && !c.turned) {
+      const rw = Math.floor(c.x / CELL) === PLAZA_CX ? AVENUE_ROAD : ROAD;
+      const rh = Math.floor(c.y / CELL) === PLAZA_CY ? AVENUE_ROAD : ROAD;
+      const atCross = ox < rw && oy < rh;
+      if (inPlazaCell) {
+        // ya resuelto arriba (entrar a la rotonda / circular), no aplica el criterio de bocacalle comun
+      } else if (atCross && !c.turned) {
         c.turned = true;
         if (Math.random() < 0.34) {
           c.ang += Math.random() < 0.5 ? Math.PI / 2 : -Math.PI / 2;
