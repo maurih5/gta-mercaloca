@@ -820,7 +820,11 @@ class Game {
           b.y += uy * overlap;
         }
 
-        const impact = Math.abs(a.spd) + Math.abs(b.spd);
+        // Velocidad de cierre real (proyectada sobre la normal), no la suma de rapideces:
+        // dos autos en fila yendo para el mismo lado no deben "chocar" solo por ir cerca.
+        const avx = Math.cos(a.ang) * a.spd, avy = Math.sin(a.ang) * a.spd;
+        const bvx = Math.cos(b.ang) * b.spd, bvy = Math.sin(b.ang) * b.spd;
+        const impact = -((bvx - avx) * ux + (bvy - avy) * uy);
         if (impact > 30) {
           const dmg = impact / 14;
           const aAlive = a.hp > 0, bAlive = b.hp > 0;
