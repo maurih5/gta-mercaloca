@@ -30,7 +30,7 @@ const api = new Function(js + `
          PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
          lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
          bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup,
-         water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
+         water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
          inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND};`)();
@@ -39,7 +39,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
        lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
        bust,finishBust,makeChaser,makeCop,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup,
-       water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
+       water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
          inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND} = api;
@@ -217,6 +217,27 @@ assert.ok(!casaRosada[0].hospital, 'la Casa Rosada no puede ser tambien un hospi
   const comun = buildings.filter(b => !b.casaRosada).reduce((m, b) => Math.max(m, b.w * b.h), 0);
   assert.ok(cr.w * cr.h > comun, 'la Casa Rosada tiene que ser el edificio mas grande: ' + (cr.w * cr.h).toFixed(0) + ' vs ' + comun.toFixed(0));
   assert.ok(props.some(p => p.t === 'piramide'), 'tiene que estar la piramide al medio de la plaza');
+
+  // Layout real: CABILDO | calle | PLAZA DE MAYO | CASA ROSADA, de oeste a este
+  assert.equal(cabildo.length, 1, 'tiene que existir un solo Cabildo: ' + cabildo.length);
+  const cb = cabildo[0];
+  assert.ok(buildings.includes(cb), 'el Cabildo tiene que ser un edificio real de la ciudad');
+  assert.equal(cb.door.s, 'e', 'el Cabildo tiene que mirar a la plaza (este): ' + cb.door.s);
+  assert.ok(cb.x + cb.w < pm.x, 'el Cabildo va al oeste de la explanada');
+  assert.ok(cb.x + cb.w < cr.x, 'el Cabildo y la Casa Rosada van enfrentados con la plaza en el medio');
+  assert.ok(onRoad((cb.x + cb.w + pm.x) / 2, cb.y + cb.h / 2),
+    'entre el Cabildo y la Plaza de Mayo tiene que pasar una calle');
+  assert.ok(buildings.every(b => b === cb
+    || b.x > cb.x + cb.w || b.x + b.w < cb.x || b.y > cb.y + cb.h || b.y + b.h < cb.y),
+    'no puede haber otro edificio encima del Cabildo');
+
+  // Puentes: cada tramo se registra como prop para que el renderer le de volumen
+  const puentes = props.filter(p => p.t === 'puente');
+  assert.ok(puentes.length > 0, 'los puentes tienen que existir como prop con estructura');
+  for (const pu of puentes) {
+    assert.ok(pu.b > pu.a, 'el tramo del puente tiene largo positivo: ' + JSON.stringify(pu));
+    assert.ok(pu.w > 0 && Number.isFinite(pu.base), 'el puente tiene ancho y eje validos');
+  }
 }
 
 // --- puentes: la avenida cruza el riachuelo sin bloquear ---
