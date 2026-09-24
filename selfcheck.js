@@ -33,7 +33,7 @@ const api = new Function(js + `
          water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
@@ -42,7 +42,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND} = api;
 
 // --- helpers de color ---
 assert.equal(shade('#808080', 1), 'rgb(128,128,128)');
@@ -175,6 +175,26 @@ assert.ok(!casaRosada[0].hospital, 'la Casa Rosada no puede ser tambien un hospi
   }
   assert.ok(edges.size > 3, 'la orilla tiene que cortar las manzanas en cualquier lado, no en el borde de celda: ' + edges.size);
   assert.ok(water.every(c => c.r > 0 && !('w' in c)), 'el cauce se guarda como circulos, no como rects de celda');
+  // Playa: franja de arena a lo largo de TODO el cauce, no solo en la desembocadura
+  let arenados = 0;
+  for (const c of water) {
+    const n = riverNearest(c.x, c.y);
+    const r = riverWidthAt(n.t) + BEACH_BAND * 0.5; // justo afuera del agua
+    // 8 direcciones: el cauce corre en diagonal, con solo las 4 cardinales el
+    // punto de muestra cae todavia adentro del agua y el chequeo daria falso
+    let hit = false;
+    for (let i = 0; i < 8 && !hit; i++) {
+      const a = i / 8 * Math.PI * 2;
+      if (onBeach(c.x + Math.cos(a) * r, c.y + Math.sin(a) * r)) hit = true;
+    }
+    if (hit) arenados++;
+  }
+  assert.ok(arenados > water.length * 0.7,
+    'casi todo el cauce tiene que tener playa al lado, no solo la desembocadura: ' + arenados + '/' + water.length);
+  // (se saltea el ultimo punto: cae justo sobre el borde del mapa, fuera de la mascara)
+  assert.ok(water.every(c => c.x >= WORLD || c.y >= WORLD || !onBeach(c.x, c.y)),
+    'el centro del cauce es agua, no arena');
+  assert.ok(buildings.every(b => !onBeach(b.x + b.w / 2, b.y + b.h / 2)), 'no se planta un edificio arriba de la playa');
 }
 
 // --- Plaza de Mayo: explanada maciza de varias cuadras frente a la Casa Rosada ---
