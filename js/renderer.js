@@ -166,6 +166,29 @@ class Renderer {
       ctx.fillRect(px(rx + b.w * 0.5 + 2), px(ry + b.h * 0.08), 9, 6);
     }
 
+    if (b.cabildo) {
+      // Da al este, a la plaza: recova de arcos al frente y torre con cupula al medio
+      const ccy = ry + b.h / 2;
+      ctx.fillStyle = '#d9d2bf'; // recova
+      ctx.fillRect(px(rx + b.w * 0.72), px(ry + b.h * 0.12), b.w * 0.2, b.h * 0.76);
+      ctx.fillStyle = '#6f6857'; // arcadas
+      for (let i = 0; i < 5; i++) {
+        ctx.fillRect(px(rx + b.w * 0.75), px(ry + b.h * (0.18 + i * 0.16)), b.w * 0.14, 3);
+      }
+      ctx.fillStyle = '#f2ecda'; // cuerpo de la torre
+      ctx.fillRect(px(rx + b.w * 0.36), px(ccy - b.h * 0.17), b.w * 0.26, b.h * 0.34);
+      ctx.fillStyle = '#8c9a86'; // cupula
+      ctx.beginPath();
+      ctx.arc(px(rx + b.w * 0.49), px(ccy), Math.max(3, b.w * 0.1), 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#5f6b5b';
+      ctx.beginPath();
+      ctx.arc(px(rx + b.w * 0.49), px(ccy), Math.max(2, b.w * 0.055), 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff'; // veleta
+      ctx.fillRect(px(rx + b.w * 0.49), px(ccy - b.h * 0.3), 2, b.h * 0.12);
+    }
+
     if (det === 'ac' || b.ac) {
       for (let i = 0; i < 2; i++) {
         const ax2 = rx + b.w * (0.22 + i * 0.3), ay2 = ry + b.h * 0.2;
@@ -281,6 +304,87 @@ class Renderer {
       ctx.beginPath();
       ctx.arc(tx + (ox + sw) * p.s, ty + oy * p.s, r * p.s, 0, TAU);
       ctx.fill();
+    }
+  }
+
+  // Puente: lo que le faltaba era altura. El tablero va horneado en el piso, pero
+  // las barandas, las torres y los tirantes se extruyen como cualquier cosa alta,
+  // asi que el puente se despega del agua en vez de ser una franja gris.
+  drawPuente(p) {
+    const ctx = this.ctx;
+    const a = (p.horiz ? p.a : p.a) - (p.horiz ? G.cam.x : G.cam.y);
+    const b = (p.horiz ? p.b : p.b) - (p.horiz ? G.cam.x : G.cam.y);
+    const base = p.base - (p.horiz ? G.cam.y : G.cam.x);
+    if (b < -40 || a > (p.horiz ? RW : RH) + 40) return;
+    if (base < -160 || base > (p.horiz ? RH : RW) + 60) return;
+
+    // Extrusion de un punto del piso hacia "arriba" segun su altura
+    const up = (x, y, H) => [x + (x - RW / 2) * H / FOCAL, y + (y - RH / 2) * H / FOCAL];
+    const W = p.w, HR = 9, HT = 30; // alto de baranda y de las torres
+
+    // Barandas: cinta continua a cada lado, con su cara lateral sombreada
+    for (const s of [0, 1]) {
+      const off = s ? W : 0;
+      const p0 = p.horiz ? [a, base + off] : [base + off, a];
+      const p1 = p.horiz ? [b, base + off] : [base + off, b];
+      const t0 = up(p0[0], p0[1], HR), t1 = up(p1[0], p1[1], HR);
+      this.quad(p0[0], p0[1], p1[0], p1[1], t1[0], t1[1], t0[0], t0[1], '#6e6a60');
+      ctx.strokeStyle = '#d8d3c4';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(t0[0], t0[1]);
+      ctx.lineTo(t1[0], t1[1]);
+      ctx.stroke();
+      // Postes cada tanto
+      ctx.strokeStyle = '#4c483f';
+      ctx.lineWidth = 1.4;
+      for (let u = p.a + 12; u < p.b - 6; u += 22) {
+        const q = p.horiz ? [u - G.cam.x, base + off] : [base + off, u - G.cam.y];
+        const tq = up(q[0], q[1], HR);
+        ctx.beginPath();
+        ctx.moveTo(q[0], q[1]);
+        ctx.lineTo(tq[0], tq[1]);
+        ctx.stroke();
+      }
+    }
+
+    // Torres y tirantes en los tercios del tramo: es lo que lo hace leer "puente"
+    for (const f of [0.34, 0.66]) {
+      const u = p.a + (p.b - p.a) * f;
+      const foot = [];
+      for (const s of [0, 1]) {
+        const off = s ? W : 0;
+        const q = p.horiz ? [u - G.cam.x, base + off] : [base + off, u - G.cam.y];
+        const tq = up(q[0], q[1], HT);
+        // Pilon
+        this.quad(q[0] - 2, q[1] - 2, q[0] + 2, q[1] + 2, tq[0] + 1.4, tq[1] + 1.4, tq[0] - 1.4, tq[1] - 1.4, '#9a9488');
+        ctx.strokeStyle = '#cfc9ba';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(q[0], q[1]);
+        ctx.lineTo(tq[0], tq[1]);
+        ctx.stroke();
+        foot.push([q, tq]);
+      }
+      // Travesano que une las dos torres
+      ctx.strokeStyle = '#b3ada0';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(foot[0][1][0], foot[0][1][1]);
+      ctx.lineTo(foot[1][1][0], foot[1][1][1]);
+      ctx.stroke();
+      // Tirantes hacia el tablero
+      ctx.strokeStyle = 'rgba(220,215,200,.55)';
+      ctx.lineWidth = 1;
+      for (const [q, tq] of foot) {
+        for (const d of [-34, 34]) {
+          const e = p.horiz ? [q[0] + d, q[1]] : [q[0], q[1] + d];
+          ctx.beginPath();
+          ctx.moveTo(tq[0], tq[1]);
+          ctx.lineTo(e[0], e[1]);
+          ctx.stroke();
+        }
+      }
     }
   }
 
@@ -906,6 +1010,7 @@ class Renderer {
       if (p.t === 'palm') this.drawPalm(p);
       else if (p.t === 'arbol') this.drawArbol(p);
       else if (p.t === 'obelisco') this.drawObelisco(p);
+      else if (p.t === 'puente') this.drawPuente(p);
     }
     for (const l of lamps) this.drawLamp(l, night);
     for (const L of lights) if (L) this.drawTrafficLight(L);

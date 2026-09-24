@@ -11,6 +11,7 @@ const hospitals = [];
 const water = [];
 const carBlock = []; // zonas que frenan autos pero se caminan a pie (explanada de la plaza)
 const casaRosada = [];
+const cabildo = [];
 let obelisco = null;
 const PLAZA_CX = GRID >> 1, PLAZA_CY = GRID >> 1;
 // Plaza de Mayo / Casa Rosada: celda fija al sudeste del obelisco, lindante al rio real (distToRiver~570)
@@ -40,6 +41,16 @@ const PM_X1 = PM_X0 + CELL * PLAZA_MAYO_CELLS, PM_Y1 = PM_Y0 + CELL * PLAZA_MAYO
 function inPlazaMayo(x, y) {
   return x > PM_X0 + ROAD && x < PM_X1 && y > PM_Y0 + ROAD && y < PM_Y1;
 }
+// Lote reservado del Cabildo: enfrentado a la Casa Rosada, con la plaza y la
+// calle de por medio (CABILDO | calle | PLAZA DE MAYO | CASA ROSADA)
+const CAB_W = 96, CAB_H = (PM_Y1 - PM_Y0 - ROAD) * 0.46;
+const CAB_X = PM_X0 - CAB_W - 12;
+const CAB_Y = PM_Y0 + ROAD + ((PM_Y1 - PM_Y0 - ROAD) - CAB_H) / 2;
+function inCabildoLote(x, y, w, h) {
+  return x < CAB_X + CAB_W + 10 && x + w > CAB_X - 10
+    && y < CAB_Y + CAB_H + 10 && y + h > CAB_Y - 10;
+}
+
 // Celda que cae dentro del bloque de la plaza (para saltearla en la generacion)
 function isPlazaMayoCell(cx, cy) {
   return cx >= ROSADA_CX && cx < ROSADA_CX + PLAZA_MAYO_CELLS
@@ -155,6 +166,7 @@ class World {
     this.water = water;
     this.carBlock = carBlock;
     this.casaRosada = casaRosada;
+    this.cabildo = cabildo;
   }
 
   /**
@@ -170,6 +182,7 @@ class World {
     this.water.length = 0;
     this.carBlock.length = 0;
     this.casaRosada.length = 0;
+    this.cabildo.length = 0;
     obelisco = null;
 
     // El cauce se rasteriza primero: el resto de la generacion lo consulta con inWater()
@@ -261,6 +274,7 @@ class World {
             if (rectHitsDiagonalBand(b.x, b.y, b.w, b.h)) continue; // la diagonal corta el lote, no plantar edificio encima
             if (rectHitsWater(b.x, b.y, b.w, b.h)) continue; // el rio se come el lote
             if (rectHitsBeach(b.x, b.y, b.w, b.h)) continue; // ni encima de la playa
+            if (inCabildoLote(b.x, b.y, b.w, b.h)) continue; // el lote del Cabildo es suyo solo
 
             // Puerta en el lado que da a la calle más cercana con felpudo exterior
             const side = ((cx * 3 + cy * 5 + r + c) % 4);
@@ -306,6 +320,20 @@ class World {
       };
       this.buildings.push(b);
       this.casaRosada.push(b);
+
+      // Cabildo: enfrentado a la Casa Rosada del otro lado de la plaza, con la
+      // calle de por medio. Queda CABILDO | calle | PLAZA DE MAYO | CASA ROSADA,
+      // igual que en la vida real.
+      const cw = CAB_W, chh = CAB_H, cx2 = CAB_X, cy2 = CAB_Y;
+      const cab = {
+        id: id++,
+        x: cx2, y: cy2, w: cw, h: chh, H: 40,
+        ty: BTYPE.find(t => t.k === 'local'), col: '#e8e2d2', roofCol: '#cfc7b2',
+        ac: false, tank: false, cabildo: true,
+        door: { x: cx2 + cw, y: cy2 + chh / 2, ox: 7, oy: 0, s: 'e' }, // mira a la plaza
+      };
+      this.buildings.push(cab);
+      this.cabildo.push(cab);
 
       // Piramide de Mayo: monumento al medio de la explanada, del lado libre
       this.props.push({ t: 'piramide', x: px0 + (rx2 - px0) / 2, y: py0 + ph / 2 });
@@ -627,8 +655,17 @@ class World {
         else { g.fillRect(base - 3, a, W + 6, 9); g.fillRect(base - 3, b - 9, W + 6, 9); }
       };
 
-      for (const [a, b] of spans(false)) deck(false, a, b);
-      for (const [a, b] of spans(true)) deck(true, a, b);
+      // El tablero se hornea, pero la estructura que sobresale (torres, tirantes,
+      // barandas con altura) la dibuja el renderer por frame: horneada en el piso
+      // no se leia como puente, quedaba una franja gris.
+      for (const [a, b] of spans(false)) {
+        deck(false, a, b);
+        this.props.push({ t: 'puente', horiz: false, a, b, base: colX, w: AVENUE_ROAD });
+      }
+      for (const [a, b] of spans(true)) {
+        deck(true, a, b);
+        this.props.push({ t: 'puente', horiz: true, a, b, base: rowY, w: AVENUE_ROAD });
+      }
     }
 
     // Líneas divisoras y cebras
