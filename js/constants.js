@@ -2,7 +2,7 @@
    GTA MERCALOCA - Constantes y Configuración General
    ========================================================================= */
 
-const VERSION = 'v41-dbb2951';
+const VERSION = 'v42-1eb456d';
 
 const CREW = [
   {id:'p1', name:'EL SMOKE',  img:'img/p1.jpeg', crop:[0.42,0.11,0.25,0.29], shirt:'#3f9a4a', pants:'#232323'},
@@ -45,6 +45,8 @@ const ROTONDA_ISLAND_R = 26;
 const RIVER_HALF = CELL * 0.55;
 const RIVER_WOBBLE = 0.42;
 const BEACH_RADIUS = CELL * 1.8;
+// Ancho de la franja de arena que rodea todo el cauce, no solo la desembocadura
+const BEACH_BAND = 26;
 
 // Puentes: medio ancho del corredor sobre la avenida donde el agua no existe
 const BRIDGE_HALF = AVENUE_ROAD * 0.62;

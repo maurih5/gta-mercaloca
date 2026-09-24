@@ -117,6 +117,23 @@ function inWater(x, y) {
   if (i < 0 || j < 0 || i >= WMW || j >= WMW) return false;
   return WATER_MASK[j * WMW + i] === 1;
 }
+// Arena: la franja que rodea el cauce. Es transitable (no bloquea), pero ahi no
+// se plantan edificios ni se pintan calles.
+function onBeach(x, y) {
+  if (inWater(x, y) || inBridgeCorridor(x, y)) return false;
+  const n = riverNearest(x, y);
+  return n.d < riverWidthAt(n.t) + BEACH_BAND;
+}
+// Donde no se pinta nada de calle: la calle muere en la costa, asi que ni lineas
+// ni cebras siguen sobre el agua ni sobre la arena.
+function noRoadPaint(x, y) {
+  return inWater(x, y) || onBeach(x, y);
+}
+function rectHitsBeach(x, y, w, h) {
+  return onBeach(x, y) || onBeach(x + w, y) || onBeach(x, y + h) || onBeach(x + w, y + h)
+    || onBeach(x + w / 2, y + h / 2);
+}
+
 // Igual que rectHitsDiagonalBand: si el lote toca el agua por cualquier lado, no va edificio
 function rectHitsWater(x, y, w, h) {
   return inWater(x, y) || inWater(x + w, y) || inWater(x, y + h) || inWater(x + w, y + h)
@@ -185,6 +202,8 @@ class World {
         const rn = riverNearest(cxCenter, cyCenter);
         const d2River = rn.d - riverWidthAt(rn.t);
 
+        // Desembocadura: playon ancho. El resto de la costa ya lleva su franja de
+        // arena horneada a lo largo del cauce, no hace falta un rect por celda.
         if (d2River < CELL * 0.4 && Math.hypot(cxCenter - WORLD, cyCenter - WORLD * 0.68) < BEACH_RADIUS) {
           this.props.push({ t: 'beach', x: bx, y: by, w: innerW, h: innerH });
           continue;
@@ -241,6 +260,7 @@ class World {
 
             if (rectHitsDiagonalBand(b.x, b.y, b.w, b.h)) continue; // la diagonal corta el lote, no plantar edificio encima
             if (rectHitsWater(b.x, b.y, b.w, b.h)) continue; // el rio se come el lote
+            if (rectHitsBeach(b.x, b.y, b.w, b.h)) continue; // ni encima de la playa
 
             // Puerta en el lado que da a la calle más cercana con felpudo exterior
             const side = ((cx * 3 + cy * 5 + r + c) % 4);
@@ -301,7 +321,7 @@ class World {
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
         const lx = cx * CELL + ROAD - 5, ly = cy * CELL + ROAD - 5;
-        if (inWater(lx, ly)) continue; // el rio se comio la esquina, no hay farol flotando
+        if (noRoadPaint(lx, ly)) continue; // el rio se comio la esquina, no hay farol flotando
         this.lamps.push({ x: lx, y: ly });
       }
     }
@@ -315,7 +335,7 @@ class World {
         // Plaza de Mayo, que ya no existen como cruce.
         // Sin semaforo tampoco donde el rio se trago la bocacalle.
         if ((cx === PLAZA_CX && cy === PLAZA_CY) || (isPlazaMayoCell(cx, cy) && cx > ROSADA_CX && cy > ROSADA_CY)
-          || inWater(cx * CELL + ROAD / 2, cy * CELL + ROAD / 2)) {
+          || noRoadPaint(cx * CELL + ROAD / 2, cy * CELL + ROAD / 2)) {
           this.lights.push(null);
           continue;
         }
@@ -500,10 +520,30 @@ class World {
 
     // Riachuelo: cadena de circulos solapados sobre la curva. Como cada uno tiene
     // su propio radio, la orilla queda irregular en vez de escalonada por celda.
-    g.fillStyle = '#7d7256'; // barro de la orilla, un cachito mas ancho que el agua
+    // Playa: franja de arena ancha a lo largo de TODO el cauce, no solo en la
+    // desembocadura. Va en dos capas para que la orilla no corte de golpe.
+    g.fillStyle = '#cdbb8a';
     for (const w2 of this.water) {
       g.beginPath();
-      g.arc(w2.x, w2.y, w2.r + 5, 0, TAU);
+      g.arc(w2.x, w2.y, w2.r + BEACH_BAND, 0, TAU);
+      g.fill();
+    }
+    g.fillStyle = '#dfc98a';
+    for (const w2 of this.water) {
+      g.beginPath();
+      g.arc(w2.x, w2.y, w2.r + BEACH_BAND * 0.55, 0, TAU);
+      g.fill();
+    }
+    g.fillStyle = 'rgba(150,120,60,.16)'; // granito de la arena
+    for (let i = 0; i < 2600; i++) {
+      const x = rnd(0, WORLD), y = rnd(0, WORLD);
+      if (!onBeach(x, y)) continue;
+      g.fillRect(x, y, rnd(2, 5), rnd(2, 4));
+    }
+    g.fillStyle = '#8a7f60'; // barro humedo pegado al agua
+    for (const w2 of this.water) {
+      g.beginPath();
+      g.arc(w2.x, w2.y, w2.r + 4, 0, TAU);
       g.fill();
     }
     g.fillStyle = '#3f7ea6';
@@ -524,23 +564,71 @@ class World {
     // de varias celdas de largo.
     {
       const colX = PLAZA_CX * CELL, rowY = PLAZA_CY * CELL;
-      const floods = (x, y) => { const n = riverNearest(x, y); return n.d < riverWidthAt(n.t); };
-      for (let y = 0; y < WORLD; y++) {
-        if (!floods(colX + AVENUE_ROAD / 2, y)) continue;
+      // Un puente por cada tramo de costa a costa, con cabeceras que apoyan en
+      // tierra firme (por eso el tramo se extiende mas alla del agua y la arena).
+      const spans = (horiz) => {
+        const fixed = (horiz ? rowY : colX) + AVENUE_ROAD / 2;
+        const wet = u => {
+          const x = horiz ? u : fixed, y = horiz ? fixed : u;
+          const n = riverNearest(x, y);
+          return n.d < riverWidthAt(n.t) + BEACH_BAND * 0.7;
+        };
+        const out = [];
+        let a = -1;
+        for (let u = 0; u <= WORLD; u++) {
+          if (wet(u) && a < 0) a = u;
+          else if (!wet(u) && a >= 0) { out.push([a - 14, u + 14]); a = -1; }
+        }
+        if (a >= 0) out.push([a - 14, WORLD]);
+        return out;
+      };
+
+      const deck = (horiz, a, b) => {
+        const W = AVENUE_ROAD, base = horiz ? rowY : colX, len = b - a;
+        // Sombra del tablero sobre el agua, para que se lea "por encima"
+        g.fillStyle = 'rgba(0,0,0,.30)';
+        if (horiz) g.fillRect(a, base + 7, len, W);
+        else g.fillRect(base + 7, a, W, len);
+        // Vigas transversales
+        g.fillStyle = '#4a4740';
+        if (horiz) g.fillRect(a, base, len, W); else g.fillRect(base, a, W, len);
+        g.fillStyle = '#5f5a50';
+        for (let u = a + 6; u < b; u += 13) {
+          if (horiz) g.fillRect(u, base + 2, 5, W - 4);
+          else g.fillRect(base + 2, u, W - 4, 5);
+        }
+        // Calzada
         g.fillStyle = '#57534a';
-        g.fillRect(colX, y, AVENUE_ROAD, 1);
+        if (horiz) g.fillRect(a, base + 9, len, W - 18);
+        else g.fillRect(base + 9, a, W - 18, len);
+        // Linea divisoria
         g.fillStyle = '#c9a227';
-        g.fillRect(colX - 5, y, 4, 1);
-        g.fillRect(colX + AVENUE_ROAD + 1, y, 4, 1);
-      }
-      for (let x = 0; x < WORLD; x++) {
-        if (!floods(x, rowY + AVENUE_ROAD / 2)) continue;
-        g.fillStyle = '#57534a';
-        g.fillRect(x, rowY, 1, AVENUE_ROAD);
-        g.fillStyle = '#c9a227';
-        g.fillRect(x, rowY - 5, 1, 4);
-        g.fillRect(x, rowY + AVENUE_ROAD + 1, 1, 4);
-      }
+        for (let u = a + 4; u < b - 8; u += 18) {
+          if (horiz) g.fillRect(u, base + W / 2 - 1, 10, 2);
+          else g.fillRect(base + W / 2 - 1, u, 2, 10);
+        }
+        // Barandas: cordon claro + pasamanos oscuro a cada lado
+        for (const s of [0, 1]) {
+          const off = s ? W - 9 : 0;
+          g.fillStyle = '#9a958a';
+          if (horiz) g.fillRect(a, base + off, len, 9); else g.fillRect(base + off, a, 9, len);
+          g.fillStyle = '#2f2d29';
+          if (horiz) g.fillRect(a, base + off + (s ? 6 : 0), len, 3);
+          else g.fillRect(base + off + (s ? 6 : 0), a, 3, len);
+          // Postes
+          g.fillStyle = '#6d685e';
+          for (let u = a + 5; u < b; u += 15) {
+            if (horiz) g.fillRect(u, base + off, 3, 9); else g.fillRect(base + off, u, 9, 3);
+          }
+        }
+        // Cabeceras de hormigon en las dos puntas
+        g.fillStyle = '#8b8477';
+        if (horiz) { g.fillRect(a, base - 3, 9, W + 6); g.fillRect(b - 9, base - 3, 9, W + 6); }
+        else { g.fillRect(base - 3, a, W + 6, 9); g.fillRect(base - 3, b - 9, W + 6, 9); }
+      };
+
+      for (const [a, b] of spans(false)) deck(false, a, b);
+      for (const [a, b] of spans(true)) deck(true, a, b);
     }
 
     // Líneas divisoras y cebras
@@ -550,7 +638,7 @@ class World {
       const rw = isAveCol ? AVENUE_ROAD : ROAD, rh = isAveRow ? AVENUE_ROAD : ROAD;
       g.fillStyle = '#c9a227';
       for (let y = 0; y < WORLD; y += 16) {
-        if (this.onRoad(rx + rw / 2, y) && (y % CELL) > rw && !inWater(rx + rw / 2, y)) {
+        if (this.onRoad(rx + rw / 2, y) && (y % CELL) > rw && !noRoadPaint(rx + rw / 2, y)) {
           if (!isAveCol) g.fillRect(rx + rw / 2 - 1, y, 2, 9); // avenida: sin raya al medio, va el cantero
           if (isAveCol) {
             g.fillRect(rx + rw / 2 - 1 - AVENUE_LANE * 1.4, y, 2, 9);
@@ -559,7 +647,7 @@ class World {
         }
       }
       for (let x = 0; x < WORLD; x += 16) {
-        if (this.onRoad(x, ry + rh / 2) && (x % CELL) > rh && !inWater(x, ry + rh / 2)) {
+        if (this.onRoad(x, ry + rh / 2) && (x % CELL) > rh && !noRoadPaint(x, ry + rh / 2)) {
           if (!isAveRow) g.fillRect(x, ry + rh / 2 - 1, 9, 2);
           if (isAveRow) {
             g.fillRect(x, ry + rh / 2 - 1 - AVENUE_LANE * 1.4, 9, 2);
@@ -614,10 +702,10 @@ class World {
         const rw = cx === PLAZA_CX ? AVENUE_ROAD : ROAD, rh = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
         // Sin cebras sobre el agua: donde el rio se comio la bocacalle no hay nada que cruzar
         for (let k = 3; k < Math.min(rw, rh) - 3; k += 8) {
-          if (!inWater(ix + k, iy - 9)) g.fillRect(ix + k, iy - 9, 5, 7);
-          if (!inWater(ix + k, iy + rh + 2)) g.fillRect(ix + k, iy + rh + 2, 5, 7);
-          if (!inWater(ix - 9, iy + k)) g.fillRect(ix - 9, iy + k, 7, 5);
-          if (!inWater(ix + rw + 2, iy + k)) g.fillRect(ix + rw + 2, iy + k, 7, 5);
+          if (!noRoadPaint(ix + k, iy - 9)) g.fillRect(ix + k, iy - 9, 5, 7);
+          if (!noRoadPaint(ix + k, iy + rh + 2)) g.fillRect(ix + k, iy + rh + 2, 5, 7);
+          if (!noRoadPaint(ix - 9, iy + k)) g.fillRect(ix - 9, iy + k, 7, 5);
+          if (!noRoadPaint(ix + rw + 2, iy + k)) g.fillRect(ix + rw + 2, iy + k, 7, 5);
         }
       }
     }

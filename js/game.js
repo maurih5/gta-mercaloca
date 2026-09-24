@@ -582,7 +582,7 @@ class Game {
       c.horn = Math.max(0, c.horn - dt);
 
       const fwx = Math.cos(c.ang), fwy = Math.sin(c.ang);
-      const ahead = c.w * 0.6 + 9 + Math.abs(c.spd) * 0.22;
+      const ahead = c.w * 0.6 + 13 + Math.abs(c.spd) * 0.30;
       const inFront = (ox2, oy2, halfW) => {
         const rx2 = ox2 - c.x, ry2 = oy2 - c.y;
         const fwd = rx2 * fwx + ry2 * fwy;
@@ -590,16 +590,50 @@ class Game {
         return fwd > 0 && fwd < ahead && lat < halfW;
       };
 
+      // Cesion de paso en los cruces: proyecta las dos trayectorias unos metros y,
+      // si van a coincidir en tiempo y lugar, frena el que llega despues. Si empatan
+      // desempata el id, para que no cedan los dos y queden trabados mirandose.
+      const crossBlocked = (me, o) => {
+        const T = 1.15;
+        const mvx = Math.cos(me.ang) * me.spd, mvy = Math.sin(me.ang) * me.spd;
+        const ovx = Math.cos(o.ang) * o.spd, ovy = Math.sin(o.ang) * o.spd;
+        const rad = (me.w + me.h) / 4 + (o.w + o.h) / 4 + 5;
+        let tHit = -1;
+        for (let t = 0.1; t <= T; t += 0.12) {
+          const ex = (me.x + mvx * t) - (o.x + ovx * t);
+          const ey = (me.y + mvy * t) - (o.y + ovy * t);
+          if (ex * ex + ey * ey < rad * rad) { tHit = t; break; }
+        }
+        if (tHit < 0) return false;
+        // Solo frena si el conflicto le queda adelante, no si ya lo dejo atras
+        const cx2 = me.x + mvx * tHit - me.x, cy2 = me.y + mvy * tHit - me.y;
+        if (cx2 * fwx + cy2 * fwy < -2) return false;
+        const myD = Math.hypot(me.x + mvx * tHit - me.x, me.y + mvy * tHit - me.y);
+        const oD = Math.hypot(o.x + ovx * tHit - o.x, o.y + ovy * tHit - o.y);
+        if (Math.abs(myD - oD) < 3) return me.seed > o.seed; // empate: desempata estable
+        return myD > oD; // el que tiene que recorrer mas, llega despues: cede
+      };
+
       let block = false, queued = false;
       for (const o of G.cars) {
         if (o === c || o.hp <= 0) continue;
         const sameWay = (Math.cos(c.ang) * Math.cos(o.ang) + Math.sin(c.ang) * Math.sin(o.ang)) > 0.3;
-        if (!sameWay) continue;
-        if (inFront(o.x, o.y, (c.h + o.h) * 0.42)) {
-          block = true;
-          if ((o.waitLight || 0) > 0 || o.queued) queued = true;
-          break;
+        if (sameWay) {
+          if (inFront(o.x, o.y, (c.h + o.h) * 0.42)) {
+            block = true;
+            if ((o.waitLight || 0) > 0 || o.queued) queued = true;
+            break;
+          }
+          continue;
         }
+        // Sentido cruzado: antes se ignoraba por completo, asi que en las bocacalles
+        // los autos se atravesaban entre si (99% de los choques medidos). Ahora el
+        // que llega despues cede el paso; el desempate por id es estable, para que
+        // no frenen los dos a la vez y queden trabados.
+        if (!crossBlocked(c, o)) continue;
+        block = true;
+        if ((o.waitLight || 0) > 0 || o.queued) queued = true;
+        break;
       }
       c.queued = queued;
 
@@ -894,6 +928,19 @@ class Game {
         } else if (bClear) {
           b.x += ux * overlap;
           b.y += uy * overlap;
+        } else {
+          // Ninguno tiene lugar para atras (encajonados entre auto y pared): se
+          // prueba deslizar de costado. Si no, quedaban encimados para siempre.
+          const sx = -uy, sy = ux;
+          for (const s of [1, -1]) {
+            const ax2 = a.x + sx * s * overlap * 0.6, ay2 = a.y + sy * s * overlap * 0.6;
+            const bx2 = b.x - sx * s * overlap * 0.6, by2 = b.y - sy * s * overlap * 0.6;
+            if (!hitBuilding(ax2, ay2, (a.w + a.h) / 4) && !hitBuilding(bx2, by2, (b.w + b.h) / 4)) {
+              a.x = ax2; a.y = ay2;
+              b.x = bx2; b.y = by2;
+              break;
+            }
+          }
         }
 
         // Velocidad de cierre real (proyectada sobre la normal), no la suma de rapideces:
