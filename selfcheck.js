@@ -33,7 +33,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,segAliveV,segAliveH,onDeadRoad,sandZone};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
@@ -42,7 +42,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,segAliveV,segAliveH,onDeadRoad,sandZone} = api;
 
 // --- helpers de color ---
 assert.equal(shade('#808080', 1), 'rgb(128,128,128)');
@@ -195,6 +195,39 @@ assert.ok(!casaRosada[0].hospital, 'la Casa Rosada no puede ser tambien un hospi
   assert.ok(water.every(c => c.x >= WORLD || c.y >= WORLD || !onBeach(c.x, c.y)),
     'el centro del cauce es agua, no arena');
   assert.ok(buildings.every(b => !onBeach(b.x + b.w / 2, b.y + b.h / 2)), 'no se planta un edificio arriba de la playa');
+
+  // Ninguna calle desemboca en el rio: el tramo cortado por agua o arena se borra
+  // entero, asi la calle termina en la esquina anterior.
+  let sobreAgua = 0;
+  for (let i = 0; i < 40000; i++) {
+    const x = Math.random() * WORLD, y = Math.random() * WORLD;
+    if (onRoad(x, y) && (inWater(x, y) || onBeach(x, y))) sobreAgua++;
+  }
+  assert.equal(sobreAgua, 0, 'ninguna calle puede meterse en el agua ni en la playa: ' + sobreAgua);
+
+  // Y no quedan callejones sin salida: todo extremo de tramo vivo conecta con otro
+  const conn = (nx, ny) =>
+    (segAliveV(nx, ny) ? 1 : 0) + (segAliveV(nx, ny - 1) ? 1 : 0)
+    + (segAliveH(nx, ny) ? 1 : 0) + (segAliveH(nx - 1, ny) ? 1 : 0);
+  const bordeMapa = (nx, ny) => nx <= 0 || ny <= 0 || nx >= GRID || ny >= GRID;
+  let callejones = 0, vivos = 0;
+  for (let cy = 0; cy < GRID; cy++) for (let cx = 0; cx <= GRID; cx++) {
+    if (!segAliveV(cx, cy)) continue;
+    vivos++;
+    for (const n of [[cx, cy], [cx, cy + 1]]) if (!bordeMapa(n[0], n[1]) && conn(n[0], n[1]) < 2) callejones++;
+  }
+  for (let cx = 0; cx < GRID; cx++) for (let cy = 0; cy <= GRID; cy++) {
+    if (!segAliveH(cx, cy)) continue;
+    vivos++;
+    for (const n of [[cx, cy], [cx + 1, cy]]) if (!bordeMapa(n[0], n[1]) && conn(n[0], n[1]) < 2) callejones++;
+  }
+  assert.ok(vivos > GRID * GRID, 'tiene que quedar una red de calles grande: ' + vivos);
+  assert.equal(callejones, 0, 'no puede quedar ninguna calle colgada contra el rio: ' + callejones);
+
+  // El asfalto liberado se vuelve playa, con sus cosas encima
+  const sombrillas = props.filter(p => p.t === 'sombrilla');
+  assert.ok(sombrillas.length > 20, 'tiene que haber sombrillas en la playa: ' + sombrillas.length);
+  assert.ok(sombrillas.every(s => sandZone(s.x, s.y)), 'toda sombrilla va sobre la arena');
 }
 
 // --- Plaza de Mayo: explanada maciza de varias cuadras frente a la Casa Rosada ---

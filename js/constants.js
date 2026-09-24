@@ -2,7 +2,7 @@
    GTA MERCALOCA - Constantes y Configuración General
    ========================================================================= */
 
-const VERSION = 'v45-277773b';
+const VERSION = 'v47-1e161d6';
 
 const CREW = [
   {id:'p1', name:'EL SMOKE',  img:'img/p1.jpeg', crop:[0.42,0.11,0.25,0.29], shirt:'#3f9a4a', pants:'#232323'},
