@@ -135,10 +135,101 @@ function onBeach(x, y) {
   const n = riverNearest(x, y);
   return n.d < riverWidthAt(n.t) + BEACH_BAND;
 }
+// Tramos de calle: un tramo es el pedazo de calle entre dos bocacalles. Si el agua
+// o la playa lo cortan, el tramo ENTERO deja de existir, asi la calle termina en la
+// esquina anterior en vez de meterse en el rio y dejar un callejon sin salida.
+// SEG_V[cx][cy] = tramo vertical de la columna cx que baja por la fila cy.
+const SEG_N = GRID + 1;
+let SEG_V = null, SEG_H = null;
+function segIdx(cx, cy) { return cy * SEG_N + cx; }
+function roadWidthCol(cx) { return cx === PLAZA_CX ? AVENUE_ROAD : ROAD; }
+function roadWidthRow(cy) { return cy === PLAZA_CY ? AVENUE_ROAD : ROAD; }
+function bakeRoadSegments() {
+  SEG_V = new Uint8Array(SEG_N * SEG_N);
+  SEG_H = new Uint8Array(SEG_N * SEG_N);
+  const cut = (x, y) => inWater(x, y) || onBeach(x, y);
+  // Se muestrea todo el ancho de la calzada, no solo el eje: si la arena le come
+  // un borde, el tramo igual se va (y ese asfalto pasa a ser playa).
+  for (let cy = 0; cy < GRID; cy++) {
+    for (let cx = 0; cx <= GRID; cx++) {
+      const w2 = roadWidthCol(cx);
+      let ok = true;
+      for (let y = cy * CELL; y <= (cy + 1) * CELL && ok; y += 6) {
+        for (const f of [0.12, 0.5, 0.88]) if (cut(cx * CELL + w2 * f, y)) { ok = false; break; }
+      }
+      if (ok) SEG_V[segIdx(cx, cy)] = 1;
+    }
+  }
+  for (let cx = 0; cx < GRID; cx++) {
+    for (let cy = 0; cy <= GRID; cy++) {
+      const h2 = roadWidthRow(cy);
+      let ok = true;
+      for (let x = cx * CELL; x <= (cx + 1) * CELL && ok; x += 6) {
+        for (const f of [0.12, 0.5, 0.88]) if (cut(x, cy * CELL + h2 * f)) { ok = false; break; }
+      }
+      if (ok) SEG_H[segIdx(cx, cy)] = 1;
+    }
+  }
+}
+// Poda de callejones: un tramo que sobrevive pero cuya punta no conecta con ningun
+// otro tramo deja una calle colgada contra el rio. Se borra y se repite, porque al
+// borrarlo puede quedar colgado el de atras.
+function pruneDeadEnds() {
+  const conn = (nx, ny) =>
+    (segAliveV(nx, ny) ? 1 : 0) + (segAliveV(nx, ny - 1) ? 1 : 0)
+    + (segAliveH(nx, ny) ? 1 : 0) + (segAliveH(nx - 1, ny) ? 1 : 0);
+  const borde = (nx, ny) => nx <= 0 || ny <= 0 || nx >= GRID || ny >= GRID;
+  for (let pass = 0; pass < 24; pass++) {
+    let cambio = false;
+    for (let cy = 0; cy < GRID; cy++) {
+      for (let cx = 0; cx <= GRID; cx++) {
+        if (!SEG_V[segIdx(cx, cy)]) continue;
+        for (const [nx, ny] of [[cx, cy], [cx, cy + 1]]) {
+          if (borde(nx, ny) || conn(nx, ny) >= 2) continue;
+          SEG_V[segIdx(cx, cy)] = 0; cambio = true; break;
+        }
+      }
+    }
+    for (let cx = 0; cx < GRID; cx++) {
+      for (let cy = 0; cy <= GRID; cy++) {
+        if (!SEG_H[segIdx(cx, cy)]) continue;
+        for (const [nx, ny] of [[cx, cy], [cx + 1, cy]]) {
+          if (borde(nx, ny) || conn(nx, ny) >= 2) continue;
+          SEG_H[segIdx(cx, cy)] = 0; cambio = true; break;
+        }
+      }
+    }
+    if (!cambio) break;
+  }
+}
+function segAliveV(cx, cy) {
+  if (!SEG_V || cx < 0 || cy < 0 || cx > GRID || cy >= GRID) return false;
+  return SEG_V[segIdx(cx, cy)] === 1;
+}
+function segAliveH(cx, cy) {
+  if (!SEG_H || cx < 0 || cy < 0 || cx >= GRID || cy > GRID) return false;
+  return SEG_H[segIdx(cx, cy)] === 1;
+}
+// Punto que cae sobre un tramo muerto: ese asfalto ya no es calle, pasa a ser arena.
+// Solo cuenta la franja de calzada; el interior de la manzana es vereda/pasto y se
+// hornea despues, asi que ahi la arena no se ve.
+function onDeadRoad(x, y) {
+  if (!SEG_V) return false;
+  const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
+  const onV = (x % CELL) < roadWidthCol(cx), onH = (y % CELL) < roadWidthRow(cy);
+  if (!onV && !onH) return false;
+  const liveV = onV && segAliveV(cx, cy), liveH = onH && segAliveH(cx, cy);
+  return !liveV && !liveH;
+}
+// Zona de arena: la orilla mas el asfalto liberado por los tramos que se borraron
+function sandZone(x, y) {
+  return !inWater(x, y) && !inBridgeCorridor(x, y) && (onBeach(x, y) || onDeadRoad(x, y));
+}
+
 // Donde no se pinta nada de calle: la calle muere en la costa, asi que ni lineas
 // ni cebras siguen sobre el agua ni sobre la arena.
 function noRoadPaint(x, y) {
-  return inWater(x, y) || onBeach(x, y);
+  return inWater(x, y) || onBeach(x, y) || onDeadRoad(x, y);
 }
 function rectHitsBeach(x, y, w, h) {
   return onBeach(x, y) || onBeach(x + w, y) || onBeach(x, y + h) || onBeach(x + w, y + h)
@@ -187,6 +278,9 @@ class World {
 
     // El cauce se rasteriza primero: el resto de la generacion lo consulta con inWater()
     bakeWaterMask();
+    // Y despues los tramos de calle, que dependen de donde quedo el agua y la arena
+    bakeRoadSegments();
+    pruneDeadEnds();
     // Cadena de circulos solapados sobre la curva: es el cauce que se hornea y se
     // muestra en el minimapa (la colision real va por WATER_MASK, no por esta lista)
     for (let i = 0; i < riverPts.length; i++) {
@@ -343,6 +437,25 @@ class World {
       const ix = PM_X0 + CELL, iy = PM_Y0 + CELL; // calle interna que se borro
       this.carBlock.push({ x: px0, y: iy, w: pw, h: ROAD });
       this.carBlock.push({ x: ix, y: py0, w: ROAD, h: ph });
+    }
+
+    // Cosas de playa: sombrillas y palmeras repartidas por la arena (incluida la
+    // que gano el asfalto de los tramos que ya no son calle).
+    {
+      const SOMBRILLA = ['#e05a4a', '#3f8fd0', '#e0b83a', '#4faa62', '#e07fb0'];
+      let puestas = 0;
+      for (let i = 0; i < 20000 && puestas < 150; i++) {
+        const x = rnd(0, WORLD), y = rnd(0, WORLD);
+        if (!sandZone(x, y)) continue;
+        if (this.hitBuilding(x, y, 10)) continue;
+        puestas++;
+        if (Math.random() < 0.45) {
+          this.props.push({ t: 'palm', x, y, s: rnd(0.9, 1.35) });
+        } else {
+          this.props.push({ t: 'sombrilla', x, y, s: rnd(0.85, 1.2),
+            col: SOMBRILLA[(Math.random() * SOMBRILLA.length) | 0] });
+        }
+      }
     }
 
     // Faroles en cada esquina
@@ -562,11 +675,35 @@ class World {
       g.arc(w2.x, w2.y, w2.r + BEACH_BAND * 0.55, 0, TAU);
       g.fill();
     }
+    // El asfalto de los tramos que se borraron pasa a ser playa: es el espacio que
+    // dejo la calle al terminar en la esquina anterior en vez de meterse en el rio.
+    g.fillStyle = '#dfc98a';
+    for (let y = 0; y < WORLD; y += 3) {
+      for (let x = 0; x < WORLD; x += 3) {
+        if (onDeadRoad(x, y) && !inWater(x, y)) g.fillRect(x, y, 3, 3);
+      }
+    }
     g.fillStyle = 'rgba(150,120,60,.16)'; // granito de la arena
-    for (let i = 0; i < 2600; i++) {
+    for (let i = 0; i < 4200; i++) {
       const x = rnd(0, WORLD), y = rnd(0, WORLD);
-      if (!onBeach(x, y)) continue;
+      if (!sandZone(x, y)) continue;
       g.fillRect(x, y, rnd(2, 5), rnd(2, 4));
+    }
+    // Sabanas y toallas tiradas en la arena (planas, van horneadas)
+    {
+      const TOALLA = ['#d94f4f', '#4f7fd9', '#d9c44f', '#57b06a', '#d97fb5', '#e8e2d2'];
+      for (let i = 0; i < 520; i++) {
+        const x = rnd(0, WORLD), y = rnd(0, WORLD);
+        if (!sandZone(x, y)) continue;
+        const w2 = rnd(11, 19), h2 = rnd(8, 14);
+        if (!sandZone(x + w2, y + h2)) continue; // que entre entera en la arena
+        g.fillStyle = 'rgba(0,0,0,.13)';
+        g.fillRect(x + 1, y + 2, w2, h2);
+        g.fillStyle = TOALLA[(Math.random() * TOALLA.length) | 0];
+        g.fillRect(x, y, w2, h2);
+        g.fillStyle = 'rgba(255,255,255,.22)'; // rayas
+        for (let k = 2; k < h2 - 1; k += 4) g.fillRect(x, y + k, w2, 1);
+      }
     }
     g.fillStyle = '#8a7f60'; // barro humedo pegado al agua
     for (const w2 of this.water) {
@@ -851,17 +988,14 @@ class World {
   onRoadCardinal(x, y) {
     if (inPlazaMayo(x, y)) return false;
     const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
-    const rx = cx === PLAZA_CX ? AVENUE_ROAD : ROAD;
-    const ry = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
-    return (x % CELL) < rx || (y % CELL) < ry;
+    const onV = (x % CELL) < roadWidthCol(cx), onH = (y % CELL) < roadWidthRow(cy);
+    // Un tramo cortado por el rio no es calle: la calle termina en la esquina anterior
+    return (onV && segAliveV(cx, cy)) || (onH && segAliveH(cx, cy));
   }
 
   onRoad(x, y) {
     if (inPlazaMayo(x, y)) return false; // la explanada se come las calles internas
-    const cx = Math.floor(x / CELL), cy = Math.floor(y / CELL);
-    const rx = cx === PLAZA_CX ? AVENUE_ROAD : ROAD;
-    const ry = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
-    return (x % CELL) < rx || (y % CELL) < ry || inDiagonalBand(x, y);
+    return this.onRoadCardinal(x, y) || inDiagonalBand(x, y);
   }
 
   inRotondaRing(x, y) {

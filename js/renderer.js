@@ -307,6 +307,40 @@ class Renderer {
     }
   }
 
+  // Sombrilla de playa: palo extruido y lona de gajos vista desde arriba
+  drawSombrilla(p) {
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x < -24 || y < -30 || x > RW + 24 || y > RH + 24) return;
+    const H = 20 * p.s;
+    const dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL - 6 * p.s;
+    const tx = x + dx, ty = y + dy, R = 11 * p.s;
+    ctx.fillStyle = 'rgba(0,0,0,.20)'; // sombra en la arena
+    ctx.beginPath();
+    ctx.ellipse(x + 3, y + 3, R * 0.9, R * 0.55, 0, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = '#8a7f60'; // palo
+    ctx.lineWidth = 2 * p.s;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+    // Lona: gajos alternados del color de la sombrilla y blanco
+    for (let i = 0; i < 8; i++) {
+      const a0 = i / 8 * TAU, a1 = (i + 1) / 8 * TAU;
+      ctx.fillStyle = i % 2 ? '#f2ede0' : p.col;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.arc(tx, ty, R, a0, a1);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = '#6b6152';
+    ctx.beginPath();
+    ctx.arc(tx, ty, 1.6 * p.s, 0, TAU);
+    ctx.fill();
+  }
+
   // Puente: lo que le faltaba era altura. El tablero va horneado en el piso, pero
   // las barandas, las torres y los tirantes se extruyen como cualquier cosa alta,
   // asi que el puente se despega del agua en vez de ser una franja gris.
@@ -1011,6 +1045,7 @@ class Renderer {
       else if (p.t === 'arbol') this.drawArbol(p);
       else if (p.t === 'obelisco') this.drawObelisco(p);
       else if (p.t === 'puente') this.drawPuente(p);
+      else if (p.t === 'sombrilla') this.drawSombrilla(p);
     }
     for (const l of lamps) this.drawLamp(l, night);
     for (const L of lights) if (L) this.drawTrafficLight(L);
