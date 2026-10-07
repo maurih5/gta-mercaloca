@@ -218,6 +218,26 @@ class TouchController {
       }
     );
 
+    // Cambiar de arma
+    bindBtn(
+      'btn-wpn',
+      () => {
+        keys.KeyQ = true;
+        setTimeout(() => { keys.KeyQ = false; }, 150);
+      },
+      () => {}
+    );
+
+    // Fumar porro
+    bindBtn(
+      'btn-porro',
+      () => {
+        keys.KeyF = true;
+        setTimeout(() => { keys.KeyF = false; }, 150);
+      },
+      () => {}
+    );
+
     // Pausa
     bindBtn(
       'btn-pause',

@@ -32,7 +32,7 @@ function frame(now) {
     }
     if (touchController) touchController.syncMapButtons();
 
-    if (!G.paused && !G.mapOpen) update(dt);
+    if (!G.paused && !G.mapOpen && !G.shopOpen) update(dt);
     render();
   }
 
@@ -94,6 +94,26 @@ async function boot() {
     G.faces['ped' + i] = c2;
   }
   G.faces.ped = G.faces.ped0;
+
+  // Caras de los tranzas: gorra con visera
+  TRANZA_LOOK.forEach((look, i) => {
+    const c3 = document.createElement('canvas');
+    c3.width = c3.height = 14;
+    const g3 = c3.getContext('2d');
+    g3.fillStyle = '#14100c';
+    g3.fillRect(0, 0, 14, 14);
+    g3.fillStyle = SKIN[(i + 1) % SKIN.length];
+    g3.fillRect(2, 4, 10, 9);
+    g3.fillStyle = look.cap;
+    g3.fillRect(1, 1, 12, 4);
+    g3.fillRect(1, 4, 13, 1);
+    g3.fillStyle = '#1a1a1a';
+    g3.fillRect(4, 7, 2, 1);
+    g3.fillRect(8, 7, 2, 1);
+    g3.fillStyle = 'rgba(0,0,0,.3)';
+    g3.fillRect(4, 11, 6, 1);
+    G.faces['tranza' + i] = c3;
+  });
 
   // Generar cara pixel art del policía
   const cop = document.createElement('canvas');

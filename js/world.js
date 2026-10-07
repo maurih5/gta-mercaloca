@@ -150,6 +150,19 @@ function rectHitsWater(x, y, w, h) {
   return inWater(x, y) || inWater(x + w, y) || inWater(x, y + h) || inWater(x + w, y + h)
     || inWater(x + w / 2, y + h / 2);
 }
+const shops = [];
+
+// Villas con su rectángulo en coordenadas del mundo (incluye las calles que las cruzan)
+const villas = VILLAS.map(v => ({
+  ...v,
+  x0: v.cx0 * CELL,
+  y0: v.cy0 * CELL,
+  x1: (v.cx1 + 1) * CELL + ROAD,
+  y1: (v.cy1 + 1) * CELL + ROAD,
+  spots: [],
+  angry: 0,
+}));
+const pick = arr => arr[(Math.random() * arr.length) | 0];
 
 // Buffers gráficos pre-renderizados del mundo e iluminación
 let GROUND = null, GCTX = null, MINI = null;
@@ -167,6 +180,68 @@ class World {
     this.carBlock = carBlock;
     this.casaRosada = casaRosada;
     this.cabildo = cabildo;
+    this.shops = shops;
+    this.bgrid = null;
+  }
+
+  villaCell(cx, cy) {
+    return villas.find(v => cx >= v.cx0 && cx <= v.cx1 && cy >= v.cy0 && cy <= v.cy1) || null;
+  }
+
+  villaAt(x, y) {
+    for (const v of villas) {
+      if (x >= v.x0 && x < v.x1 && y >= v.y0 && y < v.y1) return v;
+    }
+    return null;
+  }
+
+  /**
+   * Llena una manzana de la villa con casillas pegadas, de alturas dispares,
+   * separadas por pasillos angostos. Devuelve el próximo id libre.
+   */
+  buildShacks(bx, by, inner, id) {
+    let y = by + 2;
+    while (y < by + inner - 12) {
+      const rh = Math.min(rnd(16, 28), by + inner - 2 - y);
+      let x = bx + 2;
+      while (x < bx + inner - 8) {
+        const w = Math.min(rnd(12, 24), bx + inner - 2 - x);
+        const hh = rh - rnd(0, 4);
+        if (w >= 6 && Math.random() < 0.9 && !rectHitsWater(x, y, w, hh) && !rectHitsBeach(x, y, w, hh)
+          && !rectHitsDiagonalBand(x, y, w, hh)) {
+          const two = Math.random() < 0.22;
+          this.buildings.push({
+            id: id++,
+            x,
+            y,
+            w,
+            h: hh,
+            H: two ? rnd(18, 26) : rnd(8, 15),
+            villa: true,
+            ty: { k: 'casilla', detail: 'chapa' },
+            col: pick(SHACK_WALLS),
+            roofCol: two ? '#9a958a' : pick(SHACK_ROOFS),
+            tire: Math.random() < 0.3,
+            tank: two && Math.random() < 0.6,
+            // Puerta al pasillo de abajo: los vecinos entran y salen de su casilla
+            door: { x: x + w / 2, y: y + hh, ox: 0, oy: 7, s: 's' },
+          });
+        }
+        x += w + (Math.random() < 0.35 ? rnd(4, 7) : 0);
+      }
+      const gap = rnd(5, 8);
+      // Ropa colgada y algún tacho prendido en los pasillos
+      if (Math.random() < 0.5 && y + rh + gap < by + inner) {
+        const cols = [];
+        for (let i = 0; i < 5; i++) cols.push(pick(['#e8e8e0', '#c8302a', '#2a5ab0', '#e8b52a', '#3f9a4a', '#c87a8a']));
+        this.props.push({ t: 'ropa', x: bx + rnd(4, inner - 44), y: y + rh + gap / 2, w: rnd(22, 38), cols });
+      }
+      if (Math.random() < 0.18 && y + rh + gap < by + inner) {
+        this.props.push({ t: 'barril', x: bx + rnd(6, inner - 6), y: y + rh + gap / 2 });
+      }
+      y += rh + gap;
+    }
+    return id;
   }
 
   /**
@@ -194,6 +269,7 @@ class World {
       if (inBridgeCorridor(p.x, p.y)) continue;
       this.water.push({ x: p.x, y: p.y, r: riverWidthAt(p.t) });
     }
+    this.shops.length = 0;
 
     let id = 0;
     for (let cy = 0; cy < GRID; cy++) {
@@ -222,10 +298,18 @@ class World {
           continue;
         }
 
-        const park = !isPlaza && !isRosada && (cx + cy) % 9 === 4;
+        const villa = this.villaCell(cx, cy);
+        const park = villa
+          ? (villa.potrero[0] === cx && villa.potrero[1] === cy) // en la villa, la plaza es un potrero de tierra
+          : !isPlaza && !isRosada && (cx + cy) % 9 === 4;
 
         if (park) {
-          this.props.push({ t: 'park', x: bx, y: by, w: innerW, h: innerH });
+          this.props.push({ t: 'park', x: bx, y: by, w: innerW, h: innerH, villa: !!villa });
+          continue;
+        }
+
+        if (villa) {
+          id = this.buildShacks(bx, by, inner, id);
           continue;
         }
 
@@ -345,11 +429,64 @@ class World {
       this.carBlock.push({ x: ix, y: py0, w: ROAD, h: ph });
     }
 
-    // Faroles en cada esquina
+    this.indexBuildings();
+
+    // Puertas de las casillas: del lado que tenga el pasillo libre (si no, el vecino
+    // sale y queda encajado en la casilla de enfrente)
+    for (const b of this.buildings) {
+      if (!b.villa) continue;
+      const opts = [
+        { x: b.x + b.w / 2, y: b.y + b.h, ox: 0, oy: 4, s: 's' },
+        { x: b.x + b.w / 2, y: b.y, ox: 0, oy: -4, s: 'n' },
+        { x: b.x + b.w, y: b.y + b.h / 2, ox: 4, oy: 0, s: 'e' },
+        { x: b.x, y: b.y + b.h / 2, ox: -4, oy: 0, s: 'w' },
+      ];
+      b.door = opts.find(d => !this.hitBuilding(d.x + d.ox, d.y + d.oy, 3)) || opts[0];
+    }
+
+    // Armerías: una en cada esquina del mapa y otra en el centro, siempre con la puerta a la calle
+    for (let zy = 0; zy < 3; zy++) {
+      for (let zx = 0; zx < 3; zx++) {
+        if ((zx + zy) % 2) continue;
+        const zcx = (zx + 0.5) * WORLD / 3, zcy = (zy + 0.5) * WORLD / 3;
+        let best = null, bd = Infinity;
+        for (const b of this.buildings) {
+          const d = b.door;
+          if (!d || b.shop || b.casaRosada || b.cabildo || !this.onRoad(d.x + d.ox * 4, d.y + d.oy * 4)) continue;
+          const dd = Math.hypot(d.x - zcx, d.y - zcy);
+          if (dd < bd) { bd = dd; best = b; }
+        }
+        if (best) {
+          best.shop = true;
+          this.shops.push(best);
+        }
+      }
+    }
+
+    // Lugares donde paran los tranzas: en la vereda de la villa, separados entre sí
+    for (const v of villas) {
+      v.spots.length = 0;
+      v.angry = 0;
+      for (let i = 0; i < 400 && v.spots.length < v.tranzas; i++) {
+        const cx = v.cx0 + ((Math.random() * (v.cx1 - v.cx0 + 1)) | 0);
+        const cy = v.cy0 + ((Math.random() * (v.cy1 - v.cy0 + 1)) | 0);
+        const along = rnd(ROAD + 12, CELL - 12), side = (Math.random() * 4) | 0;
+        const t = side === 0 ? { x: cx * CELL + ROAD - 5, y: cy * CELL + along }
+          : side === 1 ? { x: (cx + 1) * CELL + 5, y: cy * CELL + along }
+          : side === 2 ? { x: cx * CELL + along, y: cy * CELL + ROAD - 5 }
+          : { x: cx * CELL + along, y: (cy + 1) * CELL + 5 };
+        if (this.hitBuilding(t.x, t.y, 6) || noRoadPaint(t.x, t.y)) continue;
+        if (v.spots.some(o => Math.hypot(o.x - t.x, o.y - t.y) < 90)) continue;
+        v.spots.push(t);
+      }
+    }
+
+    // Faroles en cada esquina (en la villa, pocos)
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
         const lx = cx * CELL + ROAD - 5, ly = cy * CELL + ROAD - 5;
         if (noRoadPaint(lx, ly)) continue; // el rio se comio la esquina, no hay farol flotando
+        if (this.villaCell(cx, cy) && (cx + cy) % 3) continue;
         this.lamps.push({ x: lx, y: ly });
       }
     }
@@ -373,6 +510,7 @@ class World {
           x: cx * CELL + ROAD / 2,
           y: cy * CELL + ROAD / 2,
           phase: ((cx + cy) % 2) * (LIGHT_CYCLE / 2) + ((cx * 7 + cy * 3) % 5),
+          off: !!this.villaAt(cx * CELL + ROAD / 2, cy * CELL + ROAD / 2), // en la villa no hay semáforos
         });
       }
     }
@@ -383,7 +521,7 @@ class World {
     for (const [tx, ty] of targets) {
       let best = null, bd = Infinity;
       for (const b of this.buildings) {
-        if (b.hospital || b.ty.k === 'torre') continue;
+        if (b.hospital || b.shop || b.villa || b.casaRosada || b.cabildo || b.ty.k === 'torre') continue;
         const d = Math.hypot(b.x + b.w / 2 - tx, b.y + b.h / 2 - ty);
         if (d < bd) { bd = d; best = b; }
       }
@@ -395,6 +533,18 @@ class World {
       }
     }
 
+  }
+
+  // Índice espacial: edificios por celda de la grilla, para que las colisiones no recorran todo
+  indexBuildings() {
+    this.bgrid = Array.from({ length: GRID * GRID }, () => []);
+    for (const b of this.buildings) {
+      const cx0 = Math.floor(b.x / CELL), cx1 = Math.min(GRID - 1, Math.floor((b.x + b.w) / CELL));
+      const cy0 = Math.floor(b.y / CELL), cy1 = Math.min(GRID - 1, Math.floor((b.y + b.h) / CELL));
+      for (let cy = cy0; cy <= cy1; cy++) {
+        for (let cx = cx0; cx <= cx1; cx++) this.bgrid[cy * GRID + cx].push(b);
+      }
+    }
   }
 
   /**
@@ -410,6 +560,12 @@ class World {
     g.fillStyle = '#31343a';
     g.fillRect(0, 0, WORLD, WORLD);
 
+    // Villas: calles de tierra
+    for (const v of villas) {
+      g.fillStyle = '#6b5b45';
+      g.fillRect(v.x0, v.y0, v.x1 - v.x0, v.y1 - v.y0);
+    }
+
     // Manzanas: vereda + interior
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
@@ -418,6 +574,14 @@ class World {
         const roadY = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
         const bx = cx * CELL + roadX - SIDEWALK, by = cy * CELL + roadY - SIDEWALK;
         const sw = CELL - roadX + SIDEWALK * 2, sh = CELL - roadY + SIDEWALK * 2;
+        if (this.villaCell(cx, cy)) {
+          // Manzana de villa: vereda de tierra apisonada y pasillos de tierra
+          g.fillStyle = '#7d6d55';
+          g.fillRect(bx, by, sw, sh);
+          g.fillStyle = '#6e5e48';
+          g.fillRect(bx + SIDEWALK, by + SIDEWALK, sw - SIDEWALK * 2, sh - SIDEWALK * 2);
+          continue;
+        }
         g.fillStyle = '#8d8d86';
         g.fillRect(bx, by, sw, sh);
         g.fillStyle = '#7a7a73';
@@ -435,8 +599,29 @@ class World {
       }
     }
 
-    // Parques
+    // Parques (y el potrero de la villa)
     for (const p of this.props) {
+      if (p.t === 'park' && p.villa) {
+        g.fillStyle = '#8a7656';
+        g.fillRect(p.x, p.y, p.w, p.h);
+        g.fillStyle = 'rgba(0,0,0,.08)';
+        for (let i = 0; i < 60; i++) g.fillRect(p.x + rnd(0, p.w), p.y + rnd(0, p.h), rnd(3, 10), rnd(2, 5));
+        const fx = p.x + 12, fy = p.y + 22, fw = p.w - 24, fh = p.h - 44;
+        g.strokeStyle = 'rgba(235,235,225,.6)';
+        g.lineWidth = 1.5;
+        g.strokeRect(fx, fy, fw, fh);
+        g.beginPath();
+        g.moveTo(fx, fy + fh / 2);
+        g.lineTo(fx + fw, fy + fh / 2);
+        g.stroke();
+        g.beginPath();
+        g.arc(fx + fw / 2, fy + fh / 2, 12, 0, TAU);
+        g.stroke();
+        g.fillStyle = '#e8e8e0'; // Arcos
+        g.fillRect(fx + fw / 2 - 12, fy - 3, 24, 3);
+        g.fillRect(fx + fw / 2 - 12, fy + fh, 24, 3);
+        continue;
+      }
       if (p.t === 'park') {
         g.fillStyle = '#4d6b3a';
         g.fillRect(p.x, p.y, p.w, p.h);
@@ -675,7 +860,7 @@ class World {
       const rw = isAveCol ? AVENUE_ROAD : ROAD, rh = isAveRow ? AVENUE_ROAD : ROAD;
       g.fillStyle = '#c9a227';
       for (let y = 0; y < WORLD; y += 16) {
-        if (this.onRoad(rx + rw / 2, y) && (y % CELL) > rw && !noRoadPaint(rx + rw / 2, y)) {
+        if (this.onRoad(rx + rw / 2, y) && (y % CELL) > rw && !noRoadPaint(rx + rw / 2, y) && !this.villaAt(rx + rw / 2, y)) {
           if (!isAveCol) g.fillRect(rx + rw / 2 - 1, y, 2, 9); // avenida: sin raya al medio, va el cantero
           if (isAveCol) {
             g.fillRect(rx + rw / 2 - 1 - AVENUE_LANE * 1.4, y, 2, 9);
@@ -684,7 +869,7 @@ class World {
         }
       }
       for (let x = 0; x < WORLD; x += 16) {
-        if (this.onRoad(x, ry + rh / 2) && (x % CELL) > rh && !noRoadPaint(x, ry + rh / 2)) {
+        if (this.onRoad(x, ry + rh / 2) && (x % CELL) > rh && !noRoadPaint(x, ry + rh / 2) && !this.villaAt(x, ry + rh / 2)) {
           if (!isAveRow) g.fillRect(x, ry + rh / 2 - 1, 9, 2);
           if (isAveRow) {
             g.fillRect(x, ry + rh / 2 - 1 - AVENUE_LANE * 1.4, 9, 2);
@@ -736,6 +921,7 @@ class World {
       for (let cx = 0; cx <= GRID; cx++) {
         if (cx === PLAZA_CX && cy === PLAZA_CY) continue; // sin cebras: es la rotonda
         const ix = cx * CELL, iy = cy * CELL;
+        if (this.villaAt(ix + ROAD / 2, iy + ROAD / 2)) continue;
         const rw = cx === PLAZA_CX ? AVENUE_ROAD : ROAD, rh = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
         // Sin cebras sobre el agua: donde el rio se comio la bocacalle no hay nada que cruzar
         for (let k = 3; k < Math.min(rw, rh) - 3; k += 8) {
@@ -753,6 +939,28 @@ class World {
       if (!this.onRoad(x, y)) continue;
       g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.14)' : 'rgba(255,255,255,.05)';
       g.fillRect(x, y, rnd(4, 22), rnd(3, 12));
+    }
+
+    // Villa: pozos, charcos y basura en la tierra
+    for (const v of villas) {
+      const area = (v.x1 - v.x0) * (v.y1 - v.y0);
+      for (let i = 0; i < area / 260; i++) {
+        const x = rnd(v.x0, v.x1), y = rnd(v.y0, v.y1);
+        g.fillStyle = Math.random() < 0.5 ? 'rgba(40,28,15,.18)' : 'rgba(255,240,210,.06)';
+        g.fillRect(x, y, rnd(3, 16), rnd(2, 9));
+      }
+      for (let i = 0; i < area / 6000; i++) {
+        const x = rnd(v.x0, v.x1), y = rnd(v.y0, v.y1);
+        if (!this.onRoad(x, y)) continue;
+        g.fillStyle = 'rgba(70,80,90,.55)';
+        g.beginPath();
+        g.ellipse(x, y, rnd(4, 11), rnd(2, 6), 0, 0, TAU);
+        g.fill();
+      }
+      for (let i = 0; i < area / 1500; i++) {
+        g.fillStyle = pick(['#c8302a', '#e8e8e0', '#2a5ab0', '#3f9a4a', '#1a1a1a']);
+        g.fillRect(rnd(v.x0, v.x1), rnd(v.y0, v.y1), 2, 1);
+      }
     }
     for (let i = 0; i < 420; i++) {
       const x = rnd(0, WORLD), y = rnd(0, WORLD);
@@ -777,6 +985,12 @@ class World {
         g.fill();
       }
     }
+    for (const p of this.props) {
+      if (p.t === 'barril') {
+        g.fillStyle = 'rgba(0,0,0,.25)';
+        g.fillRect(p.x + 1, p.y + 2, 6, 3);
+      }
+    }
     for (const l of this.lamps) {
       g.fillStyle = 'rgba(0,0,0,.25)';
       g.fillRect(l.x + 2, l.y + 3, 4, 10);
@@ -789,10 +1003,14 @@ class World {
     const m = MINI.getContext('2d'), k = MS / WORLD;
     m.fillStyle = '#23262b';
     m.fillRect(0, 0, MS, MS);
-    m.fillStyle = '#4a5240';
+    for (const v of villas) {
+      m.fillStyle = '#4a3e30';
+      m.fillRect(v.x0 * k, v.y0 * k, (v.x1 - v.x0) * k, (v.y1 - v.y0) * k);
+    }
     for (let cy = 0; cy < GRID; cy++) {
       for (let cx = 0; cx < GRID; cx++) {
         const mrx = cx === PLAZA_CX ? AVENUE_ROAD : ROAD, mry = cy === PLAZA_CY ? AVENUE_ROAD : ROAD;
+        m.fillStyle = this.villaCell(cx, cy) ? '#5a4a38' : '#4a5240';
         m.fillRect((cx * CELL + mrx) * k, (cy * CELL + mry) * k, (CELL - mrx) * k, (CELL - mry) * k);
       }
     }
@@ -811,6 +1029,7 @@ class World {
     }
     m.fillStyle = '#6c6c62';
     for (const b of this.buildings) {
+      m.fillStyle = b.villa ? '#8a6e50' : '#6c6c62';
       m.fillRect(b.x * k, b.y * k, Math.max(1, b.w * k), Math.max(1, b.h * k));
     }
     m.fillStyle = '#3f7ea6';
@@ -871,6 +1090,7 @@ class World {
   }
 
   lightState(L, horiz) {
+    if (L.off) return 'verde';
     const time = (typeof G !== 'undefined' && G.t !== undefined) ? G.t : 0;
     const t = ((time + L.phase) % LIGHT_CYCLE + LIGHT_CYCLE) % LIGHT_CYCLE;
     const half = LIGHT_CYCLE / 2;
@@ -894,9 +1114,13 @@ class World {
   }
 
   hitBuilding(x, y, r) {
-    for (const b of this.buildings) {
-      if (x + r > b.x && x - r < b.x + b.w && y + r > b.y && y - r < b.y + b.h) {
-        return b;
+    const cx0 = Math.max(0, Math.floor((x - r) / CELL)), cx1 = Math.min(GRID - 1, Math.floor((x + r) / CELL));
+    const cy0 = Math.max(0, Math.floor((y - r) / CELL)), cy1 = Math.min(GRID - 1, Math.floor((y + r) / CELL));
+    for (let cy = cy0; cy <= cy1; cy++) {
+      for (let cx = cx0; cx <= cx1; cx++) {
+        for (const b of this.bgrid[cy * GRID + cx]) {
+          if (x + r > b.x && x - r < b.x + b.w && y + r > b.y && y - r < b.y + b.h) return b;
+        }
       }
     }
     // Agua: consulta O(1) contra la mascara horneada, no contra la lista de circulos
@@ -955,6 +1179,7 @@ class World {
 
   onSidewalk(x, y) {
     if (this.inPark(x, y)) return true;
+    if (this.villaAt(x, y) && !this.onRoad(x, y)) return true; // en la villa se camina por los pasillos
     const ox = ((x % CELL) + CELL) % CELL, oy = ((y % CELL) + CELL) % CELL;
     const inX = ox >= ROAD - 2 && ox <= ROAD + SIDEWALK + 2;
     const inY = oy >= ROAD - 2 && oy <= ROAD + SIDEWALK + 2;
@@ -1030,6 +1255,7 @@ const lightState = (L, horiz) => world.lightState(L, horiz);
 const lightAhead = (x, y, ang) => world.lightAhead(x, y, ang);
 const hitBuilding = (x, y, r) => world.hitBuilding(x, y, r);
 const hitCarBlock = (x, y, r) => world.hitCarBlock(x, y, r);
+const villaAt = (x, y) => world.villaAt(x, y);
 const freeRoadSpot = () => world.freeRoadSpot();
 const ringSpot = (near, far, needRoad) => world.ringSpot(near, far, needRoad);
 const inPark = (x, y) => world.inPark(x, y);

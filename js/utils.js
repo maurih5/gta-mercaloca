@@ -15,6 +15,17 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const px = Math.round;
 
 /**
+ * Distancia de un punto `e` al tramo que recorrió una bala en el último frame
+ * (de b.ox,b.oy a b.x,b.y). Evita que las balas rápidas atraviesen sin pegar.
+ */
+function segDist(b, e) {
+  const ax = b.ox !== undefined ? b.ox : b.x, ay = b.oy !== undefined ? b.oy : b.y;
+  const dx = b.x - ax, dy = b.y - ay, L = dx * dx + dy * dy;
+  const t = L > 0 ? clamp(((e.x - ax) * dx + (e.y - ay) * dy) / L, 0, 1) : 0;
+  return Math.hypot(ax + dx * t - e.x, ay + dy * t - e.y);
+}
+
+/**
  * Generador pseudo-aleatorio determinístico.
  * Mismo ID / valor -> mismo resultado siempre.
  */
@@ -26,12 +37,18 @@ function hash(n) {
 /**
  * Modifica el brillo de un color hexadecimal por un factor multiplicativo.
  */
+const shadeCache = new Map();
 function shade(hex, f) {
+  const k = hex + f;
+  const hit = shadeCache.get(k);
+  if (hit) return hit;
   const n = parseInt(hex.slice(1), 16);
   const r = clamp(((n >> 16) & 255) * f, 0, 255) | 0;
   const g = clamp(((n >> 8) & 255) * f, 0, 255) | 0;
   const b = clamp((n & 255) * f, 0, 255) | 0;
-  return 'rgb(' + r + ',' + g + ',' + b + ')';
+  const out = 'rgb(' + r + ',' + g + ',' + b + ')';
+  shadeCache.set(k, out);
+  return out;
 }
 
 /**

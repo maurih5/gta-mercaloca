@@ -14,6 +14,7 @@ const G = {
   guards: [],
   cops: [],
   bullets: [],
+  nades: [],
   pickups: [],
   fx: [],
   smoke: [],
@@ -32,6 +33,13 @@ const G = {
   bustCar: null,
   healing: 0,
   healT: 0,
+  nearShop: null,
+  shopOpen: false,
+  tranzas: [],
+  nearTranza: null,
+  zone: null,
+  slowmo: 0,
+  ts: 1,
 };
 
 class Game {
@@ -56,9 +64,21 @@ class Game {
     G.guards = [];
     G.cops = [];
     G.bullets = [];
+    G.nades = [];
     G.pickups = [];
     G.fx = [];
     G.smoke = [];
+    G.nearShop = null;
+    G.shopOpen = false;
+    G.nearTranza = null;
+    G.zone = null;
+    G.slowmo = 0;
+    G.ts = 1;
+    G.tranzas = [];
+    for (const v of villas) {
+      v.angry = 0;
+      v.spots.forEach((sp, i) => G.tranzas.push(makeTranza(v, sp, i)));
+    }
 
     for (let i = 0; i < CAR_TARGET; i++) {
       const sp = ringSpot(60, SIM_R, true) || freeRoadSpot();
@@ -124,11 +144,15 @@ class Game {
     P.hp = P.maxhp;
     P.car = null;
     P.cool = 0.5;
+    // En la comisaria te sacan los fierros y el chaleco
+    P.inv = { pistola: Infinity };
+    P.wpn = 'pistola';
+    P.armor = 0;
     G.cam.x = clamp(P.x - RW / 2, 0, WORLD - RW);
     G.cam.y = clamp(P.y - RH / 2, 0, WORLD - RH);
     G.busted = 0;
     G.bustT = 0;
-    this.say('TE SOLTARON. PERDISTE $' + G.bustFine, 3.4);
+    this.say('TE SOLTARON SIN LOS FIERROS. PERDISTE $' + G.bustFine, 3.4);
   }
 
   exitCar() {
@@ -164,11 +188,261 @@ class Game {
     }
   }
 
-  update(dt) {
+  // Da un arma (o le suma balas si ya la tenía). Si es nueva, la pone en la mano.
+  giveWeapon(P, id, ammo) {
+    const isNew = !(P.inv[id] > 0);
+    P.inv[id] = WEAPONS[id].melee ? Infinity : (P.inv[id] || 0) + ammo;
+    if (isNew) P.wpn = id;
+  }
+
+  hurtPlayer(n) {
+    const P = G.player;
+    if (P.armor > 0) {
+      const a = Math.min(P.armor, n * 0.7);
+      P.armor -= a;
+      n -= a;
+    }
+    P.hp -= n;
+  }
+
+  // Daño a peatón o policía, con premio y búsqueda si lo bajás
+  hurt(e, dmg) {
+    if (e.hp <= 0) return;
+    e.hp -= dmg;
+    boom(e.x, e.y, 7, '190,35,35');
+    if (e.kind === 'tranza') {
+      if (e.villa.angry <= 0) this.say('SE PUDRIO TODO EN ' + e.villa.name, 3);
+      e.villa.angry = 45;
+      if (e.hp <= 0) {
+        decal(e.x, e.y, rnd(4, 7), 'rgba(95,12,12,.5)');
+        G.money += 150;
+        if (Math.random() < 0.4) G.pickups.push(makeDrop(e.x, e.y, 'uzi', 30));
+      }
+      return;
+    }
+    if (e.hp <= 0) {
+      decal(e.x, e.y, rnd(4, 7), 'rgba(95,12,12,.5)');
+      this.wantUp(e.kind === 'cop' ? 2 : 1);
+      G.money += e.kind === 'cop' ? 120 : 40;
+      if (e.kind === 'cop' && Math.random() < 0.3) G.pickups.push(makeDrop(e.x, e.y, 'escopeta', 6));
+    }
+  }
+
+  // Q rota entre las armas con balas, 1-6 elige directo
+  switchWeapon(P) {
+    const owned = WEAPON_ORDER.filter(id => P.inv[id] > 0);
+    let next = null;
+    if (keys.KeyQ && !G._q) next = owned[(owned.indexOf(P.wpn) + 1) % owned.length];
+    G._q = keys.KeyQ;
+    WEAPON_ORDER.forEach((id, i) => {
+      if (keys['Digit' + (i + 1)] && P.inv[id] > 0) next = id;
+    });
+    if (next && next !== P.wpn) {
+      P.wpn = next;
+      this.say(WEAPONS[next].name, 1.2);
+    }
+  }
+
+  attack(P) {
+    let id = P.wpn, W = WEAPONS[id];
+    // Desde el auto solo se tira con armas de fuego
+    if (P.car && (W.melee || W.thrown)) {
+      id = 'pistola';
+      W = WEAPONS.pistola;
+    }
+    P.cool = P.car ? W.cool * 0.8 : W.cool;
+    if (W.melee) {
+      this.swing(P, W);
+      return;
+    }
+
+    if (W.thrown) {
+      const a = P.ang;
+      G.nades.push({
+        x: P.x + Math.cos(a) * 8,
+        y: P.y + Math.sin(a) * 8,
+        vx: Math.cos(a) * 190,
+        vy: Math.sin(a) * 190,
+        z: 4,
+        vz: 70,
+        t: 1.15,
+      });
+    } else {
+      for (let i = 0; i < W.pellets; i++) {
+        const a = P.ang + rnd(-W.spread, W.spread);
+        const v = W.spd * (W.pellets > 1 ? rnd(0.85, 1.1) : 1);
+        G.bullets.push({
+          x: P.x + Math.cos(a) * 10,
+          y: P.y + Math.sin(a) * 10,
+          vx: Math.cos(a) * v,
+          vy: Math.sin(a) * v,
+          life: W.life,
+          mine: true,
+          dmg: W.dmg,
+        });
+      }
+      P.muzzle = 1;
+      G.shake += W.shake;
+      boom(P.x + Math.cos(P.ang) * W.barrel, P.y + Math.sin(P.ang) * W.barrel, 3, '255,225,150');
+    }
+
+    if (P.inv[id] !== Infinity && --P.inv[id] <= 0) {
+      P.inv[id] = 0;
+      P.wpn = 'pistola';
+      this.say('SIN ' + W.short + '. VOLVES A LA 9MM', 1.8);
+    }
+    if (G.wanted < 1) this.wantUp(1);
+  }
+
+  // Bastonazo: pega a todo lo que esté adelante y lo empuja
+  swing(P, W) {
+    P.swing = 1;
+    let hit = false;
+    for (const list of [G.cops, G.peds, G.tranzas]) {
+      for (const e of list) {
+        if (e.hp <= 0 || e.inside) continue;
+        const d = dist(e, P);
+        if (d > W.reach) continue;
+        const a = Math.atan2(e.y - P.y, e.x - P.x);
+        const da = Math.abs(((a - P.ang + Math.PI * 3) % TAU) - Math.PI);
+        if (da > 1.1 && d > 7) continue;
+        this.hurt(e, W.dmg);
+        const nx = e.x + Math.cos(a) * 7, ny = e.y + Math.sin(a) * 7;
+        if (!pedBlocked(nx, ny, e.r)) {
+          e.x = nx;
+          e.y = ny;
+        }
+        hit = true;
+      }
+    }
+    if (hit) {
+      G.shake += 2;
+      if (G.wanted < 1) this.wantUp(1);
+    }
+  }
+
+  explode(x, y, R, dmg) {
+    const P = G.player, at = { x, y };
+    boom(x, y, 40, '255,150,40', 2.2);
+    boom(x, y, 16, '255,230,160', 1.2);
+    puff(x, y, '40,40,40', 12, 24);
+    decal(x, y, 13, 'rgba(10,10,10,.5)');
+    G.shake += 10;
+    G.flash = Math.max(G.flash, 0.7);
+    for (const list of [G.cops, G.peds, G.tranzas]) {
+      for (const e of list) {
+        if (e.hp <= 0 || e.inside) continue;
+        const d = dist(e, at);
+        if (d < R) this.hurt(e, dmg * (1 - (d / R) * 0.6));
+      }
+    }
+    // Los autos que revientan hacen explotar a los de al lado
+    for (const c of G.cars) {
+      const d = dist(c, at);
+      if (c.hp <= 0 || d >= R + 8) continue;
+      c.hp -= dmg * (1 - (d / (R + 8)) * 0.5);
+      if (c.hp <= 0 && c !== P.car) {
+        c.spd = 0;
+        this.explode(c.x, c.y, 30, 60);
+      }
+    }
+    if (!P.dead && !P.car) {
+      const d = dist(P, at);
+      if (d < R) this.hurtPlayer(dmg * 0.6 * (1 - (d / R) * 0.6));
+    }
+    if (G.wanted < 1) this.wantUp(1);
+  }
+
+  updateNades(dt) {
+    for (const n of G.nades) {
+      n.t -= dt;
+      const nx = n.x + n.vx * dt, ny = n.y + n.vy * dt;
+      if (hitBuilding(nx, n.y, 2)) n.vx *= -0.5;
+      else n.x = clamp(nx, 4, WORLD - 4);
+      if (hitBuilding(n.x, ny, 2)) n.vy *= -0.5;
+      else n.y = clamp(ny, 4, WORLD - 4);
+      n.vz -= 260 * dt;
+      n.z += n.vz * dt;
+      if (n.z <= 0) {
+        n.z = 0;
+        n.vz = -n.vz * 0.4;
+        n.vx *= 1 - 4 * dt;
+        n.vy *= 1 - 4 * dt;
+      }
+      if (n.t <= 0) this.explode(n.x, n.y, WEAPONS.granada.radius, WEAPONS.granada.dmg);
+    }
+    G.nades = G.nades.filter(n => n.t > 0);
+  }
+
+  updateTranzas(dt) {
+    const P = G.player;
+    for (const v of villas) v.angry = Math.max(0, v.angry - dt);
+    for (const t of G.tranzas) {
+      t.muzzle = Math.max(0, t.muzzle - dt * 14);
+
+      // Al rato vuelve otro a la esquina, si no lo estás mirando
+      if (t.hp <= 0) {
+        t.dead += dt;
+        if (t.dead > 90 && dist(t.home, P) > OFFSCREEN) {
+          Object.assign(t, { x: t.home.x, y: t.home.y, hp: 60, dead: 0 });
+        }
+        continue;
+      }
+
+      const d = dist(t, P);
+      if (t.villa.angry > 0 && d < 170 && !P.dead && !G.busted) {
+        // Modo guerra: te apunta, se acerca un poco y tira
+        t.ang = Math.atan2(P.y - t.y, P.x - t.x);
+        if (d > 60) {
+          const nx = t.x + Math.cos(t.ang) * 40 * dt, ny = t.y + Math.sin(t.ang) * 40 * dt;
+          if (!pedBlocked(nx, t.y, t.r)) t.x = nx;
+          if (!pedBlocked(t.x, ny, t.r)) t.y = ny;
+          t.walk += (dt * 40) / 8;
+        }
+        t.cool -= dt;
+        if (t.cool <= 0) {
+          const uzi = t.wpn === 'uzi';
+          t.cool = uzi ? rnd(0.09, 0.16) : rnd(0.5, 1.1);
+          if (uzi && Math.random() < 0.08) t.cool = rnd(0.8, 1.4); // pausa entre ráfagas
+          const a = t.ang + rnd(-0.18, 0.18);
+          t.muzzle = 1;
+          G.bullets.push({
+            x: t.x + Math.cos(a) * 9,
+            y: t.y + Math.sin(a) * 9,
+            vx: Math.cos(a) * 340,
+            vy: Math.sin(a) * 340,
+            life: 0.7,
+            mine: false,
+          });
+        }
+      } else {
+        // Tranqui: vuelve a su esquina y mira para los costados
+        const dh = dist(t, t.home);
+        if (dh > 3) {
+          t.ang = Math.atan2(t.home.y - t.y, t.home.x - t.x);
+          t.x += Math.cos(t.ang) * 30 * dt;
+          t.y += Math.sin(t.ang) * 30 * dt;
+          t.walk += (dt * 30) / 8;
+        } else {
+          t.look -= dt;
+          if (t.look <= 0) {
+            t.look = rnd(1.5, 4);
+            t.ang = d < 60 ? Math.atan2(P.y - t.y, P.x - t.x) : rnd(0, TAU);
+          }
+        }
+      }
+    }
+  }
+
+  update(rdt) {
+    // Porro: el mundo va en cámara lenta (dt) mientras el jugador se mueve a tiempo real (rdt)
+    G.slowmo = Math.max(0, G.slowmo - rdt);
+    G.ts = lerp(G.ts, G.slowmo > 0 ? SLOWMO : 1, clamp(rdt * 4, 0, 1));
+    const dt = rdt * G.ts;
     G.t += dt;
-    if (G.msgT > 0) G.msgT -= dt;
-    G.shake = Math.max(0, G.shake - dt * 22);
-    G.flash = Math.max(0, G.flash - dt * 4);
+    if (G.msgT > 0) G.msgT -= rdt;
+    G.shake = Math.max(0, G.shake - rdt * 22);
+    G.flash = Math.max(0, G.flash - rdt * 4);
     G.guards = G.guards.filter(g => g.hp > 0);
     const P = G.player;
     if (!P) return;
@@ -209,7 +483,32 @@ class Game {
 
     const ix = input.getHorizontalAxis();
     const iy = input.getVerticalAxis();
-    P.muzzle = Math.max(0, P.muzzle - dt * 14);
+    P.muzzle = Math.max(0, P.muzzle - rdt * 14);
+    P.swing = Math.max(0, P.swing - rdt * 5);
+    G.nearShop = null;
+    G.nearTranza = null;
+    if (!P.dead) this.switchWeapon(P);
+
+    // Fumarse un porro: F (o el botón 🌿)
+    if (keys.KeyF && !G._f && !P.dead) {
+      if (P.porros > 0 && G.slowmo <= 0) {
+        P.porros--;
+        G.slowmo = PORRO_TIME;
+        P.hp = Math.min(P.maxhp, P.hp + 15);
+        puff(P.x, P.y - 6, '200,220,200', 6, 10);
+        this.say('TE BAJASTE UN CAMBIO...', 2.2);
+      } else if (P.porros <= 0) {
+        this.say('NO TENES PORROS. BUSCA UN TRANZA', 1.8);
+      }
+    }
+    G._f = keys.KeyF;
+
+    // Cartel de zona al entrar a una villa
+    const zone = villaAt(P.x, P.y);
+    if (zone !== G.zone) {
+      G.zone = zone;
+      if (zone) this.say(zone.name + (zone.angry > 0 ? ' - TE ESTAN ESPERANDO' : ' - LA YUTA NO ENTRA'), 2.8);
+    }
 
     if (P.dead) {
       P.hp = 0;
@@ -217,14 +516,14 @@ class Game {
     } else if (P.car) {
       const car = P.car;
       const acc = (keys.ShiftLeft || keys.ShiftRight) ? 200 : 145;
-      if (iy < -0.1) car.spd += acc * dt * Math.min(1, Math.abs(iy));
-      else if (iy > 0.1) car.spd -= acc * 1.25 * dt * Math.min(1, Math.abs(iy));
-      else car.spd *= (1 - 1.6 * dt);
+      if (iy < -0.1) car.spd += acc * rdt * Math.min(1, Math.abs(iy));
+      else if (iy > 0.1) car.spd -= acc * 1.25 * rdt * Math.min(1, Math.abs(iy));
+      else car.spd *= (1 - 1.6 * rdt);
       car.spd = clamp(car.spd, -70, 195);
       const turning = Math.abs(car.spd) > 4 && Math.abs(ix) > 0.1 ? ix : 0;
-      car.steer = lerp(car.steer, turning, dt * 9);
+      car.steer = lerp(car.steer, turning, rdt * 9);
       if (turning) {
-        car.ang += turning * 2.3 * dt * (car.spd > 0 ? 1 : -1) * clamp(Math.abs(car.spd) / 90, 0.35, 1);
+        car.ang += turning * 2.3 * rdt * (car.spd > 0 ? 1 : -1) * clamp(Math.abs(car.spd) / 90, 0.35, 1);
       }
 
       // Marcas de derrape
@@ -235,8 +534,8 @@ class Game {
         if (Math.random() < 0.5) puff(car.x, car.y, '180,180,180', 1, 5);
       }
 
-      const nx = car.x + Math.cos(car.ang) * car.spd * dt;
-      const ny = car.y + Math.sin(car.ang) * car.spd * dt;
+      const nx = car.x + Math.cos(car.ang) * car.spd * rdt;
+      const ny = car.y + Math.sin(car.ang) * car.spd * rdt;
       if (hitBuilding(nx, ny, 9) || hitCarBlock(nx, ny, 9)) {
         const dmg = Math.abs(car.spd) / 12;
         if (dmg > 3) {
@@ -264,13 +563,11 @@ class Game {
         );
       }
 
-      for (const list of [G.peds, G.cops]) {
+      for (const list of [G.peds, G.cops, G.tranzas]) {
         for (const e of list) {
           if (Math.abs(car.spd) > 40 && e.hp > 0 && dist(car, e) < 14) {
-            e.hp -= Math.abs(car.spd) / 6;
-            boom(e.x, e.y, 10, '170,30,30');
             decal(e.x, e.y, rnd(3, 6), 'rgba(90,12,12,.45)');
-            if (e.hp <= 0) this.wantUp(1);
+            this.hurt(e, Math.abs(car.spd) / 6);
           }
         }
       }
@@ -284,18 +581,34 @@ class Game {
     } else {
       const running = keys.ShiftLeft || keys.ShiftRight;
       const spd = running ? 94 : 58;
-      P.run = lerp(P.run, running ? 1 : 0, dt * 8);
+      P.run = lerp(P.run, running ? 1 : 0, rdt * 8);
       const m = Math.hypot(ix, iy) || 1;
-      const nx = P.x + (ix / m) * spd * dt;
-      const ny = P.y + (iy / m) * spd * dt;
+      const nx = P.x + (ix / m) * spd * rdt;
+      const ny = P.y + (iy / m) * spd * rdt;
       if (!hitBuilding(nx, P.y, P.r)) P.x = clamp(nx, 6, WORLD - 6);
       if (!hitBuilding(P.x, ny, P.r)) P.y = clamp(ny, 6, WORLD - 6);
       if (ix || iy) {
         P.ang = Math.atan2(iy, ix);
-        P.walk += (dt * spd) / 8;
+        P.walk += (rdt * spd) / 8;
       }
 
-      if (keys.KeyE && P.cool <= 0) {
+      for (const b of shops) {
+        const d = b.door;
+        if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) G.nearShop = b;
+      }
+      for (const t of G.tranzas) {
+        if (t.hp > 0 && t.villa.angry <= 0 && dist(t, P) < 16) G.nearTranza = t;
+      }
+
+      if (keys.KeyE && P.cool <= 0 && G.nearShop) {
+        P.cool = 0.4;
+        if (G.wanted >= 2) this.say('EL ARMERO NO ATIENDE CON LA YUTA ENCIMA');
+        else shop.open('armeria');
+      } else if (keys.KeyE && P.cool <= 0 && G.nearTranza) {
+        P.cool = 0.4;
+        G.nearTranza.ang = Math.atan2(P.y - G.nearTranza.y, P.x - G.nearTranza.x);
+        shop.open('tranza');
+      } else if (keys.KeyE && P.cool <= 0) {
         P.cool = 0.4;
         let best = null, bd = 26;
         for (const c of G.cars) {
@@ -325,26 +638,15 @@ class Game {
         }
       }
     }
-    P.cool -= dt;
+    P.cool -= rdt;
 
-    if (keys.Space && !P.dead && P.cool <= 0) {
-      P.cool = P.car ? 0.17 : 0.21;
-      const a = P.ang + rnd(-0.055, 0.055);
-      G.bullets.push({
-        x: P.x + Math.cos(a) * 10,
-        y: P.y + Math.sin(a) * 10,
-        vx: Math.cos(a) * 430,
-        vy: Math.sin(a) * 430,
-        life: 0.7,
-        mine: true,
-      });
-      P.muzzle = 1;
-      G.shake += 1.1;
-      boom(P.x + Math.cos(a) * 11, P.y + Math.sin(a) * 11, 3, '255,225,150');
-      if (G.wanted < 1) this.wantUp(1);
-    }
+    if (keys.Space && !P.dead && P.cool <= 0) this.attack(P);
+    this.updateNades(dt);
+    this.updateTranzas(dt);
 
     for (const b of G.bullets) {
+      b.ox = b.x;
+      b.oy = b.y;
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt;
@@ -354,28 +656,22 @@ class Game {
         continue;
       }
       if (b.mine) {
-        for (const list of [G.cops, G.peds]) {
+        for (const list of [G.cops, G.peds, G.tranzas]) {
           for (const e of list) {
-            if (e.hp > 0 && dist(b, e) < 7) {
-              e.hp -= 22;
+            if (b.life > 0 && e.hp > 0 && segDist(b, e) < 7) {
               b.life = 0;
-              boom(e.x, e.y, 7, '190,35,35');
-              if (e.hp <= 0) {
-                decal(e.x, e.y, rnd(4, 7), 'rgba(95,12,12,.5)');
-                this.wantUp(e.kind === 'cop' ? 2 : 1);
-                G.money += e.kind === 'cop' ? 120 : 40;
-              }
+              this.hurt(e, b.dmg);
             }
           }
         }
-      } else if (!P.dead && dist(b, P) < (P.car ? 12 : 7)) {
+      } else if (!P.dead && segDist(b, P) < (P.car ? 12 : 7)) {
         b.life = 0;
         G.shake += 1.6;
         if (P.car) {
           P.car.hp -= 7;
-          P.hp -= 2;
+          this.hurtPlayer(2);
         } else {
-          P.hp -= 7;
+          this.hurtPlayer(7);
         }
         boom(P.x, P.y, 5, '190,35,35');
       }
@@ -829,7 +1125,8 @@ class Game {
     // Policías a pie
     const wantCops = [0, 2, 4, 6, 9, 12][G.wanted] || 0;
     if (G.cops.filter(c => c.hp > 0).length < wantCops && Math.random() < 1.6 * dt) {
-      G.cops.push(makeCop());
+      const cop = makeCop();
+      if (cop) G.cops.push(cop);
     }
 
     // Patrulleros que persiguen
@@ -973,8 +1270,10 @@ class Game {
       if (d > 34) {
         const s = 52 + G.wanted * 6;
         const nx = c.x + Math.cos(c.ang) * s * dt, ny = c.y + Math.sin(c.ang) * s * dt;
-        if (!hitBuilding(nx, c.y, c.r)) c.x = nx;
-        if (!hitBuilding(c.x, ny, c.r)) c.y = ny;
+        // La yuta a pie no entra a la villa: se queda en el borde
+        const out = !villaAt(c.x, c.y);
+        if (!hitBuilding(nx, c.y, c.r) && !(out && villaAt(nx, c.y))) c.x = nx;
+        if (!hitBuilding(c.x, ny, c.r) && !(out && villaAt(c.x, ny))) c.y = ny;
         c.walk += (dt * s) / 8;
       }
 
@@ -1008,8 +1307,10 @@ class Game {
     G.cops = G.cops.filter(c => c.hp > 0 && dist(c, P) < 700);
 
     if (G.wanted > 0) {
-      G.wantCool += dt;
-      if (G.cops.some(c => dist(c, P) < 195)) G.wantCool = 0;
+      // Adentro de la villa la búsqueda baja el doble de rápido y solo te "ven" de cerca
+      const hidden = villaAt(P.x, P.y) && !P.car;
+      G.wantCool += hidden ? dt * 2 : dt;
+      if (G.cops.some(c => dist(c, P) < (hidden ? 80 : 195))) G.wantCool = 0;
       if (G.wantCool > 12) {
         G.wantCool = 0;
         G.wanted--;
@@ -1024,15 +1325,21 @@ class Game {
           const v = 150 + ((Math.random() * 8) | 0) * 50;
           G.money += v;
           this.say('+$' + v);
+        } else if (pk.kind === 'weapon') {
+          this.giveWeapon(P, pk.w, pk.ammo);
+          this.say(WEAPONS[pk.w].melee ? WEAPONS[pk.w].name : WEAPONS[pk.w].short + ' +' + pk.ammo);
         } else {
           const heal = FOOD_HEAL[pk.food] || 35;
           P.hp = Math.min(P.maxhp, P.hp + heal);
           this.say('+' + heal + ' VIDA (' + pk.food.toUpperCase() + ')');
         }
-        boom(pk.x, pk.y, 8, pk.kind === 'cash' ? '120,220,120' : '230,90,90');
-        Object.assign(pk, makePickup());
+        const col = { cash: '120,220,120', hp: '230,90,90', weapon: '255,200,90' }[pk.kind];
+        boom(pk.x, pk.y, 8, col);
+        if (pk.drop) pk.gone = true;
+        else Object.assign(pk, makePickup());
       }
     }
+    G.pickups = G.pickups.filter(pk => !pk.gone && !(pk.drop && pk.t > 30));
 
     for (const f of G.fx) {
       f.x += f.vx * dt;
@@ -1065,8 +1372,8 @@ class Game {
     const lead = P.car ? clamp(P.car.spd / 195, 0, 1) * 52 : 0;
     const tx = clamp(P.x + Math.cos(P.ang) * lead - RW / 2, 0, WORLD - RW);
     const ty = clamp(P.y + Math.sin(P.ang) * lead - RH / 2, 0, WORLD - RH);
-    G.cam.x = lerp(G.cam.x, tx, clamp(dt * 7, 0, 1));
-    G.cam.y = lerp(G.cam.y, ty, clamp(dt * 7, 0, 1));
+    G.cam.x = lerp(G.cam.x, tx, clamp(rdt * 7, 0, 1));
+    G.cam.y = lerp(G.cam.y, ty, clamp(rdt * 7, 0, 1));
   }
 }
 
