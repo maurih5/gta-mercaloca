@@ -783,9 +783,17 @@ class Renderer {
     ctx.fillStyle = night > 0.3 ? '#fff6cc' : '#d8d4bb';
     ctx.fillRect(w / 2 - 2.4, -h / 2 + 2.5, 2, 3);
     ctx.fillRect(w / 2 - 2.4, h / 2 - 5.5, 2, 3);
-    ctx.fillStyle = c.spd < -2 ? '#ff7a6a' : '#8c2a22';
+    // Luces de freno (rojo fuerte al frenar) y de marcha atrás
+    ctx.fillStyle = c.spd < -2 ? '#ff7a6a' : c.brake ? '#ff2a1a' : '#8c2a22';
     ctx.fillRect(-w / 2 + 0.6, -h / 2 + 2.5, 1.6, 3);
     ctx.fillRect(-w / 2 + 0.6, h / 2 - 5.5, 1.6, 3);
+    // Guiño: titila adelante y atrás del lado que va a doblar (+1 derecha, -1 izquierda)
+    if (c.signal && Math.floor(G.t * 3.2) % 2) {
+      const sy = c.signal > 0 ? h / 2 - 2 : -h / 2;
+      ctx.fillStyle = '#ffb21a';
+      ctx.fillRect(w / 2 - 2.6, sy, 2.2, 2);
+      ctx.fillRect(-w / 2 + 0.4, sy, 2.2, 2);
+    }
 
     if (c.cop) {
       const bl = Math.floor(G.t * 7) % 2;
@@ -878,6 +886,14 @@ class Renderer {
         ECTX.lineTo(11, 5);
         ECTX.closePath();
         ECTX.fill();
+        // Luces traseras: brillan más al frenar
+        ECTX.globalAlpha = (c.brake ? 0.9 : 0.4) * k;
+        ECTX.drawImage(this.glow(255, 40, 30, c.brake ? 22 : 14), -c.w / 2 - (c.brake ? 11 : 7), -(c.brake ? 11 : 7));
+        if (c.signal && Math.floor(G.t * 3.2) % 2) {
+          ECTX.globalAlpha = 0.8 * k;
+          ECTX.drawImage(this.glow(255, 180, 40, 16), c.w / 2 - 8, (c.signal > 0 ? c.h / 2 : -c.h / 2) - 8);
+        }
+        ECTX.globalAlpha = 1;
         ECTX.restore();
         any = true;
       }

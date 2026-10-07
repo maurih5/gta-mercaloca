@@ -160,6 +160,7 @@ class Game {
     if (!P || !P.car) return;
     P.car.ai = true;
     P.car.spd = 0;
+    P.car.nav = false; // la IA retoma desde donde lo dejaste
     P.x = P.car.x + Math.cos(P.car.ang + Math.PI / 2) * 15;
     P.y = P.car.y + Math.sin(P.car.ang + Math.PI / 2) * 15;
     P.car = null;
@@ -872,251 +873,71 @@ class Game {
       G.pedSpawn = 0;
     }
 
-    // Tráfico de autos civiles
+    // Velocidad real de cada auto (cuánto se movió de verdad), para que nadie espere
+    // atrás de uno que acelera contra una pared sin avanzar
+    for (const c of G.cars) {
+      c.rv = c.lx === undefined || dt <= 0 ? Math.abs(c.spd) : Math.hypot(c.x - c.lx, c.y - c.ly) / dt;
+      c.lx = c.x;
+      c.ly = c.y;
+    }
+
+    // Tráfico de autos civiles: carriles, giros con curva, rotonda y frenado (js/traffic.js)
     for (const c of G.cars) {
       if (!c.ai || c.chase || c.hp <= 0) continue;
-      c.horn = Math.max(0, c.horn - dt);
-
-      const fwx = Math.cos(c.ang), fwy = Math.sin(c.ang);
-      const ahead = c.w * 0.6 + 13 + Math.abs(c.spd) * 0.30;
-      const inFront = (ox2, oy2, halfW) => {
-        const rx2 = ox2 - c.x, ry2 = oy2 - c.y;
-        const fwd = rx2 * fwx + ry2 * fwy;
-        const lat = Math.abs(-rx2 * fwy + ry2 * fwx);
-        return fwd > 0 && fwd < ahead && lat < halfW;
-      };
-
-      // Cesion de paso en los cruces: proyecta las dos trayectorias unos metros y,
-      // si van a coincidir en tiempo y lugar, frena el que llega despues. Si empatan
-      // desempata el id, para que no cedan los dos y queden trabados mirandose.
-      const crossBlocked = (me, o) => {
-        const T = 1.15;
-        const mvx = Math.cos(me.ang) * me.spd, mvy = Math.sin(me.ang) * me.spd;
-        const ovx = Math.cos(o.ang) * o.spd, ovy = Math.sin(o.ang) * o.spd;
-        const rad = (me.w + me.h) / 4 + (o.w + o.h) / 4 + 5;
-        let tHit = -1;
-        for (let t = 0.1; t <= T; t += 0.12) {
-          const ex = (me.x + mvx * t) - (o.x + ovx * t);
-          const ey = (me.y + mvy * t) - (o.y + ovy * t);
-          if (ex * ex + ey * ey < rad * rad) { tHit = t; break; }
-        }
-        if (tHit < 0) return false;
-        // Solo frena si el conflicto le queda adelante, no si ya lo dejo atras
-        const cx2 = me.x + mvx * tHit - me.x, cy2 = me.y + mvy * tHit - me.y;
-        if (cx2 * fwx + cy2 * fwy < -2) return false;
-        const myD = Math.hypot(me.x + mvx * tHit - me.x, me.y + mvy * tHit - me.y);
-        const oD = Math.hypot(o.x + ovx * tHit - o.x, o.y + ovy * tHit - o.y);
-        if (Math.abs(myD - oD) < 3) return me.seed > o.seed; // empate: desempata estable
-        return myD > oD; // el que tiene que recorrer mas, llega despues: cede
-      };
-
-      let block = false, queued = false;
-      for (const o of G.cars) {
-        if (o === c || o.hp <= 0) continue;
-        const sameWay = (Math.cos(c.ang) * Math.cos(o.ang) + Math.sin(c.ang) * Math.sin(o.ang)) > 0.3;
-        if (sameWay) {
-          if (inFront(o.x, o.y, (c.h + o.h) * 0.42)) {
-            block = true;
-            if ((o.waitLight || 0) > 0 || o.queued) queued = true;
-            break;
-          }
-          continue;
-        }
-        // Sentido cruzado: antes se ignoraba por completo, asi que en las bocacalles
-        // los autos se atravesaban entre si (99% de los choques medidos). Ahora el
-        // que llega despues cede el paso; el desempate por id es estable, para que
-        // no frenen los dos a la vez y queden trabados.
-        if (!crossBlocked(c, o)) continue;
-        block = true;
-        if ((o.waitLight || 0) > 0 || o.queued) queued = true;
-        break;
-      }
-      c.queued = queued;
-
-      if (!block && !P.dead) {
-        const pw = P.car ? (c.h + P.car.h) * 0.45 : c.h * 0.5;
-        if (inFront(P.x, P.y, pw)) {
-          block = true;
-          if (!P.car && c.horn <= 0 && Math.random() < 0.5) c.horn = 1.1;
-        }
-      }
-
-      let redStop = false;
-      const LA = lightAhead(c.x, c.y, c.ang);
-      if (LA && LA.fwd > -2 && LA.fwd < 46) {
-        const st = lightState(LA.L, LA.horiz);
-        if (st === 'rojo' || (st === 'amarillo' && LA.fwd > Math.abs(c.spd) * 0.42)) redStop = true;
-      }
-
-      if (redStop) {
-        const brake = LA.fwd < 3 ? 6 : 3.0;
-        c.spd += (0 - c.spd) * brake * dt;
-        if (LA.fwd < 1.5 && c.spd < 6) c.spd = 0;
-        c.waitLight = (c.waitLight || 0) + dt;
-        c.stopT = 0;
-      } else if (block) {
-        c.spd += (0 - c.spd) * 3.4 * dt;
-        c.waitLight = 0;
-        if (queued) c.stopT = 0;
-        else c.stopT += dt;
-      } else {
-        c.spd += (c.cruise - c.spd) * 0.75 * dt;
-        c.stopT = 0;
-        c.waitLight = 0;
-      }
-
-      if (c.stopT > 3.5) {
-        const R2 = c.h * 0.5 + 1;
-        for (const turn of [Math.PI / 2, -Math.PI / 2]) {
-          const L2 = laneSnap(c.x, c.y, c.ang + turn);
-          const ax = L2.x + Math.cos(L2.ang) * 20, ay = L2.y + Math.sin(L2.ang) * 20;
-          if (!hitBuilding(ax, ay, R2) && ax > 10 && ay > 10 && ax < WORLD - 10 && ay < WORLD - 10) {
-            c.x = L2.x;
-            c.y = L2.y;
-            c.ang = L2.ang;
-            c.spd = Math.max(16, c.cruise * 0.35);
-            c.turned = true;
-            break;
-          }
-        }
-        c.stopT = 0;
-      }
-
-      const CR = c.h * 0.5 + 1;
-      const carBlocked = (x2, y2) => hitBuilding(x2, y2, CR) || hitCarBlock(x2, y2, CR) || x2 < 10 || y2 < 10 || x2 > WORLD - 10 || y2 > WORLD - 10;
-      const nx = c.x + Math.cos(c.ang) * c.spd * dt;
-      const ny = c.y + Math.sin(c.ang) * c.spd * dt;
-
-      if (carBlocked(nx, ny)) {
-        const probe = Math.max(c.w, 18);
-        let fixed = false;
-        const opts = Math.random() < 0.5
-          ? [Math.PI / 2, -Math.PI / 2, Math.PI]
-          : [-Math.PI / 2, Math.PI / 2, Math.PI];
-        for (const turn of opts) {
-          const na = c.ang + turn;
-          const L = laneSnap(c.x, c.y, na);
-          if (!carBlocked(L.x + Math.cos(L.ang) * probe, L.y + Math.sin(L.ang) * probe) && !carBlocked(L.x, L.y)) {
-            c.x = L.x;
-            c.y = L.y;
-            c.ang = L.ang;
-            c.spd = Math.max(16, c.cruise * 0.35);
-            c.turned = true;
-            fixed = true;
-            break;
-          }
-        }
-        if (!fixed) {
-          if (dist(c, P) > OFFSCREEN) {
-            c.hp = 0;
-          } else {
-            c.ang += Math.PI;
-            const L = laneSnap(c.x, c.y, c.ang);
-            c.x = L.x;
-            c.y = L.y;
-            c.ang = L.ang;
-            c.spd = 16;
-          }
-        }
-      } else {
-        c.x = nx;
-        c.y = ny;
-      }
-
-      const ob = getObelisco();
-      // Distancia al obelisco, no celda de grilla: el centro de la rotonda no cae simetrico
-      // dentro de su celda (la avenida es mas ancha que ROAD), asi que el anillo se sale
-      // del cuadrado de la celda por un lado. Un gate por distancia evita que un auto
-      // todavia circulando el anillo "salga" de la plaza por error y reinicie ringArc.
-      const inPlazaCell = !!ob && dist(c, { x: ob.x + ob.w / 2, y: ob.y + ob.h / 2 }) < ROTONDA_R + 24;
-      const ringMid = (ROTONDA_ISLAND_R + ROTONDA_R) / 2;
-      if (inPlazaCell && ob && (c.inRing || inRotondaRing(c.x, c.y))) {
-        // Circulando la rotonda: navega tangente al circulo (sentido antihorario, mano derecha).
-        const ocx = ob.x + ob.w / 2, ocy = ob.y + ob.h / 2;
-        const rad = Math.atan2(c.y - ocy, c.x - ocx);
-        const tangent = rad - Math.PI / 2;
-        c.inRing = true;
-        c.turned = false;
-        c.ringArc = (c.ringArc || 0) + Math.abs(dt * c.spd) / ringMid;
-        // Mantiene el radio pegado al carril medio del anillo.
-        const d = Math.hypot(c.x - ocx, c.y - ocy);
-        const dClamped = clamp(d, ROTONDA_ISLAND_R + 2, ROTONDA_R - 2);
-        c.x = ocx + Math.cos(rad) * lerp(d, ringMid, dt * 2 + (dClamped !== d ? 1 : 0));
-        c.y = ocy + Math.sin(rad) * lerp(d, ringMid, dt * 2 + (dClamped !== d ? 1 : 0));
-        // Sale por la primer salida cardinal alineada, despues de dar al menos un buen tramo de vuelta.
-        const cardinals = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
-        const aligned = cardinals.some(a => Math.abs(((tangent - a + Math.PI) % TAU + TAU) % TAU - Math.PI) < 0.12);
-        if (c.ringArc > Math.PI * 0.9 && aligned) {
-          c.inRing = false;
-          c.turned = true;
-          const exitAng = cardinals.reduce((best, a) =>
-            Math.abs(((tangent - a + Math.PI) % TAU + TAU) % TAU - Math.PI) <
-            Math.abs(((tangent - best + Math.PI) % TAU + TAU) % TAU - Math.PI) ? a : best, 0);
-          const L = laneSnap(c.x, c.y, exitAng);
-          c.x = L.x;
-          c.y = L.y;
-          c.ang = L.ang;
-        } else {
-          c.ang = tangent;
-        }
-      } else if (inPlazaCell && !c.inRing && !c.turned) {
-        // Llega a la bocacalle ancha de la plaza: entra siempre a la rotonda (no cruza derecho).
-        c.turned = true;
-        c.inRing = true;
-        c.ringArc = 0;
-      } else if (!inPlazaCell) {
-        c.inRing = false;
-        c.ringArc = 0;
-      }
-
-      // Diagonal Norte: mientras el auto esta en la franja, mantiene el heading fijo
-      // de la diagonal (el sentido mas cercano a su angulo actual) en vez de cardinal.
-      const inDiag = inDiagonalBand(c.x, c.y);
-      if (inDiag) {
-        const fwdDot = Math.cos(c.ang) * DIAG_UX + Math.sin(c.ang) * DIAG_UY;
-        c.ang = fwdDot >= 0 ? DIAG_ANG : DIAG_ANG + Math.PI;
-        c.turned = true;
-      } else if (c.wasDiag) {
-        const L = laneSnap(c.x, c.y, c.ang);
-        c.x = L.x; c.y = L.y; c.ang = L.ang;
-        c.turned = false;
-      }
-      c.wasDiag = inDiag;
-
-      const ox = ((c.x % CELL) + CELL) % CELL, oy = ((c.y % CELL) + CELL) % CELL;
-      const rw = Math.floor(c.x / CELL) === PLAZA_CX ? AVENUE_ROAD : ROAD;
-      const rh = Math.floor(c.y / CELL) === PLAZA_CY ? AVENUE_ROAD : ROAD;
-      const atCross = ox < rw && oy < rh;
-      if (inPlazaCell || inDiag) {
-        // ya resuelto arriba (rotonda / diagonal), no aplica el criterio de bocacalle comun
-      } else if (atCross && !c.turned) {
-        c.turned = true;
-        if (Math.random() < 0.34) {
-          c.ang += Math.random() < 0.5 ? Math.PI / 2 : -Math.PI / 2;
-          const L = laneSnap(c.x, c.y, c.ang);
-          c.x = L.x;
-          c.y = L.y;
-          c.ang = L.ang;
-        }
-      } else if (!atCross) {
-        c.turned = false;
-        const L = laneSnap(c.x, c.y, c.ang);
-        if (Math.abs(Math.cos(c.ang)) > 0.5) c.y = lerp(c.y, L.y, dt * 3);
-        else c.x = lerp(c.x, L.x, dt * 3);
-      }
-
-      if (c.stopT > 9 && dist(c, P) > OFFSCREEN) c.hp = 0;
+      trafficAI.update(c, dt, P);
     }
 
     G.cars = G.cars.filter(c => c.hp > 0 || c === P.car);
     G.cars = G.cars.filter(c => c === P.car || dist(c, P) < SIM_R * 1.12);
+    // Cuántos autos entran acá: en una esquina del mapa o contra el río hay menos calle,
+    // y meter los 46 de siempre arma un embotellamiento que no se desarma nunca
+    G.carCapT = (G.carCapT || 0) - dt;
+    if (G.carCapT <= 0 || !G.carCap) {
+      G.carCapT = 1;
+      let road = 0, n = 0;
+      for (let r = 80; r <= SIM_R; r += 80) {
+        for (let a = 0; a < TAU; a += TAU / 16) {
+          n++;
+          const x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
+          if (x > 0 && y > 0 && x < WORLD && y < WORLD && onRoad(x, y) && !hitBuilding(x, y, 2)) road++;
+        }
+      }
+      G.carCap = Math.round(CAR_TARGET * clamp(road / n / 0.45, 0.65, 1));
+    }
     const carsNear = G.cars.filter(c => c.ai && c.hp > 0).length;
-    if (carsNear < CAR_TARGET) {
+    if (carsNear > G.carCap) {
+      // Sobran: se va uno que no se ve y está clavado en una fila (el que anda, sigue)
+      G.carTrim = (G.carTrim || 0) + dt;
+      if (G.carTrim > 0.25) {
+        G.carTrim = 0;
+        let pick = null, best = -1;
+        for (const c of G.cars) {
+          if (!c.ai || c.chase || c.hp <= 0 || c === P.car || c.spd >= 4) continue;
+          const d = dist(c, P);
+          if (d < OFFSCREEN) continue;
+          if (d > best) { best = d; pick = c; }
+        }
+        if (pick) { trafficAI.release(pick); pick.hp = 0; }
+      }
+    } else if (carsNear < G.carCap) {
       G.carSpawn = (G.carSpawn || 0) + dt;
       if (G.carSpawn > 0.22) {
         G.carSpawn = 0;
-        const sp = ringSpot(OFFSCREEN, SIM_R * 0.95, true);
-        if (sp) G.cars.push(makeCar(sp.x, sp.y));
+        // Busca un lugar con calle libre: no aparece adentro de una fila ni en una zona
+        // ya cargada (en una esquina del mapa o al lado del río hay menos calles para repartir)
+        for (let k = 0; k < 4; k++) {
+          const sp = ringSpot(OFFSCREEN, SIM_R * 0.95, true);
+          if (!sp) continue;
+          let near = 0, touching = false;
+          for (const o of G.cars) {
+            const dx = Math.abs(o.x - sp.x), dy = Math.abs(o.y - sp.y);
+            if (dx < 40 && dy < 40) { touching = true; break; }
+            if (dx < 120 && dy < 120) near++;
+          }
+          if (touching || near >= 4) continue;
+          G.cars.push(makeCar(sp.x, sp.y));
+          break;
+        }
       }
     } else {
       G.carSpawn = 0;

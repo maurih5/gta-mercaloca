@@ -65,6 +65,19 @@ Con <kbd>F</kbd> (o el botón 🌿) el mundo va en cámara lenta durante 7 segun
 
 ---
 
+## 🚦 Tránsito
+
+Los autos manejan con volante y frenos de verdad (`js/traffic.js`):
+
+* **Siguen su carril** apuntando a un punto adelante, con radio de giro mínimo: nada de teletransportarse.
+* **Doblan con curva**: cerrada a la derecha, abierta a la izquierda, frenando antes y con **guiño**. En la avenida se acomodan en el carril que corresponde y cambian de carril para pasar a uno lento.
+* **Distancia y frenado (IDM)**: mantienen distancia con el de adelante y frenan suave para el semáforo, la curva o la gente. Luces de freno y guiños se ven, también de noche.
+* **Reserva de bocacalles**: entran solo con verde, si hay lugar del otro lado y si nadie adentro hace una maniobra que se cruce. Comprometidos no frenan, así la bocacalle se vacía y no se arman nudos. El que espera mucho (ej. doblar a la izquierda contra un chorro de autos) reclama su turno.
+* **Rotonda del Obelisco**: sentido antihorario, ceden el paso a los que ya circulan y salen por cualquiera de las cuatro salidas.
+* **Esquivan** autos parados o patrulleros usando la mano contraria si viene libre, **pegan la vuelta** en calles cortadas, **se tiran al cordón** cuando viene un patrullero con sirena y le tocan bocina a quien se planta en la calle.
+
+---
+
 ## 🗺️ Roadmap de pendientes
 
 Lista de características planificadas y mejoras en desarrollo. Cada ítem linkea al issue correspondiente:

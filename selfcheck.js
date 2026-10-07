@@ -3,7 +3,7 @@
 const fs = require('fs'), assert = require('assert');
 const scriptFiles = [
   'constants.js', 'utils.js', 'input.js', 'world.js',
-  'entities.js', 'game.js', 'renderer.js', 'ui.js'
+  'entities.js', 'traffic.js', 'game.js', 'renderer.js', 'ui.js'
 ];
 let js = scriptFiles.map(f => fs.readFileSync(__dirname + '/js/' + f, 'utf8')).join('\n');
 
@@ -303,6 +303,7 @@ for(let i=0;i<200;i++){
   assert.ok(ok, 'laneSnap angulo raro: ' + L.ang);
 }
 
+let movingAcc = 0, movingN = 0;
 for(let f=0; f<3600; f++){                      // 60s
   update(1/60);
   render();                                     // el render no debe explotar ni con stubs
@@ -312,6 +313,10 @@ for(let f=0; f<3600; f++){                      // 60s
   assert.ok(P.hp <= 100, 'hp no supera el maximo');
   for(const c of G.cars) assert.ok(Number.isFinite(c.x) && Number.isFinite(c.spd), 'auto NaN frame ' + f);
   if(f === 600) G.wanted = 5;                   // fuerza yuta y tiroteo
+  if(f >= 3000){                                // ultimos 10s: fraccion de autos andando, frame a frame
+    const tr = G.cars.filter(c => c.ai && c.hp > 0);
+    if(tr.length){ movingAcc += tr.filter(c => Math.abs(c.spd) > 12).length / tr.length; movingN++; }
+  }
 }
 assert.ok(G.cops.length > 0, 'la yuta aparece con 5 estrellas');
 assert.ok(G.fx.length < 4000 && G.smoke.length < 900, 'las particulas no se acumulan sin control');
@@ -371,13 +376,16 @@ const jammed  = traffic.filter(c => c.stopT > 4).length;
 assert.ok(jammed <= traffic.length*0.10, 'autos trabados sin motivo: ' + jammed);
 assert.ok((moving + atRed) / traffic.length > 0.75,
   'trafico muerto: ' + moving + ' en movimiento + ' + atRed + ' en rojo de ' + traffic.length);
-assert.ok(moving / traffic.length > 0.45,
-  'demasiados parados: solo ' + moving + '/' + traffic.length + ' circulando');
+// Promedio de los ultimos 10s y no una foto de un solo frame: la foto depende de en que fase
+// estaban los semaforos justo en ese instante y fallaba de vez en cuando aun con trafico sano.
+assert.ok(movingAcc / movingN > 0.45,
+  'demasiados parados: solo ' + Math.round(movingAcc / movingN * 100) + '% circulando en los ultimos 10s');
 // regresion: al chocar una pared se reseteaban a la misma velocidad cada frame y
 // quedaban en bucle. Si muchos comparten velocidad exacta, volvio el bug.
+// Los parados no cuentan: frenar en un semaforo deja la velocidad en 0 exacto, y eso es correcto.
 {
   const buckets = {};
-  for(const c of traffic){ const k = c.spd.toFixed(1); buckets[k] = (buckets[k]||0)+1; }
+  for(const c of traffic){ if (Math.abs(c.spd) < 0.5) continue; const k = c.spd.toFixed(1); buckets[k] = (buckets[k]||0)+1; }
   const worst = Math.max(...Object.values(buckets));
   assert.ok(worst < traffic.length*0.35,
     'muchos autos con velocidad identica (bucle de choque): ' + worst + '/' + traffic.length);

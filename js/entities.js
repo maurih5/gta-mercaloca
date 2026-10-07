@@ -182,12 +182,17 @@ class EntityManager {
   makeChaser() {
     const px0 = (typeof G !== 'undefined' && G.player) ? G.player.x : WORLD / 2;
     const py0 = (typeof G !== 'undefined' && G.player) ? G.player.y : WORLD / 2;
-    const a = rnd(0, TAU), d = rnd(240, 380);
-    const sp = {
-      x: clamp(px0 + Math.cos(a) * d, 20, WORLD - 20),
-      y: clamp(py0 + Math.sin(a) * d, 20, WORLD - 20),
-    };
-    const c = this.makeCar(sp.x, sp.y, true);
+    // Aparece sobre una calle de verdad: un punto al azar caía a veces en el río o la explanada
+    let c = null;
+    for (let i = 0; i < 20 && !c; i++) {
+      const a = rnd(0, TAU), d = rnd(240, 380);
+      const t = this.makeCar(clamp(px0 + Math.cos(a) * d, 20, WORLD - 20), clamp(py0 + Math.sin(a) * d, 20, WORLD - 20), true);
+      if (onRoad(t.x, t.y) && !hitBuilding(t.x, t.y, 8) && !hitCarBlock(t.x, t.y, 8)) c = t;
+    }
+    if (!c) {
+      const fs = freeRoadSpot();
+      c = this.makeCar(fs.x, fs.y, true);
+    }
     c.ai = false;
     c.chase = true;
     c.cruise = 150;
