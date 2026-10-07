@@ -521,6 +521,7 @@ class World {
     for (const [tx, ty] of targets) {
       let best = null, bd = Infinity;
       for (const b of this.buildings) {
+        // Ni monumentos, ni armerías, ni casillas de villa: no se pintan de hospital
         if (b.hospital || b.shop || b.villa || b.casaRosada || b.cabildo || b.ty.k === 'torre') continue;
         const d = Math.hypot(b.x + b.w / 2 - tx, b.y + b.h / 2 - ty);
         if (d < bd) { bd = d; best = b; }
