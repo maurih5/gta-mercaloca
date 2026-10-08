@@ -496,7 +496,8 @@ class World {
     for (const [tx, ty] of targets) {
       let best = null, bd = Infinity;
       for (const b of this.buildings) {
-        if (b.hospital || b.ty.k === 'torre') continue;
+        // Ni la Casa Rosada ni el Cabildo: son monumentos, no se pintan de hospital
+        if (b.hospital || b.casaRosada || b.cabildo || b.ty.k === 'torre') continue;
         const d = Math.hypot(b.x + b.w / 2 - tx, b.y + b.h / 2 - ty);
         if (d < bd) { bd = d; best = b; }
       }
