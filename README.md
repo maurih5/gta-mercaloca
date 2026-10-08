@@ -131,12 +131,28 @@ python3 -m http.server 8000
 ```
 Luego entra a `http://localhost:8000`.
 
-### Indicador de versión
-
-El tag de versión que se ve en el menú (`vN-hash`) se regenera solo en cada commit
-vía un git hook versionado en `.githooks/pre-commit` (nadie tiene que acordarse de
-bumpear un número a mano). Para que el hook corra en tu clon local:
+### Tests
 
 ```bash
-git config core.hooksPath .githooks
+node selfcheck.js
 ```
+
+Corre el juego headless (mundo, semáforos, 60 s de simulación, arresto, hospital...).
+En cada PR cada test aparece como un check propio.
+
+---
+
+## 📦 Versiones y releases
+
+La versión **no se escribe en el código**: vive en tags `X.Y.Z` y el build la inyecta en
+el juego (se ve en el menú) y en los `?v=` de `index.html`.
+
+1. Las PRs van a **`dev`**. Etiquetá la PR con `bugfix` (default), `feature` o `breaking`.
+2. Para mergear tienen que pasar los checks `test` y `Compilar sitio`, y la PR tiene que
+   estar al día con `dev`. El check `Compilar sitio` arma el zip con la versión definitiva.
+3. Al mergear a `dev` se publica ese mismo zip como **release candidate** (`0.2.0-rc.1`)
+   y se juega en **https://maurih5.github.io/gta-mercaloca/rc/**.
+4. La PR **`dev` → `main`** publica la **estable** (`0.2.0`) en
+   **https://maurih5.github.io/gta-mercaloca/**.
+
+Cada release en GitHub tiene adjunto el zip del sitio.
