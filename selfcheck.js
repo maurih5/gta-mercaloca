@@ -35,7 +35,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
@@ -44,7 +44,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt} = api;
 
 describe('helpers de color', () => {
   test('shade y mix componen colores validos', () => {
@@ -357,13 +357,13 @@ describe('simulacion', () => {
       assert.ok(P.x >= 0 && P.x <= WORLD && P.y >= 0 && P.y <= WORLD, 'fuera del mapa en frame ' + f);
       assert.ok(P.hp <= 100, 'hp no supera el maximo');
       for(const c of G.cars) assert.ok(Number.isFinite(c.x) && Number.isFinite(c.spd), 'auto NaN frame ' + f);
-      if(f === 600) G.wanted = 5;                   // fuerza yuta y tiroteo
+      // Sin yuta: aca se mide el transito de la ciudad. Un operativo policial traba la calle
+      // a proposito; la persecucion se prueba aparte ('los patrulleros persiguen...').
       if(f >= 3000){                                // ultimos 10s: fraccion de autos andando, frame a frame
         const tr = G.cars.filter(c => c.ai && c.hp > 0);
         if(tr.length){ movingAcc += tr.filter(c => Math.abs(c.spd) > 12).length / tr.length; movingN++; }
       }
     }
-    assert.ok(G.cops.length > 0, 'la yuta aparece con 5 estrellas');
     assert.ok(G.fx.length < 4000 && G.smoke.length < 900, 'las particulas no se acumulan sin control');
   });
 
@@ -517,11 +517,20 @@ describe('jugador', () => {
   test('los patrulleros persiguen sin clavarse contra las paredes', () => {
     // patrulleros: persiguen sin clavarse contra las paredes
     startGame(CREW[0]);
+    // La persecucion se prueba en la ciudad: en una villa (o al lado) la yuta a pie no
+    // entra a proposito, y con el jugador ahi no aparece ninguno
+    const cercaDeVilla = (x, y) => [0, 1, 2, 3, 4, 5, 6, 7].some(k =>
+      villaAt(x + Math.cos(k * Math.PI / 4) * 250, y + Math.sin(k * Math.PI / 4) * 250)) || villaAt(x, y);
+    for(let i = 0; i < 50 && cercaDeVilla(G.player.x, G.player.y); i++){
+      const s = freeRoadSpot(); G.player.x = s.x; G.player.y = s.y;
+    }
     for(let f=0;f<60;f++) update(1/60);
     G.wanted = 5;
     for(let f=0;f<1800;f++){
       update(1/60);
       if(G.busted) G.busted = 0, G.bustT = 0;      // ignorar arrestos, medir solo persecucion
+      G.wanted = 5;                                 // si no, la busqueda baja sola al perderlo de vista
+      if(f % 10 === 0) render();                    // el tiroteo tambien se tiene que poder dibujar
       if(f === 1800-120) for(const c of G.cars) if(c.chase){ c.x2s = c.x; c.y2s = c.y; }
     }
     const ch = G.cars.filter(c => c.chase && c.hp > 0);
@@ -538,6 +547,8 @@ describe('jugador', () => {
       && Math.hypot(c.x - c.x2s, c.y - c.y2s) < 5);
     assert.equal(stuckCh.length, 0, 'patrulleros clavados lejos del jugador: ' + stuckCh.length + '/' + ch.length
       + ' ' + JSON.stringify(stuckCh.map(c => ({x: Math.round(c.x), y: Math.round(c.y), d: Math.round(dist(c, G.player))}))));
+    assert.ok(G.cops.length > 0, 'la yuta aparece con 5 estrellas');
+    assert.ok(G.fx.length < 4000 && G.smoke.length < 900, 'las particulas no se acumulan sin control en un tiroteo');
     console.log('  arresto: patrulleros OK (' + ch.length + ' persiguiendo)');
   });
 

@@ -967,7 +967,20 @@ class Game {
     for (const c of chasers) {
       const d = dist(c, P);
       // Va por las calles hacia el jugador (js/traffic.js); sin camino por la grilla, derecho
-      const nav = copNav.target(c, P, dt) || { x: P.x, y: P.y, turn: false };
+      let nav = copNav.target(c, P, dt) || { x: P.x, y: P.y, turn: false };
+      // Ya llegó y el jugador está a pie: se tira contra el cordón en vez de quedar en el medio
+      // del carril (con el jugador en un auto sí se le va encima, para encajonarlo)
+      if (!P.car && d < 70) {
+        // Lugar propio en el operativo: el primer número libre entre los que ya estacionaron
+        if (c.slot === undefined) {
+          const used = new Set(chasers.filter(o => o !== c && o.slot !== undefined).map(o => o.slot));
+          c.slot = 0;
+          while (used.has(c.slot)) c.slot++;
+        }
+        nav = copNav.curb(c, P) || nav;
+      } else if (d > 120) {
+        c.slot = undefined; // se alejó (el jugador se fue): el lugar queda para otro
+      }
       // Desvío en curso (ver abajo): sigue ese rumbo un rato antes de volver a apuntar
       c.detourT = Math.max(0, (c.detourT || 0) - dt);
       const want = c.detourT > 0 ? c.detourAng : Math.atan2(nav.y - c.y, nav.x - c.x);
@@ -981,6 +994,7 @@ class Game {
       // Frena antes de doblar en una esquina, o si tiene que girar mucho: a toda velocidad
       // el radio de giro no entra en la calle y se come la esquina
       if (nav.turn) target = Math.min(target, 55);
+      if (nav.park) target = Math.hypot(nav.x - c.x, nav.y - c.y) > 6 ? 30 : 0;
       if (Math.abs(diff) > 0.8) target = Math.min(target, 45);
       c.spd += (target - c.spd) * 1.5 * dt;
       const CR2 = c.h * 0.5 + 1;

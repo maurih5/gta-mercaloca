@@ -920,6 +920,29 @@ class CopNav {
     this.field = field;
   }
 
+  // Lugar para estacionar contra el cordón, del lado del jugador, en la calle por la que va
+  // el patrullero: así el carril queda libre y los autos civiles siguen pasando. Cada uno
+  // tiene su lugar (c.slot): el primero a la altura del jugador y los demás alternando
+  // adelante y atrás; todos al mismo punto se chocaban y rebotaban de vuelta al carril.
+  curb(c, P) {
+    const jr = clamp(Math.round((c.y - ROAD / 2) / CELL), 0, GRID - 1);
+    const ic = clamp(Math.round((c.x - ROAD / 2) / CELL), 0, GRID - 1);
+    const cy = this.nodeY(jr), hy = trafficAI.rowH(jr) / 2;
+    const cx = this.nodeX(ic), hx = trafficAI.colW(ic) / 2;
+    const onRow = Math.abs(c.y - cy) < hy + 4, onCol = Math.abs(c.x - cx) < hx + 4;
+    if (!onRow && !onCol) return null;
+    // En una bocacalle se estaciona sobre la calle por la que viene, no en el medio del cruce
+    const horiz = onRow && (!onCol || Math.abs(Math.cos(c.ang)) > Math.abs(Math.sin(c.ang)));
+    const CR = c.h * 0.5 + 1;
+    const k = c.slot || 0;
+    const along = (k % 2 ? -1 : 1) * Math.ceil(k / 2) * 30;
+    const pt = horiz
+      ? { x: P.x + along, y: cy + Math.sign(P.y - cy || 1) * (hy - CR - 0.5) }
+      : { x: cx + Math.sign(P.x - cx || 1) * (hx - CR - 0.5), y: P.y + along };
+    if (hitBuilding(pt.x, pt.y, CR) || hitCarBlock(pt.x, pt.y, CR)) return null;
+    return { x: pt.x, y: pt.y, turn: false, park: true };
+  }
+
   // A dónde apuntar: {x, y, turn}. turn = la esquina siguiente obliga a doblar (frenar antes).
   target(c, P, dt) {
     this.updateField(P);
