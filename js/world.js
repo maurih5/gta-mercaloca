@@ -1324,19 +1324,31 @@ class World {
   onSidewalk(x, y) {
     if (this.inPark(x, y)) return true;
     if (this.villaAt(x, y) && !this.onRoad(x, y)) return true; // en la villa se camina por los pasillos
+    // Como se dibuja (bakeGround): la vereda va sobre los dos bordes de la franja de cada
+    // calle (los primeros y los últimos SIDEWALK px), el asfalto queda en el medio y el
+    // interior de la manzana empieza donde termina la franja. En la bocacalle solo son
+    // vereda las cuatro esquinas; el resto es asfalto (ahí se cruza).
     const ox = ((x % CELL) + CELL) % CELL, oy = ((y % CELL) + CELL) % CELL;
-    const inX = ox >= ROAD - 2 && ox <= ROAD + SIDEWALK + 2;
-    const inY = oy >= ROAD - 2 && oy <= ROAD + SIDEWALK + 2;
-    const farX = ox >= CELL - SIDEWALK - 2, farY = oy >= CELL - SIDEWALK - 2;
-    return inX || inY || farX || farY;
+    const rw = roadWidthCol(Math.floor(x / CELL)), rh = roadWidthRow(Math.floor(y / CELL));
+    const inV = ox < rw, inH = oy < rh;
+    const edgeV = ox < SIDEWALK || (ox >= rw - SIDEWALK && inV);
+    const edgeH = oy < SIDEWALK || (oy >= rh - SIDEWALK && inH);
+    return (edgeV && !inH) || (edgeH && !inV) || (edgeV && edgeH);
   }
 
   toSidewalk(x, y) {
     const ox = ((x % CELL) + CELL) % CELL, oy = ((y % CELL) + CELL) % CELL;
     const bx = x - ox, by = y - oy;
-    const tX = ox < CELL / 2 ? ROAD + SIDEWALK * 0.5 : CELL - SIDEWALK * 0.5;
-    const tY = oy < CELL / 2 ? ROAD + SIDEWALK * 0.5 : CELL - SIDEWALK * 0.5;
-    return Math.abs(ox - tX) < Math.abs(oy - tY) ? { x: bx + tX, y } : { x, y: by + tY };
+    const rw = roadWidthCol(Math.floor(x / CELL)), rh = roadWidthRow(Math.floor(y / CELL));
+    // Centro de la vereda más cercana sobre cada eje: el borde izquierdo o derecho de la franja
+    // de esta calle, o el borde izquierdo de la franja de la calle siguiente (en CELL)
+    const near = (o, w) => [SIDEWALK / 2, w - SIDEWALK / 2, CELL + SIDEWALK / 2]
+      .reduce((a, t) => (Math.abs(o - t) < Math.abs(o - a) ? t : a));
+    const tX = near(ox, rw), tY = near(oy, rh);
+    // ¿La otra coordenada queda en el asfalto de la bocacalle? Entonces a la esquina
+    const crossV = oy >= SIDEWALK && oy < rh - SIDEWALK, crossH = ox >= SIDEWALK && ox < rw - SIDEWALK;
+    if (Math.abs(ox - tX) < Math.abs(oy - tY)) return crossV ? { x: bx + tX, y: by + tY } : { x: bx + tX, y };
+    return crossH ? { x: bx + tX, y: by + tY } : { x, y: by + tY };
   }
 
   laneSnap(x, y, ang, laneBias = 0) {
