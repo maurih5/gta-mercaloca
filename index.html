@@ -212,6 +212,48 @@
     border-color: #666;
     background: rgba(10, 10, 10, 0.68);
   }
+  .btn-porro {
+    border-color: #3a9b47;
+    background: radial-gradient(circle, rgba(90, 210, 102, 0.45) 0%, rgba(10, 30, 15, 0.85) 80%);
+  }
+  .btn-wpn {
+    border-color: #e8a53a;
+    background: radial-gradient(circle, rgba(232, 165, 58, 0.5) 0%, rgba(30, 20, 10, 0.85) 80%);
+  }
+  .btn-wpn:active, .btn-wpn.pressed {
+    border-color: #ffc86a;
+  }
+
+  /* Armería */
+  .shop{position:fixed;inset:0;display:none;place-items:center;z-index:48;background:rgba(0,0,0,.6)}
+  .shop.on{display:grid}
+  .shop-panel{width:min(560px,94vw);max-height:92vh;display:flex;flex-direction:column;background:#0e0d0c;
+              border:3px solid #b0201c;box-shadow:0 0 0 3px #000,0 16px 50px rgba(0,0,0,.9);padding:14px}
+  .shop.tranza .shop-panel{border-color:#3a9b47}
+  .shop.tranza .shop-head{color:#5ad266}
+  .shop-head{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:min(3.4vw,15px);
+             color:#ff5a4a;text-shadow:3px 3px 0 #000;letter-spacing:1px}
+  .shop-money{color:#7de07d;font-size:min(3vw,12px)}
+  .shop-sub{font-size:8px;color:#8e8e8e;margin:8px 0 10px}
+  .shop-list{overflow-y:auto;touch-action:pan-y;display:flex;flex-direction:column;gap:6px}
+  .shop-row{display:flex;align-items:center;gap:10px;padding:7px 8px;border:2px solid #222;background:#151413;cursor:pointer}
+  .shop-row.sel{border-color:var(--gold);background:#1f1b12}
+  .shop-row.off{opacity:.55}
+  .shop-icon{width:56px;height:32px;image-rendering:pixelated;flex:none}
+  .shop-info{flex:1;min-width:0}
+  .shop-name{font-size:9px;color:#fff;margin-bottom:6px}
+  .shop-desc{font-size:7px;color:#9a9a9a;line-height:1.5}
+  .shop-buy{font-family:inherit;font-size:8px;color:#000;background:var(--gold);border:2px solid #000;
+            padding:8px 8px;cursor:pointer;flex:none;touch-action:manipulation}
+  .shop-buy:disabled{background:#444;color:#999;cursor:default}
+  .shop-buy:not(:disabled):active{transform:scale(.94)}
+  .shop-msg{min-height:20px;margin-top:10px;font-size:8px;color:#7de07d;text-align:center}
+  .shop-msg.bad{color:#ff6a5a}
+  .shop-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:4px}
+  .shop-hint{font-size:7px;color:#777;line-height:1.6}
+  .shop-close{font-family:inherit;font-size:9px;color:#fff;background:#b0201c;border:2px solid #000;padding:8px 14px;
+              cursor:pointer;touch-action:manipulation}
+
   .touch-toggle-btn {
     position: fixed;
     top: 14px;
@@ -263,7 +305,8 @@
     <h2>SAN ANDREAS &mdash; GROVE ST. 4 LIFE</h2>
     <div class="mi sel" id="btnPlay">&gt; EMPEZAR PARTIDA</div>
     <div class="hint">WASD / FLECHAS mover &nbsp;&middot;&nbsp; ESPACIO disparar &nbsp;&middot;&nbsp; E auto<br>
-      SHIFT correr &nbsp;&middot;&nbsp; P pausa<br>si te frenan con la yuta encima, vas preso</div>
+      SHIFT correr &nbsp;&middot;&nbsp; Q / 1-6 cambiar arma &nbsp;&middot;&nbsp; P pausa<br>
+      E en la puerta de la armeria para comprar fierros &nbsp;&middot;&nbsp; F fumar<br>si te frenan con la yuta encima, vas preso</div>
   </div>
 </div>
 
@@ -293,6 +336,8 @@
     <div class="touch-btn-row">
       <button id="btn-car" class="touch-btn btn-car" aria-label="Auto">🚗</button>
       <button id="btn-run" class="touch-btn btn-run" aria-label="Correr">⚡</button>
+      <button id="btn-wpn" class="touch-btn btn-wpn" aria-label="Cambiar arma">🔄</button>
+      <button id="btn-porro" class="touch-btn btn-porro" aria-label="Fumar">🌿</button>
     </div>
   </div>
   <button id="btn-pause" class="touch-btn btn-pause" aria-label="Pausa">⏸</button>
@@ -303,16 +348,32 @@
   </div>
 </div>
 
+<!-- Armería -->
+<div class="shop" id="shop">
+  <div class="shop-panel">
+    <div class="shop-head"><span id="shop-title">FIERROS DEL BARRIO</span><span class="shop-money" id="shop-money"></span></div>
+    <div class="shop-sub" id="shop-sub">ARMERIA &middot; sin preguntas, sin factura</div>
+    <div class="shop-list" id="shop-list"></div>
+    <div class="shop-msg" id="shop-msg"></div>
+    <div class="shop-foot">
+      <span class="shop-hint">FLECHAS elegir &middot; ENTER comprar &middot; E / ESC salir</span>
+      <button class="shop-close" id="shop-close">SALIR</button>
+    </div>
+  </div>
+</div>
+
 <!-- Módulos de lógica y motor del juego con cache busting -->
-<script src="js/constants.js?v=17"></script>
-<script src="js/utils.js?v=11"></script>
-<script src="js/input.js?v=11"></script>
-<script src="js/world.js?v=19"></script>
-<script src="js/entities.js?v=11"></script>
-<script src="js/game.js?v=17"></script>
-<script src="js/renderer.js?v=19"></script>
-<script src="js/ui.js?v=11"></script>
-<script src="js/touch.js?v=11"></script>
-<script src="js/main.js?v=11"></script>
+<script src="js/constants.js?v=20"></script>
+<script src="js/utils.js?v=20"></script>
+<script src="js/input.js?v=20"></script>
+<script src="js/world.js?v=20"></script>
+<script src="js/entities.js?v=20"></script>
+<script src="js/traffic.js?v=20"></script>
+<script src="js/game.js?v=20"></script>
+<script src="js/renderer.js?v=20"></script>
+<script src="js/ui.js?v=20"></script>
+<script src="js/shop.js?v=20"></script>
+<script src="js/touch.js?v=20"></script>
+<script src="js/main.js?v=20"></script>
 </body>
 </html>

@@ -5,7 +5,7 @@ const { describe, test } = require('node:test');
 const fs = require('fs'), assert = require('assert');
 const scriptFiles = [
   'constants.js', 'utils.js', 'input.js', 'world.js',
-  'entities.js', 'game.js', 'renderer.js', 'ui.js'
+  'entities.js', 'traffic.js', 'game.js', 'renderer.js', 'ui.js'
 ];
 let js = scriptFiles.map(f => fs.readFileSync(__dirname + '/js/' + f, 'utf8')).join('\n');
 
@@ -35,7 +35,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,segAliveV,segAliveH,onDeadRoad,sandZone};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
@@ -44,7 +44,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,segAliveV,segAliveH,onDeadRoad,sandZone} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone} = api;
 
 describe('helpers de color', () => {
   test('shade y mix componen colores validos', () => {
@@ -352,6 +352,8 @@ describe('dia y noche', () => {
 });
 
 describe('simulacion', () => {
+  let movingAcc = 0, movingN = 0;   // fraccion de autos andando en los ultimos 10s
+
   test('arranca la partida con autos, peatones y guardias', () => {
     startGame(CREW[0]);
     assert.equal(G.state, 'play');
@@ -390,9 +392,13 @@ describe('simulacion', () => {
       assert.ok(P.x >= 0 && P.x <= WORLD && P.y >= 0 && P.y <= WORLD, 'fuera del mapa en frame ' + f);
       assert.ok(P.hp <= 100, 'hp no supera el maximo');
       for(const c of G.cars) assert.ok(Number.isFinite(c.x) && Number.isFinite(c.spd), 'auto NaN frame ' + f);
-      if(f === 600) G.wanted = 5;                   // fuerza yuta y tiroteo
+      // Sin yuta: aca se mide el transito de la ciudad. Un operativo policial traba la calle
+      // a proposito; la persecucion se prueba aparte ('los patrulleros persiguen...').
+      if(f >= 3000){                                // ultimos 10s: fraccion de autos andando, frame a frame
+        const tr = G.cars.filter(c => c.ai && c.hp > 0);
+        if(tr.length){ movingAcc += tr.filter(c => Math.abs(c.spd) > 12).length / tr.length; movingN++; }
+      }
     }
-    assert.ok(G.cops.length > 0, 'la yuta aparece con 5 estrellas');
     assert.ok(G.fx.length < 4000 && G.smoke.length < 900, 'las particulas no se acumulan sin control');
   });
 
@@ -469,13 +475,16 @@ describe('simulacion', () => {
     assert.ok(jammed <= traffic.length*0.10, 'autos trabados sin motivo: ' + jammed);
     assert.ok((moving + atRed) / traffic.length > 0.75,
       'trafico muerto: ' + moving + ' en movimiento + ' + atRed + ' en rojo de ' + traffic.length);
-    assert.ok(moving / traffic.length > 0.45,
-      'demasiados parados: solo ' + moving + '/' + traffic.length + ' circulando');
+    // Promedio de los ultimos 10s y no una foto de un solo frame: la foto depende de en que fase
+    // estaban los semaforos justo en ese instante y fallaba de vez en cuando aun con trafico sano.
+    assert.ok(movingAcc / movingN > 0.45,
+      'demasiados parados: solo ' + Math.round(movingAcc / movingN * 100) + '% circulando en los ultimos 10s');
     // regresion: al chocar una pared se reseteaban a la misma velocidad cada frame y
     // quedaban en bucle. Si muchos comparten velocidad exacta, volvio el bug.
+    // Los parados no cuentan: frenar en un semaforo deja la velocidad en 0 exacto, y eso es correcto.
     {
       const buckets = {};
-      for(const c of traffic){ const k = c.spd.toFixed(1); buckets[k] = (buckets[k]||0)+1; }
+      for(const c of traffic){ if (Math.abs(c.spd) < 0.5) continue; const k = c.spd.toFixed(1); buckets[k] = (buckets[k]||0)+1; }
       const worst = Math.max(...Object.values(buckets));
       assert.ok(worst < traffic.length*0.35,
         'muchos autos con velocidad identica (bucle de choque): ' + worst + '/' + traffic.length);
@@ -519,8 +528,9 @@ describe('jugador', () => {
     assert.equal(G.player.y, py0, 'el jugador queda quieto durante el arresto');
     assert.ok(G.busted === 1, 'la secuencia dura mas de 1s');
 
-    // al terminar: te sueltan, sin estrellas, con menos guita
-    for(let f=0;f<200;f++) update(1/60);
+    // al terminar: te sueltan, sin estrellas, con menos guita. Se mira justo al soltarte:
+    // despues el jugador puede reaparecer arriba de un billete y sumar plata, y esta bien.
+    for(let f=0;f<200 && G.busted;f++) update(1/60);
     assert.equal(G.busted, 0, 'la secuencia termina sola');
     assert.equal(G.wanted, 0, 'salis sin estrellas');
     assert.equal(G.money, before - fine, 'te cobran exactamente la multa');
@@ -542,11 +552,21 @@ describe('jugador', () => {
   test('los patrulleros persiguen sin clavarse contra las paredes', () => {
     // patrulleros: persiguen sin clavarse contra las paredes
     startGame(CREW[0]);
+    // La persecucion se prueba en la ciudad: en una villa (o al lado) la yuta a pie no
+    // entra a proposito, y con el jugador ahi no aparece ninguno
+    const cercaDeVilla = (x, y) => [0, 1, 2, 3, 4, 5, 6, 7].some(k =>
+      villaAt(x + Math.cos(k * Math.PI / 4) * 250, y + Math.sin(k * Math.PI / 4) * 250)) || villaAt(x, y);
+    for(let i = 0; i < 50 && cercaDeVilla(G.player.x, G.player.y); i++){
+      const s = freeRoadSpot(); G.player.x = s.x; G.player.y = s.y;
+    }
     for(let f=0;f<60;f++) update(1/60);
     G.wanted = 5;
     for(let f=0;f<1800;f++){
       update(1/60);
       if(G.busted) G.busted = 0, G.bustT = 0;      // ignorar arrestos, medir solo persecucion
+      G.wanted = 5;                                 // si no, la busqueda baja sola al perderlo de vista
+      if(f % 10 === 0) render();                    // el tiroteo tambien se tiene que poder dibujar
+      if(f === 1800-120) for(const c of G.cars) if(c.chase){ c.x2s = c.x; c.y2s = c.y; }
     }
     const ch = G.cars.filter(c => c.chase && c.hp > 0);
     assert.ok(ch.length > 0, 'con 5 estrellas tiene que haber patrulleros');
@@ -554,8 +574,16 @@ describe('jugador', () => {
       assert.ok(Number.isFinite(c.x) && Number.isFinite(c.spd), 'patrullero NaN');
       assert.ok(!hitBuilding(c.x, c.y, 2), 'patrullero empotrado en un edificio');
     }
-    const stuckCh = ch.filter(c => Math.abs(c.spd) < 6).length;
-    assert.ok(stuckCh < ch.length*0.5, 'patrulleros clavados: ' + stuckCh + '/' + ch.length);
+    // Clavado = lejos del jugador y sin moverse en los ultimos 2s. La velocidad sola no sirve:
+    // uno que gira en el lugar contra una pared tiene velocidad, y uno que ya alcanzo al
+    // jugador (que esta quieto) frena al lado y esta bien. "Lejos" es mas de 3 largos de
+    // patrullero: con 5 amontonados alrededor del jugador, el ultimo queda a ~50px.
+    const stuckCh = ch.filter(c => c.x2s !== undefined && dist(c, G.player) > 80
+      && Math.hypot(c.x - c.x2s, c.y - c.y2s) < 5);
+    assert.equal(stuckCh.length, 0, 'patrulleros clavados lejos del jugador: ' + stuckCh.length + '/' + ch.length
+      + ' ' + JSON.stringify(stuckCh.map(c => ({x: Math.round(c.x), y: Math.round(c.y), d: Math.round(dist(c, G.player))}))));
+    assert.ok(G.cops.length > 0, 'la yuta aparece con 5 estrellas');
+    assert.ok(G.fx.length < 4000 && G.smoke.length < 900, 'las particulas no se acumulan sin control en un tiroteo');
     console.log('  arresto: patrulleros OK (' + ch.length + ' persiguiendo)');
   });
 

@@ -5,6 +5,42 @@
 const litWindows = [];
 const glowCache = {};
 
+/**
+ * Ícono pixel art de un arma (o del chaleco), centrado en (x, y), de unos 24x12.
+ * Se usa en el HUD, en los fierros tirados en la calle y en la armería.
+ */
+function weaponIcon(g, id, x, y) {
+  const r = (col, a, b, w, h) => {
+    g.fillStyle = col;
+    g.fillRect(Math.round(x + a), Math.round(y + b), w, h);
+  };
+  const IRON = '#2a2d33', LITE = '#6a707a', WOOD = '#8a5428', DARKW = '#5a3418';
+  if (id === 'pistola') {
+    r(IRON, -5, -3, 11, 3); r(LITE, -5, -3, 11, 1); r(IRON, -4, 0, 3, 5); r(DARKW, -4, 2, 3, 3);
+  } else if (id === 'uzi') {
+    r(IRON, -7, -3, 13, 4); r(LITE, -7, -3, 13, 1); r(IRON, 6, -2, 3, 2);
+    r(IRON, -1, 1, 3, 6); r(IRON, -6, 1, 2, 3);
+  } else if (id === 'escopeta') {
+    r(WOOD, -12, -2, 8, 3); r(DARKW, -12, 1, 3, 2); r(IRON, -4, -3, 16, 2); r(LITE, -4, -3, 16, 1);
+    r(DARKW, 2, -1, 6, 2);
+  } else if (id === 'ak') {
+    r(WOOD, -12, -2, 6, 3); r(DARKW, -12, 1, 2, 2); r(IRON, -6, -3, 9, 4); r(LITE, -6, -3, 9, 1);
+    r(WOOD, 3, -3, 5, 3); r(IRON, 8, -2, 5, 1); r(IRON, -2, 1, 3, 3); r(IRON, -1, 4, 3, 2);
+  } else if (id === 'granada') {
+    r('#3f5a2a', -4, -3, 8, 8); r('#5a7a3a', -4, -3, 8, 2); r('#2a3a1a', -4, 1, 8, 1);
+    r(IRON, -1, -6, 3, 3); r('#d0d0d0', 2, -6, 3, 1);
+  } else if (id === 'baston') {
+    r('#2f9a3a', -12, -1, 22, 2); r('#5ad266', -12, -1, 22, 1); r('#2f9a3a', 9, -5, 2, 5);
+    r('#2f9a3a', 5, -6, 5, 2); r('#e8e8e8', -13, -1, 2, 2);
+  } else if (id === 'porro') {
+    r('#e8e4d8', -8, -1, 14, 3); r('#c8c0a8', -8, 1, 14, 1); r('#8a6a3a', -8, -1, 3, 3);
+    r('#ff7a2a', 6, -1, 2, 3); r('#ffd34a', 7, 0, 1, 1); r('rgba(220,220,220,.6)', 8, -4, 2, 2); r('rgba(220,220,220,.4)', 10, -7, 2, 2);
+  } else if (id === 'chaleco') {
+    r('#2a3a5a', -6, -5, 12, 11); r('#3a5080', -6, -5, 12, 2); r('#14100c', -2, -5, 4, 3);
+    r('#1a2440', -6, 1, 12, 1); r('#c9a227', 2, 3, 2, 2);
+  }
+}
+
 class Renderer {
   constructor() {
     this.cv = (typeof document !== 'undefined') ? document.getElementById('cv') : null;
@@ -117,7 +153,36 @@ class Renderer {
     ctx.fillStyle = rc;
     ctx.fillRect(px(rx), px(ry), px(b.w), px(b.h));
 
-    if (det === 'tejas') {
+    if (b.villa) {
+      // Chapa acanalada con óxido, o losa con hierros asomando, gomas y tanque negro
+      if (rc !== '#9a958a') {
+        ctx.fillStyle = 'rgba(0,0,0,.16)';
+        for (let lx = rx + 1; lx < rx + b.w - 1; lx += 2) ctx.fillRect(px(lx), px(ry), 1, px(b.h));
+        if (hash(b.id * 13) > 0.2) {
+          ctx.fillStyle = 'rgba(140,70,30,.45)';
+          ctx.fillRect(px(rx + b.w * (0.2 + hash(b.id * 7) * 0.3)), px(ry + b.h * 0.3), px(b.w * 0.3), px(b.h * 0.35));
+        }
+      } else {
+        ctx.fillStyle = '#5a4a3a';
+        for (let i = 0; i < 3; i++) ctx.fillRect(px(rx + 2 + i * 3), px(ry + 1), 1, 3);
+      }
+      ctx.fillStyle = shade(rc, 1.3);
+      ctx.fillRect(px(rx), px(ry), px(b.w), 1);
+      if (b.tire) {
+        ctx.fillStyle = '#1a1a1c';
+        ctx.fillRect(px(rx + b.w * 0.55), px(ry + b.h * 0.4), 5, 5);
+        ctx.fillStyle = shade(rc, 0.8);
+        ctx.fillRect(px(rx + b.w * 0.55 + 1.5), px(ry + b.h * 0.4 + 1.5), 2, 2);
+      }
+      if (b.tank) {
+        ctx.fillStyle = '#16181c';
+        ctx.beginPath();
+        ctx.arc(rx + b.w * 0.3, ry + b.h * 0.35, 4, 0, TAU);
+        ctx.fill();
+        ctx.fillStyle = '#3a3d44';
+        ctx.fillRect(px(rx + b.w * 0.3 - 2), px(ry + b.h * 0.35 - 3), 3, 1);
+      }
+    } else if (det === 'tejas') {
       ctx.fillStyle = shade(rc, 1.18);
       ctx.fillRect(px(rx), px(ry), px(b.w), px(b.h / 2));
       ctx.fillStyle = 'rgba(0,0,0,.18)';
@@ -201,7 +266,7 @@ class Renderer {
       }
     }
 
-    if (det === 'tanque' || b.tank) {
+    if (!b.villa && (det === 'tanque' || b.tank)) {
       ctx.fillStyle = '#5f5346';
       ctx.fillRect(px(rx + b.w * 0.58), px(ry + b.h * 0.52), 12, 10);
       ctx.fillStyle = '#8a7a63';
@@ -234,6 +299,18 @@ class Renderer {
       else                           ctx.fillRect(px(dxp - 2), px(dyp - 5), 1, 10);
       ctx.fillStyle = 'rgba(70,60,50,.55)';
       ctx.fillRect(px(dxp + d.ox * 0.45 - 3), px(dyp + d.oy * 0.45 - 2), 6, 4);
+    }
+
+    if (b.shop) {
+      const sx = rx + b.w / 2, sy = ry + b.h / 2;
+      ctx.fillStyle = '#14100c';
+      ctx.fillRect(px(sx - 17), px(sy - 6), 34, 12);
+      ctx.fillStyle = Math.floor(G.t * 2) % 2 ? '#d8352a' : '#b0201c';
+      ctx.fillRect(px(sx - 16), px(sy - 5), 32, 10);
+      ctx.font = '5px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('ARMAS', px(sx), px(sy + 2.5));
     }
 
     if (b.H > 45) {
@@ -452,7 +529,42 @@ class Renderer {
     ctx.fill();
   }
 
+  drawRopa(p) {
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x < -50 || y < -20 || x > RW + 10 || y > RH + 20) return;
+    const H = 9, dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL;
+    ctx.strokeStyle = 'rgba(30,30,30,.7)';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(x + dx, y + dy);
+    ctx.lineTo(x + p.w + dx, y + dy);
+    ctx.stroke();
+    const sway = Math.sin(G.t * 2 + p.x) * 0.6;
+    p.cols.forEach((c, i) => {
+      ctx.fillStyle = c;
+      ctx.fillRect(px(x + dx + 2 + i * (p.w - 4) / 5 + sway), px(y + dy), 3, 3 + (i % 2));
+    });
+  }
+
+  drawBarril(p, night) {
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x < -12 || y < -16 || x > RW + 12 || y > RH + 12) return;
+    ctx.fillStyle = '#3a3026';
+    ctx.fillRect(px(x - 3), px(y - 3), 6, 6);
+    ctx.fillStyle = '#5a4a3a';
+    ctx.fillRect(px(x - 3), px(y - 3), 6, 1);
+    const f = Math.sin(G.t * 13 + p.x) > 0;
+    ctx.fillStyle = f ? '#ffb03a' : '#ff6a2a';
+    ctx.fillRect(px(x - 2), px(y - 5), 4, 2);
+    ctx.fillStyle = '#ffe08a';
+    ctx.fillRect(px(x - 1 + (f ? 1 : 0)), px(y - 7), 1, 2);
+    if (Math.random() < 0.05) puff(p.x, p.y - 6, '70,70,70', 1, 10);
+  }
+
   drawTrafficLight(L) {
+    if (L.off) return;
     const ctx = this.ctx;
     const x = L.x - G.cam.x, y = L.y - G.cam.y;
     if (x < -ROAD - 30 || y < -ROAD - 30 || x > RW + ROAD + 30 || y > RH + ROAD + 30) return;
@@ -508,7 +620,13 @@ class Renderer {
     ctx.fillStyle = 'rgba(0,0,0,.3)';
     ctx.fillRect(px(x - 4), px(pk.y - G.cam.y + 4), 9, 3);
 
-    if (pk.kind === 'cash') {
+    if (pk.kind === 'weapon') {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(0.7, 0.7);
+      weaponIcon(ctx, pk.w, 0, 0);
+      ctx.restore();
+    } else if (pk.kind === 'cash') {
       ctx.fillStyle = '#1f5c23';
       ctx.fillRect(px(x - 5), px(y - 4), 10, 7);
       ctx.fillStyle = '#3f9c43';
@@ -575,8 +693,7 @@ class Renderer {
     ctx.fillStyle = '#c49a72'; // Brazos
     ctx.fillRect(2, -5.5, 3, 2.6);
     ctx.fillRect(2, 3, 3, 2.6);
-    ctx.fillStyle = '#16181c'; // Fierro
-    ctx.fillRect(4.5, -1.2, 6, 2.4);
+    this.drawHeld(e.wpn || 'pistola', e.swing || 0);
     ctx.restore();
 
     // Cabeza y cara
@@ -595,17 +712,54 @@ class Renderer {
       ctx.fillRect(px(x - 6), px(hy), 12, 12);
     }
 
-    // Fogonazo
+    // Fogonazo en la punta del caño
     if (e.muzzle > 0) {
+      const bl = (WEAPONS[e.wpn] || WEAPONS.pistola).barrel || 11;
       ctx.globalAlpha = e.muzzle;
       ctx.fillStyle = '#fff2b0';
       ctx.beginPath();
-      ctx.moveTo(x + fx * 11, y + fy * 11);
-      ctx.lineTo(x + fx * 17 + rxp * 3.5, y + fy * 17 + ryp * 3.5);
-      ctx.lineTo(x + fx * 17 - rxp * 3.5, y + fy * 17 - ryp * 3.5);
+      ctx.moveTo(x + fx * bl, y + fy * bl);
+      ctx.lineTo(x + fx * (bl + 6) + rxp * 3.5, y + fy * (bl + 6) + ryp * 3.5);
+      ctx.lineTo(x + fx * (bl + 6) - rxp * 3.5, y + fy * (bl + 6) - ryp * 3.5);
       ctx.closePath();
       ctx.fill();
       ctx.globalAlpha = 1;
+    }
+  }
+
+  // Arma en la mano, dibujada en coordenadas del torso (mirando a +x)
+  drawHeld(id, swing) {
+    const ctx = this.ctx;
+    if (id === 'baston') {
+      ctx.save();
+      ctx.translate(3, 3);
+      ctx.rotate(swing > 0 ? lerp(1.0, -1.4, swing) : 0.3);
+      ctx.fillStyle = '#2f9a3a';
+      ctx.fillRect(0, -1, 14, 2);
+      ctx.fillStyle = '#e8e8e8';
+      ctx.fillRect(13, -1, 2, 2);
+      ctx.restore();
+    } else if (id === 'granada') {
+      ctx.fillStyle = '#3f5a2a';
+      ctx.fillRect(4.5, 2, 3.6, 3.6);
+    } else if (id === 'uzi') {
+      ctx.fillStyle = '#16181c';
+      ctx.fillRect(4.5, -1.5, 7, 3);
+      ctx.fillRect(6, 1.5, 2, 2);
+    } else if (id === 'escopeta') {
+      ctx.fillStyle = '#6a4020';
+      ctx.fillRect(1, -1.2, 5, 2.4);
+      ctx.fillStyle = '#16181c';
+      ctx.fillRect(6, -1, 8, 2);
+    } else if (id === 'ak') {
+      ctx.fillStyle = '#6a4020';
+      ctx.fillRect(0, -1.3, 5, 2.6);
+      ctx.fillStyle = '#16181c';
+      ctx.fillRect(5, -1.3, 9, 2.6);
+      ctx.fillRect(7, 1.3, 2, 2.5);
+    } else {
+      ctx.fillStyle = '#16181c';
+      ctx.fillRect(4.5, -1.2, 6, 2.4);
     }
   }
 
@@ -663,9 +817,17 @@ class Renderer {
     ctx.fillStyle = night > 0.3 ? '#fff6cc' : '#d8d4bb';
     ctx.fillRect(w / 2 - 2.4, -h / 2 + 2.5, 2, 3);
     ctx.fillRect(w / 2 - 2.4, h / 2 - 5.5, 2, 3);
-    ctx.fillStyle = c.spd < -2 ? '#ff7a6a' : '#8c2a22';
+    // Luces de freno (rojo fuerte al frenar) y de marcha atrás
+    ctx.fillStyle = c.spd < -2 ? '#ff7a6a' : c.brake ? '#ff2a1a' : '#8c2a22';
     ctx.fillRect(-w / 2 + 0.6, -h / 2 + 2.5, 1.6, 3);
     ctx.fillRect(-w / 2 + 0.6, h / 2 - 5.5, 1.6, 3);
+    // Guiño: titila adelante y atrás del lado que va a doblar (+1 derecha, -1 izquierda)
+    if (c.signal && Math.floor(G.t * 3.2) % 2) {
+      const sy = c.signal > 0 ? h / 2 - 2 : -h / 2;
+      ctx.fillStyle = '#ffb21a';
+      ctx.fillRect(w / 2 - 2.6, sy, 2.2, 2);
+      ctx.fillRect(-w / 2 + 0.4, sy, 2.2, 2);
+    }
 
     if (c.cop) {
       const bl = Math.floor(G.t * 7) % 2;
@@ -719,7 +881,7 @@ class Renderer {
         any = true;
       }
       for (const L of lights) {
-        if (!L) continue;
+        if (!L || L.off) continue;
         const x = L.x - G.cam.x, y = L.y - G.cam.y;
         if (x < -ROAD - 40 || y < -ROAD - 40 || x > RW + ROAD + 40 || y > RH + ROAD + 40) continue;
         const off = ROAD / 2 + 4, H = 19;
@@ -758,6 +920,14 @@ class Renderer {
         ECTX.lineTo(11, 5);
         ECTX.closePath();
         ECTX.fill();
+        // Luces traseras: brillan más al frenar
+        ECTX.globalAlpha = (c.brake ? 0.9 : 0.4) * k;
+        ECTX.drawImage(this.glow(255, 40, 30, c.brake ? 22 : 14), -c.w / 2 - (c.brake ? 11 : 7), -(c.brake ? 11 : 7));
+        if (c.signal && Math.floor(G.t * 3.2) % 2) {
+          ECTX.globalAlpha = 0.8 * k;
+          ECTX.drawImage(this.glow(255, 180, 40, 16), c.w / 2 - 8, (c.signal > 0 ? c.h / 2 : -c.h / 2) - 8);
+        }
+        ECTX.globalAlpha = 1;
         ECTX.restore();
         any = true;
       }
@@ -782,7 +952,16 @@ class Renderer {
       ECTX.drawImage(this.glow(255, 228, 158, gsz), P.x - G.cam.x - gsz / 2, P.y - G.cam.y - gsz / 2);
       any = true;
     }
-    for (const c of G.cops) {
+    for (const p of props) {
+      if (p.t !== 'barril') continue;
+      const x = p.x - G.cam.x, y = p.y - G.cam.y;
+      if (x < -40 || y < -40 || x > RW + 40 || y > RH + 40) continue;
+      const gsz = 56;
+      ECTX.globalAlpha = (0.35 + Math.sin(G.t * 11 + p.x) * 0.08) * Math.max(k, 0.25);
+      ECTX.drawImage(this.glow(255, 140, 50, gsz), x - gsz / 2, y - gsz / 2 - 4);
+      any = true;
+    }
+    for (const c of G.cops.concat(G.tranzas)) {
       if (c.muzzle > 0) {
         const gsz = 74;
         ECTX.globalAlpha = c.muzzle * 0.85;
@@ -803,7 +982,16 @@ class Renderer {
       if (x < -40 || y < -40 || x > RW + 40 || y > RH + 40) continue;
       const gsz = 38;
       ECTX.globalAlpha = (0.30 + Math.sin(pk.t * 3) * 0.14) * Math.max(k, 0.5);
-      ECTX.drawImage(pk.kind === 'cash' ? this.glow(110, 255, 120, gsz) : this.glow(255, 110, 110, gsz), x - gsz / 2, y - gsz / 2);
+      const gc = { cash: [110, 255, 120], hp: [255, 110, 110], weapon: [255, 200, 80] }[pk.kind];
+      ECTX.drawImage(this.glow(gc[0], gc[1], gc[2], gsz), x - gsz / 2, y - gsz / 2);
+      any = true;
+    }
+    for (const b of shops) {
+      const d = b.door, x = d.x + d.ox - G.cam.x, y = d.y + d.oy - G.cam.y;
+      if (x < -40 || y < -40 || x > RW + 40 || y > RH + 40) continue;
+      const gsz = 48;
+      ECTX.globalAlpha = (0.45 + Math.sin(G.t * 4) * 0.15) * Math.max(k, 0.5);
+      ECTX.drawImage(this.glow(255, 150, 50, gsz), x - gsz / 2, y - gsz / 2);
       any = true;
     }
 
@@ -830,12 +1018,22 @@ class Renderer {
       ctx.fillStyle = col;
       ctx.fillRect(px(x), px(y), sz, sz);
     };
-    for (const pk of G.pickups) dot(pk, pk.kind === 'cash' ? '#5ad25a' : '#ff5a5a');
+    for (const pk of G.pickups) dot(pk, { cash: '#5ad25a', hp: '#ff5a5a', weapon: '#ffc84a' }[pk.kind]);
     for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
     for (const cr of casaRosada) dot({ x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }, '#ff8fc0', 3);
     if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#e8f070', 3);
     for (const c of G.cops) dot(c, '#4aa3ff');
+    for (const t of G.tranzas) if (t.hp > 0) dot(t, t.villa.angry > 0 ? '#ff3a3a' : '#c070ff');
     for (const c of G.cars) if (c.chase && c.hp > 0) dot(c, '#2a6aff', 3);
+    // Armerías: siempre visibles, pegadas al borde si quedan lejos
+    for (const b of shops) {
+      const x = clamp(ox + ((b.door.x + b.door.ox) * k - sx), ox + 1, ox + S - 4);
+      const y = clamp(oy + ((b.door.y + b.door.oy) * k - sy), oy + 1, oy + S - 4);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(px(x) - 1, px(y) - 1, 5, 5);
+      ctx.fillStyle = '#ff9a2a';
+      ctx.fillRect(px(x), px(y), 3, 3);
+    }
     ctx.fillStyle = '#fff';
     ctx.fillRect(px(ox + (P.x * k - sx)) - 1, px(oy + (P.y * k - sy)) - 1, 3, 3);
     ctx.strokeStyle = '#d8d8d8';
@@ -921,8 +1119,8 @@ class Renderer {
     const ctx = this.ctx;
     const P = G.player;
     ctx.fillStyle = 'rgba(0,0,0,.42)';
-    ctx.fillRect(0, 0, 118, 32);
-    ctx.fillRect(RW - 96, 0, 96, 45);
+    ctx.fillRect(0, 0, 118, 46);
+    ctx.fillRect(RW - 96, 0, 96, P.armor > 0 ? 51 : 45);
     this.text('$' + G.money, RW - 7, 13, '#7de07d', 9, 'right');
     for (let i = 0; i < 5; i++) {
       this.text('*', RW - 9 - i * 11, 28, i < G.wanted ? '#ffd34a' : '#35383d', 11, 'right');
@@ -934,9 +1132,41 @@ class Renderer {
     ctx.fillRect(RW - 78, 35, 70 * hp, 5);
     ctx.fillStyle = 'rgba(255,255,255,.35)';
     ctx.fillRect(RW - 78, 35, 70 * hp, 1);
+    if (P.armor > 0) {
+      ctx.fillStyle = 'rgba(0,0,0,.75)';
+      ctx.fillRect(RW - 79, 42, 72, 6);
+      ctx.fillStyle = '#5a8ad8';
+      ctx.fillRect(RW - 78, 43, 70 * clamp(P.armor / 100, 0, 1), 4);
+    }
+
+    // Arma en mano y balas
+    weaponIcon(ctx, P.wpn, 19, 37);
+    const ammo = P.inv[P.wpn];
+    this.text(WEAPONS[P.wpn].short + (ammo === Infinity ? '' : ' ' + ammo), 36, 40, '#e8e8e8', 6);
     this.text(P.def.name, 7, 13, '#ffd34a', 8);
     const h = Math.floor(dayT() * 24), mm = Math.floor(((dayT() * 24) % 1) * 60);
     this.text(String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0'), 7, 26, '#cfcfcf', 7);
+
+    if ((G.nearShop || G.nearTranza) && !G.shopOpen && !P.dead && !G.busted) {
+      const bl = Math.floor(G.t * 3) % 2;
+      const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
+      const what = G.nearShop ? 'ENTRAR A LA ARMERIA' : 'HABLAR CON EL TRANZA';
+      this.text(key + ': ' + what, RW / 2, RH - 34, bl ? '#ffb04a' : '#ffd34a', 7, 'center');
+    }
+
+    // Porros en el bolsillo y tiempo de cámara lenta
+    if (P.porros > 0 || G.slowmo > 0) {
+      ctx.fillStyle = 'rgba(0,0,0,.42)';
+      ctx.fillRect(0, 46, 64, 14);
+      weaponIcon(ctx, 'porro', 14, 53);
+      this.text('x' + P.porros, 28, 57, '#9ae29a', 6);
+      if (G.slowmo > 0) {
+        ctx.fillStyle = 'rgba(0,0,0,.75)';
+        ctx.fillRect(46, 50, 14, 5);
+        ctx.fillStyle = '#5ad266';
+        ctx.fillRect(47, 51, 12 * G.slowmo / PORRO_TIME, 3);
+      }
+    }
 
     if (G.msgT > 0) {
       ctx.globalAlpha = clamp(G.msgT, 0, 1);
@@ -1014,6 +1244,18 @@ class Renderer {
 
     for (const pk of G.pickups) this.drawPickup(pk);
 
+    // Marca en la vereda frente a cada armería
+    for (const b of shops) {
+      const d = b.door, x = d.x + d.ox - G.cam.x, y = d.y + d.oy - G.cam.y;
+      if (x < -20 || y < -20 || x > RW + 20 || y > RH + 20) continue;
+      const pulse = 6 + Math.sin(G.t * 4) * 1.5;
+      ctx.strokeStyle = 'rgba(255,170,60,.9)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(x, y, pulse, pulse * 0.6, 0, 0, TAU);
+      ctx.stroke();
+    }
+
     for (const c of G.cars) {
       if (c !== (P && P.car)) this.drawCar(c, night);
     }
@@ -1025,6 +1267,9 @@ class Renderer {
     }
     for (const c of G.cops) {
       this.drawGuy(c, 'cop', '#20406f', '#14213d', false);
+    }
+    for (const t of G.tranzas) {
+      if (t.hp > 0) this.drawGuy(t, t.face, t.shirt, t.pants, false);
     }
 
     // Edificios: ordenados desde el más lejano del centro de pantalla
@@ -1045,6 +1290,8 @@ class Renderer {
       else if (p.t === 'arbol') this.drawArbol(p);
       else if (p.t === 'obelisco') this.drawObelisco(p);
       else if (p.t === 'puente') this.drawPuente(p);
+      else if (p.t === 'ropa') this.drawRopa(p);
+      else if (p.t === 'barril') this.drawBarril(p, night);
       else if (p.t === 'sombrilla') this.drawSombrilla(p);
     }
     for (const l of lamps) this.drawLamp(l, night);
@@ -1064,6 +1311,18 @@ class Renderer {
       ctx.stroke();
     }
 
+    for (const n of G.nades) {
+      const x = n.x - G.cam.x, y = n.y - G.cam.y;
+      ctx.fillStyle = 'rgba(0,0,0,.35)';
+      ctx.fillRect(px(x - 1.5), px(y + 1), 4, 2);
+      ctx.fillStyle = '#3f5a2a';
+      ctx.fillRect(px(x - 1.5), px(y - 1.5 - n.z * 0.5), 3.5, 3.5);
+      if (Math.floor(n.t * 10) % 2) {
+        ctx.fillStyle = '#ff4a3a';
+        ctx.fillRect(px(x), px(y - 2 - n.z * 0.5), 1, 1);
+      }
+    }
+
     for (const f of G.fx) {
       ctx.globalAlpha = clamp(f.life / f.max, 0, 1);
       ctx.fillStyle = 'rgb(' + f.col + ')';
@@ -1081,6 +1340,17 @@ class Renderer {
 
     this.drawLights(night);
     ctx.restore();
+
+    // Porro: gradiente verde que respira mientras dura la cámara lenta
+    const high = clamp((1 - G.ts) / (1 - SLOWMO), 0, 1);
+    if (high > 0.01) {
+      const wob = Math.sin(G.t * 9) * 0.04;
+      const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * (0.2 + wob), RW / 2, RH / 2, RH);
+      gr.addColorStop(0, 'rgba(90,210,102,' + (0.08 * high) + ')');
+      gr.addColorStop(1, 'rgba(30,140,50,' + (0.5 * high) + ')');
+      ctx.fillStyle = gr;
+      ctx.fillRect(0, 0, RW, RH);
+    }
 
     if (VIG) ctx.drawImage(VIG, 0, 0);
     if (G.flash > 0) {

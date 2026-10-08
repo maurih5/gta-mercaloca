@@ -122,3 +122,62 @@ const CARMODEL = [
   {k:'taxi',   w:23, h:11, cruise:64, col:'#e8b52a'},
   {k:'bus',    w:36, h:14, cruise:38, col:'#c85a1e'},
 ];
+
+// Armas: daño por bala, cadencia (cool), dispersión, perdigones, velocidad y alcance de la bala
+const WEAPONS = {
+  baston:   {name:'BASTON DEL CIEGO', short:'BASTON',  melee:true,  dmg:38, cool:0.42, reach:19},
+  pistola:  {name:'PISTOLA 9MM',      short:'9MM',     dmg:22, cool:0.21,  spread:0.055, pellets:1, spd:430, life:0.70, shake:1.1, barrel:11},
+  escopeta: {name:'ESCOPETA',         short:'ESCOPETA',dmg:15, cool:0.75,  spread:0.30,  pellets:6, spd:390, life:0.34, shake:3.2, barrel:14},
+  uzi:      {name:'UZI',              short:'UZI',     dmg:12, cool:0.075, spread:0.14,  pellets:1, spd:450, life:0.55, shake:0.6, barrel:12},
+  ak:       {name:'AK-47',            short:'AK-47',   dmg:30, cool:0.115, spread:0.05,  pellets:1, spd:540, life:0.90, shake:1.5, barrel:14},
+  granada:  {name:'GRANADAS',         short:'GRANADA', thrown:true, dmg:110, cool:0.7, radius:42},
+};
+const WEAPON_ORDER = ['baston', 'pistola', 'escopeta', 'uzi', 'ak', 'granada'];
+
+// Lo que vende la armeria: precio del fierro (viene con balas) y precio de la recarga
+const SHOP_ITEMS = [
+  {id:'baston',   price:300,                          desc:'El verde del Ciego Augusto. Pega fuerte.'},
+  {id:'escopeta', price:900,  ammo:16,  refill:250,   desc:'Seis perdigones. Pa los de cerca.'},
+  {id:'uzi',      price:1400, ammo:120, refill:300,   desc:'Escupe balas. Ideal desde el auto.'},
+  {id:'ak',       price:2600, ammo:90,  refill:450,   desc:'La que manda. Pega y llega lejos.'},
+  {id:'granada',  price:700,  ammo:4,   refill:450,   desc:'Revienta autos y patrulleros.'},
+  {id:'chaleco',  price:500,                          desc:'Chaleco antibalas. Aguanta la yuta.'},
+];
+
+// Fierros tirados en la calle: arma, balas que trae y peso del sorteo
+const LOOT = [
+  {id:'escopeta', ammo:8,  w:3},
+  {id:'uzi',      ammo:45, w:3},
+  {id:'ak',       ammo:30, w:2},
+  {id:'granada',  ammo:2,  w:2},
+  {id:'baston',   ammo:0,  w:1},
+];
+
+// Villas: zonas del mapa (rango de celdas de la grilla, inclusive) con casillas, calles de tierra y tranzas.
+// La yuta a pie no entra y la busqueda baja mas rapido adentro. `potrero` es la celda de la canchita.
+const VILLAS = [
+  {name:'VILLA LA CHAPITA', cx0:1,  cy0:16, cx1:4,  cy1:19, tranzas:6, potrero:[2, 17]},
+  {name:'VILLA EL FIERRO',  cx0:17, cy0:2,  cx1:20, cy1:5,  tranzas:6, potrero:[19, 3]},
+];
+
+// Casillas: paredes de ladrillo sin revocar, bloque o pintadas; techos de chapa o losa
+const SHACK_WALLS = ['#a5583a','#b4653f','#9a4e32','#8a8a80','#9a968a','#5f8aa8','#c9b458','#7aa36a','#c87a8a','#d8d0c0'];
+const SHACK_ROOFS = ['#8a9098','#7a8088','#9aa0a6','#8a5a3a','#7a4a30','#9a958a'];
+
+// Ropa de los tranzas
+const TRANZA_LOOK = [
+  {shirt:'#2a2a30', pants:'#1c1c22', cap:'#c8302a'},
+  {shirt:'#3a3a5a', pants:'#22222a', cap:'#1a1a1a'},
+  {shirt:'#e8e8e0', pants:'#1c1c22', cap:'#2a5ab0'},
+  {shirt:'#5a2a2a', pants:'#2a2a2a', cap:'#e8e8e8'},
+];
+
+// Lo que vende el tranza: atiende aunque te busque la yuta, pero mas caro
+const TRANZA_ITEMS = [
+  {id:'porro',   price:80,                         desc:'Te baja un cambio: el mundo va en camara lenta. Tecla F.'},
+  {id:'uzi',     price:1100, ammo:60, refill:250,  desc:'Usada, pero anda. Sin preguntas.'},
+  {id:'granada', price:950,  ammo:3,  refill:600,  desc:'Del deposito del fondo. No preguntes de donde.'},
+];
+const PORRO_MAX = 5;      // cuantos entran en el bolsillo
+const PORRO_TIME = 7;     // segundos de camara lenta
+const SLOWMO = 0.38;      // velocidad del mundo mientras dura
