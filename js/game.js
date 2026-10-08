@@ -60,6 +60,7 @@ class Game {
     G.cam.x = clamp(s.x - RW / 2, 0, WORLD - RW);
     G.cam.y = clamp(s.y - RH / 2, 0, WORLD - RH);
     G.cars = [];
+    copNav.reset();
     G.peds = [];
     G.guards = [];
     G.cops = [];
@@ -965,16 +966,22 @@ class Game {
 
     for (const c of chasers) {
       const d = dist(c, P);
-      // Desvío en curso (ver abajo): sigue ese rumbo un rato antes de volver a apuntar al jugador
+      // Va por las calles hacia el jugador (js/traffic.js); sin camino por la grilla, derecho
+      const nav = copNav.target(c, P, dt) || { x: P.x, y: P.y, turn: false };
+      // Desvío en curso (ver abajo): sigue ese rumbo un rato antes de volver a apuntar
       c.detourT = Math.max(0, (c.detourT || 0) - dt);
-      const want = c.detourT > 0 ? c.detourAng : Math.atan2(P.y - c.y, P.x - c.x);
+      const want = c.detourT > 0 ? c.detourAng : Math.atan2(nav.y - c.y, nav.x - c.x);
       let diff = ((want - c.ang + Math.PI * 3) % TAU) - Math.PI;
       const rate = 2.6 * clamp(Math.abs(c.spd) / 70, 0.3, 1);
       const turn = clamp(diff, -rate * dt, rate * dt);
       c.ang += turn;
       c.steer = lerp(c.steer, clamp(diff, -1, 1), dt * 8);
 
-      const target = d > 70 ? c.cruise : (d > 26 ? 70 : 26);
+      let target = d > 70 ? c.cruise : (d > 26 ? 70 : 26);
+      // Frena antes de doblar en una esquina, o si tiene que girar mucho: a toda velocidad
+      // el radio de giro no entra en la calle y se come la esquina
+      if (nav.turn) target = Math.min(target, 55);
+      if (Math.abs(diff) > 0.8) target = Math.min(target, 45);
       c.spd += (target - c.spd) * 1.5 * dt;
       const CR2 = c.h * 0.5 + 1;
       const nx2 = c.x + Math.cos(c.ang) * c.spd * dt;

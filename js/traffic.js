@@ -821,3 +821,174 @@ class TrafficAI {
 }
 
 const trafficAI = new TrafficAI();
+
+/* -------------------------------------------------------------------------
+   Navegación de los patrulleros: van por la grilla de calles hacia el jugador.
+   Yendo derecho se metían en callejones sin salida y quedaban girando contra
+   una pared, con la fila de autos civiles trabada atrás.
+   ------------------------------------------------------------------------- */
+class CopNav {
+  constructor() { this.reset(); }
+
+  // Se recalcula todo en la próxima consulta (la ciudad pudo cambiar)
+  reset() {
+    this.open = null;
+    this.field = null;
+    this.goalKey = '';
+  }
+
+  nodeX(i) { return i * CELL + trafficAI.colW(i) / 2; }
+  nodeY(j) { return j * CELL + trafficAI.rowH(j) / 2; }
+
+  // Línea recta libre de edificios, agua y bloqueos para autos (muestreada cada 8 px)
+  clear(x0, y0, x1, y1, r) {
+    const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 8));
+    for (let k = 0; k <= n; k++) {
+      const x = x0 + ((x1 - x0) * k) / n, y = y0 + ((y1 - y0) * k) / n;
+      if (hitBuilding(x, y, r) || hitCarBlock(x, y, r)) return false;
+    }
+    return true;
+  }
+
+  // open[n]: bit 1 = tramo hacia el este transitable, bit 2 = hacia el sur
+  build() {
+    this.open = new Uint8Array(GRID * GRID);
+    for (let j = 0; j < GRID; j++) {
+      for (let i = 0; i < GRID; i++) {
+        const x = this.nodeX(i), y = this.nodeY(j);
+        let b = 0;
+        if (i + 1 < GRID && this.clear(x, y, this.nodeX(i + 1), y, 5)) b |= 1;
+        if (j + 1 < GRID && this.clear(x, y, x, this.nodeY(j + 1), 5)) b |= 2;
+        this.open[j * GRID + i] = b;
+      }
+    }
+  }
+
+  neighbors(n) {
+    const i = n % GRID, j = (n / GRID) | 0, out = [];
+    if (this.open[n] & 1) out.push(n + 1);
+    if (i > 0 && this.open[n - 1] & 1) out.push(n - 1);
+    if (this.open[n] & 2) out.push(n + GRID);
+    if (j > 0 && this.open[n - GRID] & 2) out.push(n - GRID);
+    return out;
+  }
+
+  // Punto de calle más cercano al jugador: su proyección sobre la línea central de alguna
+  // de las cuatro calles que rodean su manzana, en un tramo transitable. Devuelve ese punto
+  // y las dos esquinas del tramo, que son el destino de la búsqueda.
+  roadGoal(P) {
+    const i0 = clamp(Math.floor((P.x - ROAD / 2) / CELL), 0, GRID - 2);
+    const j0 = clamp(Math.floor((P.y - ROAD / 2) / CELL), 0, GRID - 2);
+    let best = null, bd = Infinity;
+    for (const j of [j0, j0 + 1]) { // calles horizontales: tramo (i0,j)-(i0+1,j)
+      const n = j * GRID + i0;
+      if (!(this.open[n] & 1)) continue;
+      const x = clamp(P.x, this.nodeX(i0), this.nodeX(i0 + 1)), y = this.nodeY(j);
+      const d = Math.hypot(x - P.x, y - P.y);
+      if (d < bd) { bd = d; best = { x, y, ends: [n, n + 1] }; }
+    }
+    for (const i of [i0, i0 + 1]) { // calles verticales: tramo (i,j0)-(i,j0+1)
+      const n = j0 * GRID + i;
+      if (!(this.open[n] & 2)) continue;
+      const x = this.nodeX(i), y = clamp(P.y, this.nodeY(j0), this.nodeY(j0 + 1));
+      const d = Math.hypot(x - P.x, y - P.y);
+      if (d < bd) { bd = d; best = { x, y, ends: [n, n + GRID] }; }
+    }
+    return best;
+  }
+
+  // Distancia en tramos desde cada esquina hasta el tramo de calle del jugador (BFS desde
+  // sus dos esquinas). Solo se recalcula cuando el jugador cambia de tramo.
+  updateField(P) {
+    if (!this.open) this.build();
+    const g = this.roadGoal(P);
+    const key = g ? g.ends.join(',') : 'x';
+    // El punto sigue al jugador siempre; la BFS solo se rehace si cambió de tramo
+    this.goal = g;
+    if (key === this.goalKey && this.field) return;
+    this.goalKey = key;
+    const field = new Int16Array(GRID * GRID).fill(-1);
+    if (g) {
+      const q = [];
+      for (const n of g.ends) { field[n] = 0; q.push(n); }
+      for (let h = 0; h < q.length; h++) {
+        for (const m of this.neighbors(q[h])) {
+          if (field[m] < 0) { field[m] = field[q[h]] + 1; q.push(m); }
+        }
+      }
+    }
+    this.field = field;
+  }
+
+  // A dónde apuntar: {x, y, turn}. turn = la esquina siguiente obliga a doblar (frenar antes).
+  target(c, P, dt) {
+    this.updateField(P);
+    const d = dist(c, P);
+    // Cerca y a la vista: directo al jugador
+    c.losT = (c.losT || 0) - dt;
+    if (c.losT <= 0) { c.losT = 0.2; c.los = d < CELL * 2.2 && this.clear(c.x, c.y, P.x, P.y, 5); }
+    if (c.los) { c.navNode = -1; c.onGoal = false; return { x: P.x, y: P.y, turn: false }; }
+
+    const f = this.field;
+    // Elegir (o revisar cada medio segundo) la esquina a la que va: la que más lo acerca
+    // entre las de su manzana y las vecinas, siempre que llegue a ella en línea recta
+    c.navT = (c.navT || 0) - dt;
+    if (c.navNode === undefined || c.navNode < 0 || c.navT <= 0) {
+      c.navT = 0.5;
+      const i0 = clamp(Math.round((c.x - ROAD / 2) / CELL), 0, GRID - 1);
+      const j0 = clamp(Math.round((c.y - ROAD / 2) / CELL), 0, GRID - 1);
+      let best = -1, bs = Infinity;
+      for (let j = Math.max(0, j0 - 1); j <= Math.min(GRID - 1, j0 + 1); j++) {
+        for (let i = Math.max(0, i0 - 1); i <= Math.min(GRID - 1, i0 + 1); i++) {
+          const n = j * GRID + i;
+          if (f[n] < 0) continue;
+          const nx = this.nodeX(i), ny = this.nodeY(j);
+          const score = f[n] * CELL + Math.hypot(nx - c.x, ny - c.y);
+          if (score < bs && this.clear(c.x, c.y, nx, ny, 5)) { bs = score; best = n; }
+        }
+      }
+      c.navNode = best;
+    }
+    // Último tramo: por la calle hasta el punto más cercano al jugador (de ahí lo ve)
+    if (c.onGoal || (c.navNode >= 0 && f[c.navNode] === 0 && this.goal &&
+        this.clear(c.x, c.y, this.goal.x, this.goal.y, 5))) {
+      const g = this.goal;
+      c.onGoal = false;
+      if (g && Math.hypot(g.x - c.x, g.y - c.y) <= 14) return { x: P.x, y: P.y, turn: false }; // llegó: de ahí al jugador
+      if (g && this.clear(c.x, c.y, g.x, g.y, 5)) {
+        c.onGoal = true;
+        return { x: g.x, y: g.y, turn: false };
+      }
+      // El jugador se movió y el punto ya no está a la vista: vuelve a navegar por las esquinas
+    }
+    if (c.navNode < 0) return null; // sin camino por las calles: que vaya derecho
+
+    let n = c.navNode;
+    let nx = this.nodeX(n % GRID), ny = this.nodeY((n / GRID) | 0);
+    // Llegó a la esquina: sigue por el tramo que baja la distancia
+    if (Math.hypot(nx - c.x, ny - c.y) < 26) {
+      // Esquina del tramo del jugador: por la calle hasta el punto más cercano a él
+      if (f[n] === 0) { c.navNode = -1; c.onGoal = true; }
+      let next = -1;
+      for (const m of this.neighbors(n)) if (f[m] === f[n] - 1 && (next < 0 || Math.random() < 0.5)) next = m;
+      if (next < 0) { c.navNode = -1; return null; }
+      c.navNode = n = next;
+      nx = this.nodeX(n % GRID);
+      ny = this.nodeY((n / GRID) | 0);
+    }
+    // ¿Dobla en la esquina que viene? Si el tramo siguiente cambia de eje, frena antes
+    let turn = false;
+    if (f[n] > 0 && Math.hypot(nx - c.x, ny - c.y) < 80) {
+      const inX = Math.abs(nx - c.x) > Math.abs(ny - c.y);
+      for (const m of this.neighbors(n)) {
+        if (f[m] !== f[n] - 1) continue;
+        const outX = (m % GRID) !== (n % GRID);
+        if (outX !== inX) turn = true;
+        break;
+      }
+    }
+    return { x: nx, y: ny, turn };
+  }
+}
+
+const copNav = new CopNav();
