@@ -840,12 +840,13 @@ class CopNav {
   nodeX(i) { return i * CELL + trafficAI.colW(i) / 2; }
   nodeY(j) { return j * CELL + trafficAI.rowH(j) / 2; }
 
-  // Línea recta libre de edificios, agua y bloqueos para autos (muestreada cada 8 px)
-  clear(x0, y0, x1, y1, r) {
+  // Línea recta libre de edificios, agua y bloqueos para autos (muestreada cada 8 px).
+  // Con road, además tiene que ser calle todo el camino (no la arena de un tramo cortado por el río).
+  clear(x0, y0, x1, y1, r, road = false) {
     const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 8));
     for (let k = 0; k <= n; k++) {
       const x = x0 + ((x1 - x0) * k) / n, y = y0 + ((y1 - y0) * k) / n;
-      if (hitBuilding(x, y, r) || hitCarBlock(x, y, r)) return false;
+      if (hitBuilding(x, y, r) || hitCarBlock(x, y, r) || (road && !onRoad(x, y))) return false;
     }
     return true;
   }
@@ -857,8 +858,8 @@ class CopNav {
       for (let i = 0; i < GRID; i++) {
         const x = this.nodeX(i), y = this.nodeY(j);
         let b = 0;
-        if (i + 1 < GRID && this.clear(x, y, this.nodeX(i + 1), y, 5)) b |= 1;
-        if (j + 1 < GRID && this.clear(x, y, x, this.nodeY(j + 1), 5)) b |= 2;
+        if (i + 1 < GRID && this.clear(x, y, this.nodeX(i + 1), y, 5, true)) b |= 1;
+        if (j + 1 < GRID && this.clear(x, y, x, this.nodeY(j + 1), 5, true)) b |= 2;
         this.open[j * GRID + i] = b;
       }
     }
