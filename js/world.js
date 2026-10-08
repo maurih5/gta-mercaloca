@@ -1201,7 +1201,9 @@ class World {
     // El ancho sale de la celda DESTINO, no de la de origen: si no, un auto que viene
     // por la avenida y se snapea a una calle comun de al lado usa el ancho de avenida
     // y termina fuera del asfalto.
-    const idx = Math.round(((horiz ? y : x) - ROAD / 2) / CELL);
+    // Acotado a las calles que existen (0..GRID-1): cerca del borde de abajo o de la derecha
+    // el redondeo daba la calle GRID, que cae afuera del mapa, y el auto aparecía ahí
+    const idx = clamp(Math.round(((horiz ? y : x) - ROAD / 2) / CELL), 0, GRID - 1);
     const isAve = idx === (horiz ? PLAZA_CY : PLAZA_CX);
     const roadW = isAve ? AVENUE_ROAD : ROAD;
     const LANE = isAve ? AVENUE_LANE : ROAD * 0.24;

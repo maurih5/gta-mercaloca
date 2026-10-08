@@ -773,8 +773,11 @@ class Game {
       }
 
       if (!dodge) {
-        const freeX = !pedBlocked(nx, p.y, p.r), freeY = !pedBlocked(p.x, ny, p.r);
+        // Y se prueba con la X ya movida: probando los dos ejes por separado, en diagonal
+        // contra la esquina de un edificio cada eje daba libre y juntos lo metían adentro
+        const freeX = !pedBlocked(nx, p.y, p.r);
         if (freeX) p.x = nx;
+        const freeY = !pedBlocked(p.x, ny, p.r);
         if (freeY) p.y = ny;
 
         if (freeX || freeY) {
@@ -785,9 +788,12 @@ class Game {
           }
           if (!scared && !onSidewalk(p.x, p.y)) {
             const t = toSidewalk(p.x, p.y);
-            if (!pedBlocked(t.x, t.y, 5)) {
-              p.x = lerp(p.x, t.x, dt * 4.5);
-              p.y = lerp(p.y, t.y, dt * 4.5);
+            // Se prueba el punto intermedio, no solo la vereda de destino: en línea recta
+            // el camino a la vereda más cercana puede cruzar la esquina de un edificio
+            const lx = lerp(p.x, t.x, dt * 4.5), ly = lerp(p.y, t.y, dt * 4.5);
+            if (!pedBlocked(t.x, t.y, 5) && !pedBlocked(lx, ly, p.r)) {
+              p.x = lx;
+              p.y = ly;
             }
           }
         } else {
@@ -854,8 +860,8 @@ class Game {
       if (p.chat > 0) {
         p.chat -= dt;
         p.walk += dt * 2;
-        p.x -= Math.cos(p.ang) * s * dt;
-        p.y -= Math.sin(p.ang) * s * dt;
+        const bx = p.x - Math.cos(p.ang) * s * dt, by = p.y - Math.sin(p.ang) * s * dt;
+        if (!pedBlocked(bx, by, p.r)) { p.x = bx; p.y = by; }
       }
     }
 
@@ -959,7 +965,9 @@ class Game {
 
     for (const c of chasers) {
       const d = dist(c, P);
-      const want = Math.atan2(P.y - c.y, P.x - c.x);
+      // Desvío en curso (ver abajo): sigue ese rumbo un rato antes de volver a apuntar al jugador
+      c.detourT = Math.max(0, (c.detourT || 0) - dt);
+      const want = c.detourT > 0 ? c.detourAng : Math.atan2(P.y - c.y, P.x - c.x);
       let diff = ((want - c.ang + Math.PI * 3) % TAU) - Math.PI;
       const rate = 2.6 * clamp(Math.abs(c.spd) / 70, 0.3, 1);
       const turn = clamp(diff, -rate * dt, rate * dt);
@@ -980,6 +988,15 @@ class Game {
           const ty3 = c.y + Math.sin(a2) * (Math.abs(c.spd) * dt + CR2 + 6);
           if (!hitBuilding(tx3, ty3, CR2) && !hitCarBlock(tx3, ty3, CR2) && tx3 > 10 && ty3 > 10 && tx3 < WORLD - 10 && ty3 < WORLD - 10) {
             c.ang = a2;
+            // Se compromete con el desvío: si al frame siguiente vuelve a apuntar al jugador,
+            // choca contra la misma pared y queda girando en el lugar para siempre
+            c.detourAng = a2;
+            c.detourT = 0.6;
+            // Y sale ya hacia ese lado: si quedó medio metido en el obstáculo, un paso corto
+            // sigue chocando y no se despega nunca; el punto libre está más adelante
+            const step = Math.max(Math.abs(c.spd) * dt, 1.5);
+            c.x += Math.cos(a2) * step;
+            c.y += Math.sin(a2) * step;
             got = true;
             break;
           }
@@ -993,6 +1010,31 @@ class Game {
       } else {
         c.x = nx2;
         c.y = ny2;
+      }
+      // Como los autos civiles: un choque puede empujarlo afuera del mapa, y desde ahí
+      // todo movimiento choca con el borde y queda girando en el lugar para siempre
+      c.x = clamp(c.x, 10, WORLD - 10);
+      c.y = clamp(c.y, 10, WORLD - 10);
+
+      // Sin camino de calles, va derecho al jugador: en un callejón sin salida puede quedar
+      // girando sin avanzar. Si en 2s no se movió y no está encima del jugador, se reubica:
+      // fuera de pantalla desaparece (aparece otro en una calle), en pantalla salta al carril libre más cercano
+      c.progT = (c.progT || 0) + dt;
+      if (c.progT >= 2) {
+        const moved = Math.hypot(c.x - (c.progX ?? c.x + 99), c.y - (c.progY ?? c.y + 99));
+        if (moved < 6 && d > 80) {
+          if (d > OFFSCREEN) c.hp = 0;
+          else {
+            for (const a of [0, Math.PI / 2]) {
+              const L = laneSnap(c.x, c.y, a);
+              if (L.x > 10 && L.y > 10 && L.x < WORLD - 10 && L.y < WORLD - 10 && !hitBuilding(L.x, L.y, CR2) && !hitCarBlock(L.x, L.y, CR2)) {
+                c.x = L.x; c.y = L.y; c.ang = L.ang; c.detourT = 0;
+                break;
+              }
+            }
+          }
+        }
+        c.progT = 0; c.progX = c.x; c.progY = c.y;
       }
 
       // Encajonar jugador
@@ -1035,8 +1077,10 @@ class Game {
         const overlap = minD - d2, ux = dx2 / d2, uy = dy2 / d2;
         const halfAx = a.x - ux * overlap * 0.5, halfAy = a.y - uy * overlap * 0.5;
         const halfBx = b.x + ux * overlap * 0.5, halfBy = b.y + uy * overlap * 0.5;
-        const aClear = !hitBuilding(halfAx, halfAy, (a.w + a.h) / 4);
-        const bClear = !hitBuilding(halfBx, halfBy, (b.w + b.h) / 4);
+        // Libre = sin edificio y adentro del mapa: el empujón no puede sacar a nadie del borde
+        const free = (x, y, r) => !hitBuilding(x, y, r) && x > 10 && y > 10 && x < WORLD - 10 && y < WORLD - 10;
+        const aClear = free(halfAx, halfAy, (a.w + a.h) / 4);
+        const bClear = free(halfBx, halfBy, (b.w + b.h) / 4);
         if (aClear && bClear) {
           a.x = halfAx; a.y = halfAy;
           b.x = halfBx; b.y = halfBy;
@@ -1053,7 +1097,7 @@ class Game {
           for (const s of [1, -1]) {
             const ax2 = a.x + sx * s * overlap * 0.6, ay2 = a.y + sy * s * overlap * 0.6;
             const bx2 = b.x - sx * s * overlap * 0.6, by2 = b.y - sy * s * overlap * 0.6;
-            if (!hitBuilding(ax2, ay2, (a.w + a.h) / 4) && !hitBuilding(bx2, by2, (b.w + b.h) / 4)) {
+            if (free(ax2, ay2, (a.w + a.h) / 4) && free(bx2, by2, (b.w + b.h) / 4)) {
               a.x = ax2; a.y = ay2;
               b.x = bx2; b.y = by2;
               break;

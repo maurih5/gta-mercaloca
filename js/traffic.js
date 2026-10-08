@@ -729,6 +729,9 @@ class TrafficAI {
       if (this.tryDodge(c, obst)) { c.blockT = 0; if (lo === 'ped') c.pedIgn = 2.5; }
       else c.blockT = 1.2; // viene gente de frente: reintenta en un rato
     }
+    // Doblando (o en la diagonal) no puede esquivar: si el que le tapa no se va (p. ej. un
+    // patrullero parado en un operativo), da marcha atrás y replanea en vez de esperar para siempre
+    if (c.blockT > 5 && (c.path || c.diag) && !c.dodge) { c.revT = 0.9; c.blockT = 0; }
 
     // Ceder el paso: en la rotonda al que ya circula; en los cruces al que llega primero
     let yielding = false;

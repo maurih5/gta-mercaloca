@@ -187,7 +187,10 @@ class EntityManager {
     for (let i = 0; i < 20 && !c; i++) {
       const a = rnd(0, TAU), d = rnd(240, 380);
       const t = this.makeCar(clamp(px0 + Math.cos(a) * d, 20, WORLD - 20), clamp(py0 + Math.sin(a) * d, 20, WORLD - 20), true);
-      if (onRoad(t.x, t.y) && !hitBuilding(t.x, t.y, 8) && !hitCarBlock(t.x, t.y, 8)) c = t;
+      // makeCar lo acomoda al carril más cercano, que cerca del borde puede quedar afuera del
+      // mapa (onRoad sigue dando true ahí): de afuera no vuelve y queda girando para siempre
+      const adentro = t.x > 20 && t.y > 20 && t.x < WORLD - 20 && t.y < WORLD - 20;
+      if (adentro && onRoad(t.x, t.y) && !hitBuilding(t.x, t.y, 8) && !hitCarBlock(t.x, t.y, 8)) c = t;
     }
     if (!c) {
       const fs = freeRoadSpot();

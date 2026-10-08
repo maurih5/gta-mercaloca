@@ -493,8 +493,9 @@ describe('jugador', () => {
     assert.equal(G.player.y, py0, 'el jugador queda quieto durante el arresto');
     assert.ok(G.busted === 1, 'la secuencia dura mas de 1s');
 
-    // al terminar: te sueltan, sin estrellas, con menos guita
-    for(let f=0;f<200;f++) update(1/60);
+    // al terminar: te sueltan, sin estrellas, con menos guita. Se mira justo al soltarte:
+    // despues el jugador puede reaparecer arriba de un billete y sumar plata, y esta bien.
+    for(let f=0;f<200 && G.busted;f++) update(1/60);
     assert.equal(G.busted, 0, 'la secuencia termina sola');
     assert.equal(G.wanted, 0, 'salis sin estrellas');
     assert.equal(G.money, before - fine, 'te cobran exactamente la multa');
@@ -521,6 +522,7 @@ describe('jugador', () => {
     for(let f=0;f<1800;f++){
       update(1/60);
       if(G.busted) G.busted = 0, G.bustT = 0;      // ignorar arrestos, medir solo persecucion
+      if(f === 1800-120) for(const c of G.cars) if(c.chase){ c.x2s = c.x; c.y2s = c.y; }
     }
     const ch = G.cars.filter(c => c.chase && c.hp > 0);
     assert.ok(ch.length > 0, 'con 5 estrellas tiene que haber patrulleros');
@@ -528,8 +530,14 @@ describe('jugador', () => {
       assert.ok(Number.isFinite(c.x) && Number.isFinite(c.spd), 'patrullero NaN');
       assert.ok(!hitBuilding(c.x, c.y, 2), 'patrullero empotrado en un edificio');
     }
-    const stuckCh = ch.filter(c => Math.abs(c.spd) < 6).length;
-    assert.ok(stuckCh < ch.length*0.5, 'patrulleros clavados: ' + stuckCh + '/' + ch.length);
+    // Clavado = lejos del jugador y sin moverse en los ultimos 2s. La velocidad sola no sirve:
+    // uno que gira en el lugar contra una pared tiene velocidad, y uno que ya alcanzo al
+    // jugador (que esta quieto) frena al lado y esta bien. "Lejos" es mas de 3 largos de
+    // patrullero: con 5 amontonados alrededor del jugador, el ultimo queda a ~50px.
+    const stuckCh = ch.filter(c => c.x2s !== undefined && dist(c, G.player) > 80
+      && Math.hypot(c.x - c.x2s, c.y - c.y2s) < 5);
+    assert.equal(stuckCh.length, 0, 'patrulleros clavados lejos del jugador: ' + stuckCh.length + '/' + ch.length
+      + ' ' + JSON.stringify(stuckCh.map(c => ({x: Math.round(c.x), y: Math.round(c.y), d: Math.round(dist(c, G.player))}))));
     console.log('  arresto: patrulleros OK (' + ch.length + ' persiguiendo)');
   });
 
