@@ -22,9 +22,12 @@ on:
         description: Número de la PR a compilar
         required: true
 
+# Sin cancelar: al abrir una PR con etiqueta llegan dos eventos (opened y labeled) y, si
+# el segundo cancelaba al primero, quedaba un check "Compilar sitio" cancelado que el
+# ruleset cuenta como requerido y bloquea el merge. Así el segundo espera y los dos pasan.
 concurrency:
   group: build-pr-${{ github.event.pull_request.number || inputs.pr }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
