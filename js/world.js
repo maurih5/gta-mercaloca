@@ -1277,10 +1277,19 @@ class World {
     return null;
   }
 
+  // Tramo de calle que sigue después de la última esquina y muere contra el borde del mapa
+  // (abajo y a la derecha; arriba y a la izquierda la primera calle va pegada al borde).
+  // De ahí ningún auto puede salir: se choca el borde, da marcha atrás y traba la zona.
+  inEdgeStub(x, y) {
+    const last = (GRID - 1) * CELL;
+    return (y >= last + roadWidthRow(GRID - 1) && (x % CELL) < roadWidthCol(Math.floor(x / CELL)))
+      || (x >= last + roadWidthCol(GRID - 1) && (y % CELL) < roadWidthRow(Math.floor(y / CELL)));
+  }
+
   freeRoadSpot() {
     for (let i = 0; i < 400; i++) {
       const x = rnd(ROAD, WORLD - ROAD), y = rnd(ROAD, WORLD - ROAD);
-      if (this.onRoad(x, y) && !this.hitBuilding(x, y, 10)) return { x, y };
+      if (this.onRoad(x, y) && !this.inEdgeStub(x, y) && !this.hitBuilding(x, y, 10)) return { x, y };
     }
     return { x: ROAD / 2, y: ROAD / 2 };
   }
@@ -1292,7 +1301,7 @@ class World {
       const a = rnd(0, TAU), d = rnd(near, far);
       const x = clamp(px0 + Math.cos(a) * d, 12, WORLD - 12);
       const y = clamp(py0 + Math.sin(a) * d, 12, WORLD - 12);
-      if (needRoad && !this.onRoad(x, y)) continue;
+      if (needRoad && (!this.onRoad(x, y) || this.inEdgeStub(x, y))) continue;
       if (this.hitBuilding(x, y, 10)) continue;
       return { x, y };
     }

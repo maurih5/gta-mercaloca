@@ -384,6 +384,22 @@ describe('simulacion', () => {
   });
 
   test('60s simulados y renderizados sin NaN ni salirse del mapa', () => {
+    // El jugador espera en la vereda: parado en el medio de la calle 60s traba las dos manos
+    // (los autos tocan bocina y esperan, como corresponde) y eso no es transito de la ciudad.
+    // Vereda de verdad, sin calle: toSidewalk a veces da un punto del borde del asfalto
+    // (en la bocacalle) que onSidewalk igual cuenta como vereda.
+    {
+      const P = G.player;
+      let best = null, bd = Infinity;
+      for (let r = 0; r <= 400 && !best; r += 4) {
+        for (let k = 0; k < 16; k++) {
+          const x = P.x + Math.cos(k * Math.PI / 8) * r, y = P.y + Math.sin(k * Math.PI / 8) * r;
+          if (onSidewalk(x, y) && !onRoad(x, y) && !hitBuilding(x, y, 4) && r < bd) { bd = r; best = { x, y }; }
+        }
+      }
+      best = best || toSidewalk(P.x, P.y);
+      P.x = best.x; P.y = best.y;
+    }
     for(let f=0; f<3600; f++){                      // 60s
       update(1/60);
       render();                                     // el render no debe explotar ni con stubs
