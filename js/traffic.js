@@ -716,7 +716,11 @@ class TrafficAI {
     // Esquive: termina cuando ya pasó el obstáculo; empieza si algo quieto le tapa el carril
     if (c.dodge) {
       c.dodge.from += c.spd * dt;
+      // Trabado a mitad del esquive (algo más se le cruzó en el otro carril): el esquive solo
+      // avanza si el auto anda, así que quedaba esperando para siempre. Marcha atrás y replanea.
+      c.dodge.stall = c.spd < 2 ? (c.dodge.stall || 0) + dt : 0;
       if (c.dodge.from > c.dodge.until || c.path) { c.dodge = null; c.signal = 1; c.signalT = 1; }
+      else if (c.dodge.stall > 3) { c.dodge = null; c.signal = 0; c.revT = 0.9; c.blockT = 0; }
     }
     const lo = lead.who;
     // Algo quieto (o un patrullero haciendo un operativo) que no está esperando el semáforo ni la fila
