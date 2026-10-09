@@ -232,7 +232,7 @@ Object.assign(SONGS, {
     return arrange(124, {
       kick: { inst: 'drums', vol: 0.75 },
       snare: { inst: 'drums', vol: 0.4, pan: -0.15 },
-      guiro: { inst: 'drums', vol: 0.45, pan: 0.45 },
+      guiro: { inst: 'drums', vol: 0.7, pan: 0.45 },
       bass: { inst: 'bass', vol: 0.8, rev: 0 },
       k0: { inst: 'piano', vol: 0.2, pan: -0.4 }, k1: { inst: 'piano', vol: 0.2, pan: -0.4 }, k2: { inst: 'piano', vol: 0.2, pan: -0.4 },
       acc: { inst: 'accordion', vol: 0.5, pan: 0.2, rev: 0.18 },
@@ -496,7 +496,9 @@ class Radio {
       if (!this.out) {
         this.out = sound.ctx.createGain();
         this.out.gain.value = RADIO_VOL;
-        this.out.connect(sound.master);
+        const lim = makeLimiter(sound.ctx);
+        this.out.connect(lim);
+        lim.connect(sound.master);
       }
       // La mezcla del tema anterior se suelta cuando ya terminaron de sonar sus colas
       const old = this.inputs;
@@ -565,13 +567,15 @@ class Radio {
   // Renderiza los primeros secs segundos de un tema sin sonar (para medir niveles o exportarlo)
   async render(id, secs = 30, sr = 44100) {
     const c = new OfflineAudioContext(2, Math.floor(sr * secs), sr);
-    // La misma cadena que en el juego: volumen de la radio, volumen general y compresor
+    // La misma cadena que en el juego: volumen de la radio, limitador, volumen general y compresor
     const out = c.createGain(), master = c.createGain(), comp = c.createDynamicsCompressor();
     out.gain.value = RADIO_VOL;
     master.gain.value = 0.55;
     comp.threshold.value = -14;
     comp.ratio.value = 6;
-    out.connect(master);
+    const lim = makeLimiter(c);
+    out.connect(lim);
+    lim.connect(master);
     master.connect(comp);
     comp.connect(c.destination);
     const song = this.song(id), inputs = buildMix(c, out, song);

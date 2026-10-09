@@ -280,11 +280,12 @@ const DRUMS = {
   c(d, t, v) {
     sound.burst(d, t, { dur: 1.4, type: 'highpass', f0: 5000, f1: 3500, vol: v * 0.35 });
   },
-  // Güiro: el raspado son varios golpecitos seguidos que van creciendo
+  // Güiro: el raspado son varios golpecitos seguidos que van creciendo. Es ruido filtrado en una
+  // franja angosta (pierde casi toda la energía), por eso el volumen alto
   g(d, t, v, dur) {
-    const n = dur > 0.3 ? 7 : 4, step = Math.min(0.016, (dur * 0.7) / n);
+    const n = dur > 0.3 ? 7 : 4, step = Math.min(0.018, (dur * 0.7) / n);
     for (let i = 0; i < n; i++) {
-      sound.burst(d, t + i * step, { dur: 0.012, type: 'bandpass', f0: 4200 + i * 120, q: 5, vol: v * (0.25 + 0.35 * (i / n)) });
+      sound.burst(d, t + i * step, { dur: 0.02, type: 'bandpass', f0: 3600 + i * 150, q: 2.5, vol: v * (3.6 + 3.2 * (i / n)) });
     }
   },
   b(d, t, v) {
@@ -293,10 +294,22 @@ const DRUMS = {
     sound.burst(d, t, { dur: 0.09, f0: 380, vol: v * 0.6 });
   },
   r(d, t, v) {
-    sound.burst(d, t, { dur: 0.035, type: 'bandpass', f0: 1700, q: 5, vol: v * 0.7 });
-    sound.tone(d, t, { dur: 0.04, f0: 820, f1: 700, wave: 'triangle', vol: v * 0.25 });
+    sound.burst(d, t, { dur: 0.05, type: 'bandpass', f0: 1700, q: 3, vol: v * 4.3 });
+    sound.tone(d, t, { dur: 0.06, f0: 820, f1: 700, wave: 'triangle', vol: v * 1.9 });
   },
 };
+
+// Limitador a la salida de la radio: frena al toque los picos cortos (güiro, aro) que el
+// compresor general deja pasar porque es más lento
+function makeLimiter(c) {
+  const l = c.createDynamicsCompressor();
+  l.threshold.value = -8;
+  l.knee.value = 0;
+  l.ratio.value = 20;
+  l.attack.value = 0.001;
+  l.release.value = 0.08;
+  return l;
+}
 
 // Sala para la reverb: ruido estéreo que se apaga (respuesta al impulso de una sala chica)
 const IR_CACHE = {};
