@@ -72,6 +72,25 @@ class EntityManager {
     };
   }
 
+  // Un famoso es un peatón con nombre: camina como cualquiera, pero no entra a edificios,
+  // dice sus frases y tiene sus propias reglas al caer
+  makeFamous(def, x, y) {
+    const p = this.makePedAt(x, y);
+    return Object.assign(p, {
+      famous: def,
+      def: null,
+      face: 'famous-' + def.id,
+      shirt: def.shirt,
+      pants: def.pants,
+      hp: def.hp,
+      sped: def.spd,
+      life: FAMOUS_LIFE,
+      talkT: 0,
+      line: '',
+      lineT: 0,
+    });
+  }
+
   sidewalkSpot(near, far, center) {
     const c0 = spawnCenter(center), px0 = c0.x, py0 = c0.y;
     for (let i = 0; i < 150; i++) {
@@ -306,6 +325,7 @@ function spawnCenter(center) {
 // Exportación de funciones clásicas para compatibilidad
 const makePlayer = (def, id) => entities.makePlayer(def, id);
 const makePedAt = (x, y) => entities.makePedAt(x, y);
+const makeFamous = (def, x, y) => entities.makeFamous(def, x, y);
 const sidewalkSpot = (near, far, center) => entities.sidewalkSpot(near, far, center);
 const makePed = () => entities.makePed();
 const makeCar = (x, y, cop) => entities.makeCar(x, y, cop);

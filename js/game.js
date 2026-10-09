@@ -287,6 +287,15 @@ class Game {
   // Daño a peatón o policía, con premio y búsqueda para el jugador que lo bajó (by)
   hurt(e, dmg, by = null) {
     if (e.hp <= 0) return;
+    if (e.famous) {
+      this.famousLine(e, e.famous.hurt);
+      // El inmortal acusa el golpe y sigue como si nada
+      if (e.famous.immortal) {
+        boom(e.x, e.y, 5, '255,255,255');
+        sfx('impacto', e.x, e.y);
+        return;
+      }
+    }
     e.hp -= dmg;
     boom(e.x, e.y, 7, '190,35,35');
     sfx('impacto', e.x, e.y);
@@ -302,6 +311,7 @@ class Game {
     }
     if (e.hp <= 0) {
       decal(e.x, e.y, rnd(4, 7), 'rgba(95,12,12,.5)');
+      if (e.famous) this.famousDown(e, by);
       this.wantUp(by, e.kind === 'cop' ? 2 : 1);
       if (by) by.money += e.kind === 'cop' ? 120 : 40;
       if (e.kind === 'cop' && Math.random() < 0.3) G.pickups.push(makeDrop(e.x, e.y, 'escopeta', 6));
@@ -533,6 +543,65 @@ class Game {
           }
         }
       }
+    }
+  }
+
+  // ---- Famosos ----
+
+  // Dice una de sus frases (la ven todos los que estén cerca: es un globito en el mundo)
+  famousLine(p, lines) {
+    if (!lines || !lines.length || p.lineT > 1.2) return;
+    p.line = lines[(Math.random() * lines.length) | 0];
+    p.lineT = 2.6;
+  }
+
+  // Cayó un famoso: suelta lo suyo y el que lo bajó se entera
+  famousDown(e, by) {
+    const d = e.famous.drop;
+    if (d && d.kind === 'gold') {
+      for (let i = 0; i < d.n; i++) {
+        const a = (i / d.n) * TAU + rnd(-0.3, 0.3), r = rnd(14, 26); // desparramados: se juntan de a uno
+        G.pickups.push({ x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r, kind: 'gold', value: d.value, t: 0, drop: true });
+      }
+    }
+    this.say('BAJASTE A ' + e.famous.name, 2.6, by);
+  }
+
+  // Aparecen cerca de cada jugador cada tanto (sin que otro jugador los vea aparecer),
+  // hablan cuando alguien se les acerca y se van cuando ya pasearon y nadie los mira
+  updateFamous(dt) {
+    for (const p of G.peds) {
+      if (!p.famous || p.hp <= 0) continue;
+      p.life -= dt;
+      p.lineT = Math.max(0, p.lineT - dt);
+      p.talkT -= dt;
+      const { p: P, d } = nearestPlayer(p, inPlay);
+      if (P && d < FAMOUS_TALK && p.talkT <= 0) {
+        this.famousLine(p, p.famous.near);
+        p.talkT = rnd(5, 9);
+      }
+    }
+    G.peds = G.peds.filter(p => !p.famous || p.hp <= 0 || p.life > 0 || !farFromPlayers(p, OFFSCREEN));
+
+    for (const P of G.players) {
+      if (!inPlay(P)) continue;
+      if (P.famousT === undefined) P.famousT = rnd(FAMOUS_EVERY[0], FAMOUS_EVERY[1]);
+      P.famousT -= dt;
+      if (P.famousT > 0) continue;
+      P.famousT = rnd(FAMOUS_EVERY[0], FAMOUS_EVERY[1]);
+      const around = G.peds.filter(q => q.famous && q.hp > 0);
+      if (around.some(q => dist(q, P) < SIM_R)) continue;
+      // Cada famoso es uno solo en todo el mapa
+      const pool = FAMOUS.filter(f => !around.some(q => q.famous === f));
+      if (!pool.length) continue;
+      const def = pool[(Math.random() * pool.length) | 0];
+      const sp = sidewalkSpot(OFFSCREEN, SIM_R * 0.8, P);
+      if (!sp || !offscreenForOthers(sp, P)) {
+        P.famousT = 3; // no hubo lugar: se prueba de nuevo enseguida
+        continue;
+      }
+      G.peds.push(makeFamous(def, sp.x, sp.y));
+      this.say(def.name + ' ANDA POR EL BARRIO', 2.8, P);
     }
   }
 
@@ -827,7 +896,7 @@ class Game {
       }
       if (!busy) {
         p.doorT -= dt;
-        if (p.doorT <= 0 && !p.target) {
+        if (p.doorT <= 0 && !p.target && !p.famous) {
           const b = nearestDoor(p.x, p.y, 110);
           if (b) p.target = b;
           else p.doorT = rnd(4, 10);
@@ -1006,6 +1075,8 @@ class Game {
         P.pedSpawn = 0;
       }
     }
+
+    this.updateFamous(dt);
 
     // Velocidad real de cada auto (cuánto se movió de verdad), para que nadie espere
     // atrás de uno que acelera contra una pared sin avanzar
@@ -1362,6 +1433,9 @@ class Game {
           const v = 150 + ((Math.random() * 8) | 0) * 50;
           P.money += v;
           this.say('+$' + v, 2.6, P);
+        } else if (pk.kind === 'gold') {
+          P.money += pk.value;
+          this.say('+$' + pk.value + ' BALON DE ORO', 2.6, P);
         } else if (pk.kind === 'weapon') {
           this.giveWeapon(P, pk.w, pk.ammo);
           this.say(WEAPONS[pk.w].melee ? WEAPONS[pk.w].name : WEAPONS[pk.w].short + ' +' + pk.ammo, 2.6, P);
@@ -1370,8 +1444,8 @@ class Game {
           P.hp = Math.min(P.maxhp, P.hp + heal);
           this.say('+' + heal + ' VIDA (' + pk.food.toUpperCase() + ')', 2.6, P);
         }
-        sfxFor(P, { cash: 'guita', weapon: 'arma' }[pk.kind] || 'comida');
-        const col = { cash: '120,220,120', hp: '230,90,90', weapon: '255,200,90' }[pk.kind];
+        sfxFor(P, { cash: 'guita', gold: 'guita', weapon: 'arma' }[pk.kind] || 'comida');
+        const col = { cash: '120,220,120', gold: '255,215,70', hp: '230,90,90', weapon: '255,200,90' }[pk.kind];
         boom(pk.x, pk.y, 8, col);
         if (pk.drop) pk.gone = true;
         else Object.assign(pk, makePickup());

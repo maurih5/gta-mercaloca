@@ -109,12 +109,12 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 - [ ] Incorporar nuevos personajes seleccionables (#73)
   - [x] El Ger
 - [x] **Arma / Ítem especial:** Incorporar el **bastón verde del Ciego Augusto** (arma de combate cuerpo a cuerpo)
-- [ ] Sistema base de NPCs con nombre y parodias de famosos: spawn, diálogo, comportamiento único, recompensas y despawn (#9)
-  - [ ] Parodia de crack del fútbol (Messi): diálogo propio, suelta "balones de oro" (guita) al caer (#10)
+- [x] Sistema base de NPCs con nombre y parodias de famosos: spawn, diálogo, comportamiento único, recompensas y despawn (#9)
+  - [x] Parodia de crack del fútbol (Messi): diálogo propio, suelta "balones de oro" (guita) al caer (#10)
   - [ ] Parodia de ídolo del fútbol (Maradona): diálogo propio, suelta merca al caer (#11)
   - [ ] Parodia de conductor de TV (Marley): deja un rastro de partículas cómico al caminar (#12)
   - [ ] Parodia de celebridad de playa (Ricardo Fort): solo aparece en la playa, suelta chocolates (#13)
-  - [ ] NPC cómico inmortal (Listorti): no se puede eliminar, reacciona con una frase propia a los disparos (#14)
+  - [x] NPC cómico inmortal (Listorti): no se puede eliminar, reacciona con una frase propia a los disparos (#14)
   - [ ] Parodia volando en helicóptero (Gaspi): pathing aéreo, aparece como encuentro especial (#2)
 
 ### 🌿 Mecánicas & Jugabilidad
