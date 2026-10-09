@@ -11,7 +11,7 @@
 //  - grabado: un archivo de music/ ('mi-tema.ogg' o .mp3), que se reproduce tal cual.
 
 // Temas escritos a mano. Cada pista: instrumento, volumen y la secuencia de notas.
-// Instrumentos: square, triangle, sawtooth, sine, y drums (k bombo, s redoblante,
+// Instrumentos: square, triangle, sawtooth, sine, pad (colchón de sintes), y drums (k bombo, s redoblante,
 // h platillo, g güiro). "-:1" es un silencio de un tiempo.
 const bar = (s, n) => (s + ' ').repeat(n);
 Object.assign(SONGS, {
@@ -63,10 +63,108 @@ Object.assign(SONGS, {
   },
 });
 
+// Acordes: una pista por voz del acorde (la 1ª, 2ª o 3ª nota de cada uno), un compás por acorde
+const CHORD = {
+  Am: ['A3', 'C4', 'E4'], F: ['F3', 'A3', 'C4'], C: ['C4', 'E4', 'G4'], G: ['G3', 'B3', 'D4'],
+  D: ['D4', 'F#4', 'A4'], A: ['C#4', 'E4', 'A4'], Gd: ['D4', 'G4', 'B4'],
+};
+const voice = (chords, i, rhythm) => chords.map(c => rhythm(CHORD[c][i])).join(' ');
+
+Object.assign(SONGS, {
+  // Synthpop: arpegio en semicorcheas, bajo en octavas, colchón de sintes y caja con reverb
+  'noche-en-la-costanera': (() => {
+    const prog = bar('Am F C G', 4).trim().split(' ');
+    const root = { Am: 'A', F: 'F', C: 'C', G: 'G' };
+    const arp = { Am: 'A4 C5 E5 A5', F: 'F4 A4 C5 F5', C: 'C4 E4 G4 C5', G: 'G4 B4 D5 G5' };
+    return {
+      bpm: 118,
+      tracks: [
+        { inst: 'drums', vol: 0.8, seq: bar('k:1 s:1 k:0.5 k:0.5 s:1', 16) },
+        { inst: 'drums', vol: 0.5, seq: bar('h:0.5', 128) },
+        { inst: 'sawtooth', vol: 0.4, seq: prog.map(c => bar(`${root[c]}2:0.5 ${root[c]}3:0.5`, 4)).join(' ') },
+        { inst: 'square', vol: 0.16, seq: prog.map(c => bar(arp[c].split(' ').map(n => n + ':0.25').join(' '), 4)).join(' ') },
+        ...[0, 1, 2].map(i => ({ inst: 'pad', vol: 0.12, seq: voice(prog, i, n => n + ':4') })),
+        {
+          inst: 'square', vol: 0.3,
+          seq: '-:32 ' + [
+            'E5:1.5 D5:0.5 C5:1 A4:1',
+            'C5:1 A4:0.5 C5:0.5 F5:1 E5:1',
+            'E5:1.5 G5:0.5 E5:1 C5:1',
+            'D5:2 B4:1 -:1',
+            'E5:0.5 E5:0.5 D5:0.5 C5:0.5 D5:1 E5:1',
+            'F5:1.5 E5:0.5 C5:1 A4:1',
+            'G5:1 E5:1 C5:0.5 D5:0.5 E5:1',
+            'D5:1 B4:1 G4:2',
+          ].join(' '),
+        },
+      ],
+    };
+  })(),
+
+  // Cuarteto: el tunga-tunga (bajo en el tiempo, piano a contratiempo) y acordeón
+  'el-baile-de-la-plaza': (() => {
+    const prog = 'D A A D D Gd A D'.split(' ');
+    const bass = { D: ['D2', 'A2'], A: ['A2', 'E2'], Gd: ['G2', 'D2'] };
+    return {
+      bpm: 124,
+      tracks: [
+        { inst: 'drums', vol: 0.7, seq: bar('k:1', 32) },
+        { inst: 'drums', vol: 0.45, seq: bar('-:0.5 s:0.5', 32) },
+        { inst: 'drums', vol: 0.4, seq: bar('g:0.5 g:0.25 g:0.25', 32) },
+        { inst: 'triangle', vol: 0.8, seq: prog.map(c => bar(`${bass[c][0]}:1 ${bass[c][1]}:1`, 2)).join(' ') },
+        ...[0, 1, 2].map(i => ({ inst: 'square', vol: 0.1, seq: voice(prog, i, n => bar(`-:0.5 ${n}:0.5`, 4)) })),
+        {
+          inst: 'sawtooth', vol: 0.22,
+          seq: [
+            'F#5:0.5 E5:0.5 D5:0.5 E5:0.5 F#5:1 A5:1',
+            'G5:0.5 F#5:0.5 E5:0.5 F#5:0.5 E5:1 C#5:1',
+            'E5:0.5 F#5:0.5 G5:0.5 E5:0.5 A5:1 G5:1',
+            'F#5:1 E5:0.5 D5:0.5 D5:2',
+            'A4:0.5 D5:0.5 F#5:0.5 D5:0.5 A5:1 F#5:1',
+            'B5:1 A5:0.5 G5:0.5 D5:1 G5:1',
+            'A5:0.5 G5:0.5 F#5:0.5 E5:0.5 C#5:1 E5:1',
+            'D5:1 A4:1 D5:2',
+          ].join(' '),
+        },
+      ],
+    };
+  })(),
+
+  // Chacarera en 6/8: cada tiempo es una corchea. Bombo legüero, guitarra y violín
+  'chacarera-del-puente': (() => {
+    const prog = 'Am Am E E Am Am E Am'.split(' ');
+    const strum = { Am: 'A3 C4 E4 A4 E4 C4', E: 'E3 G#3 B3 E4 B3 G#3' };
+    return {
+      bpm: 300,
+      tracks: [
+        { inst: 'drums', vol: 0.8, seq: bar('k:2 s:1 k:1 s:1 s:1', 8) },
+        { inst: 'triangle', vol: 0.5, seq: prog.map(c => strum[c].split(' ').map(n => n + ':1').join(' ')).join(' ') },
+        { inst: 'triangle', vol: 0.7, seq: prog.map(c => bar(`${c[0]}2:3`, 2)).join(' ') },
+        {
+          inst: 'sawtooth', vol: 0.2,
+          seq: [
+            'E5:2 D5:1 C5:2 B4:1',
+            'A4:3 C5:2 E5:1',
+            'D5:2 C5:1 B4:2 G#4:1',
+            'B4:3 E5:3',
+            'E5:2 F5:1 E5:2 D5:1',
+            'C5:2 D5:1 E5:3',
+            'B4:2 C5:1 D5:2 B4:1',
+            'A4:6',
+          ].join(' '),
+        },
+      ],
+    };
+  })(),
+});
+
 // Emisoras: nombre y temas (ids de SONGS, o archivos de music/). Se pasan en orden.
 const STATIONS = [
   { name: 'FM LA CUMBIANCHA', songs: ['cumbia-del-riachuelo'] },
   { name: 'RADIO COSTANERA ROCK', songs: ['rock-de-la-costanera'] },
+  { name: 'FM RETRO 80', songs: ['noche-en-la-costanera'] },
+  { name: 'RADIO CUARTETAZO', songs: ['el-baile-de-la-plaza'] },
+  { name: 'LA FOLKLORICA AM', songs: ['chacarera-del-puente'] },
 ];
 
 const NOTE_IDX = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
@@ -235,6 +333,14 @@ class Radio {
 
   play(n, t) {
     const d = this.out;
+    if (n.inst === 'pad') {
+      // Dos serruchos apenas desafinados entre sí, que entran despacio
+      const f = 440 * Math.pow(2, (n.n - 69) / 12);
+      for (const k of [0.996, 1.004]) {
+        sound.tone(d, t, { dur: Math.max(0.2, n.d), f0: f * k, wave: 'sawtooth', vol: n.v, attack: 0.15 });
+      }
+      return;
+    }
     if (n.inst !== 'drums') {
       const f = 440 * Math.pow(2, (n.n - 69) / 12);
       sound.tone(d, t, { dur: Math.max(0.08, n.d * 0.95), f0: f, wave: n.inst, vol: n.v, attack: 0.008 });
