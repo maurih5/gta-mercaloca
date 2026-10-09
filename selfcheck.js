@@ -567,7 +567,7 @@ describe('dia y noche', () => {
 });
 
 describe('simulacion', () => {
-  let movingAcc = 0, movingN = 0;   // fraccion de autos andando en los ultimos 10s
+  let movingAcc = 0, flowAcc = 0, movingN = 0;   // fraccion de autos andando (y andando o esperando) en los ultimos 10s
 
   test('arranca la partida con autos, peatones y guardias', () => {
     startGame(CREW[0]);
@@ -601,18 +601,31 @@ describe('simulacion', () => {
   test('60s simulados y renderizados sin NaN ni salirse del mapa', () => {
     // El jugador espera en la vereda: parado en el medio de la calle 60s traba las dos manos
     // (los autos tocan bocina y esperan, como corresponde) y eso no es transito de la ciudad.
-    // Vereda de verdad, sin calle: toSidewalk a veces da un punto del borde del asfalto
-    // (en la bocacalle) que onSidewalk igual cuenta como vereda.
+    // Donde no molesta a nadie: a mitad de cuadra (en la esquina los que doblan pasan rozandolo),
+    // contra la cuadra (el carril va pegado al cordon y un auto ancho lo toca si esta del lado
+    // de la calle) y con todo el radio de simulacion adentro del mapa: cerca del borde los
+    // autos se reparten en menos calles (en las esquinas todo el transito dobla en la misma
+    // bocacalle) y se arma fila sin que el jugador tenga nada que ver.
+    // Con un spawn al azar en cualquiera de esos lugares este test fallaba de vez en cuando.
     {
-      const P = G.me;
+      const P = G.me, BORDE = SIM_R * 1.5;
+      const ancho = (i, eje) => (i === eje ? AVENUE_ROAD : ROAD);
+      const ci = Math.floor(P.x / CELL), cj = Math.floor(P.y / CELL);
       let best = null, bd = Infinity;
-      for (let r = 0; r <= 400 && !best; r += 4) {
-        for (let k = 0; k < 16; k++) {
-          const x = P.x + Math.cos(k * Math.PI / 8) * r, y = P.y + Math.sin(k * Math.PI / 8) * r;
-          if (onSidewalk(x, y) && !onRoad(x, y) && !hitBuilding(x, y, 4) && r < bd) { bd = r; best = { x, y }; }
+      for (let i = ci - 4; i <= ci + 4; i++) for (let j = cj - 4; j <= cj + 4; j++) {
+        const rw = ancho(i, PLAZA_CX), rh = ancho(j, PLAZA_CY);
+        const midX = i * CELL + (rw + CELL) / 2, midY = j * CELL + (rh + CELL) / 2;
+        for (const c of [
+          { x: i * CELL + 2, y: midY }, { x: i * CELL + rw - 2, y: midY },     // veredas de la columna
+          { x: midX, y: j * CELL + 2 }, { x: midX, y: j * CELL + rh - 2 },     // veredas de la fila
+        ]) {
+          if (Math.min(c.x, c.y, WORLD - c.x, WORLD - c.y) < BORDE) continue;
+          if (!onSidewalk(c.x, c.y) || hitBuilding(c.x, c.y, 3) || inDiagonalBand(c.x, c.y)) continue;
+          const d = Math.hypot(c.x - P.x, c.y - P.y);
+          if (d < bd) { bd = d; best = c; }
         }
       }
-      best = best || toSidewalk(P.x, P.y);
+      assert.ok(best, 'no hay vereda tranquila cerca de ' + JSON.stringify({ x: P.x, y: P.y }));
       P.x = best.x; P.y = best.y;
     }
     for(let f=0; f<3600; f++){                      // 60s
@@ -627,7 +640,11 @@ describe('simulacion', () => {
       // a proposito; la persecucion se prueba aparte ('los patrulleros persiguen...').
       if(f >= 3000){                                // ultimos 10s: fraccion de autos andando, frame a frame
         const tr = G.cars.filter(c => c.ai && c.hp > 0);
-        if(tr.length){ movingAcc += tr.filter(c => Math.abs(c.spd) > 12).length / tr.length; movingN++; }
+        if(tr.length){
+          movingAcc += tr.filter(c => Math.abs(c.spd) > 12).length / tr.length;
+          flowAcc += tr.filter(c => Math.abs(c.spd) > 12 || (c.waitLight||0) > 0 || c.queued).length / tr.length;
+          movingN++;
+        }
       }
     }
     assert.ok(G.fx.length < 4000 && G.smoke.length < 900, 'las particulas no se acumulan sin control');
@@ -704,10 +721,12 @@ describe('simulacion', () => {
     const jammed  = traffic.filter(c => c.stopT > 4).length;
     // parado en rojo es correcto; lo que no puede haber son autos trabados sin motivo
     assert.ok(jammed <= traffic.length*0.10, 'autos trabados sin motivo: ' + jammed);
-    assert.ok((moving + atRed) / traffic.length > 0.75,
-      'trafico muerto: ' + moving + ' en movimiento + ' + atRed + ' en rojo de ' + traffic.length);
     // Promedio de los ultimos 10s y no una foto de un solo frame: la foto depende de en que fase
-    // estaban los semaforos justo en ese instante y fallaba de vez en cuando aun con trafico sano.
+    // estaban los semaforos justo en ese instante y fallaba de vez en cuando aun con trafico sano
+    // (los que arrancan con el verde o le ceden el paso a un peaton no cuentan ni como andando
+    // ni como esperando, y en un frame llegaban a ser un tercio).
+    assert.ok(flowAcc / movingN > 0.75,
+      'trafico muerto: solo ' + Math.round(flowAcc / movingN * 100) + '% andando o esperando el rojo en los ultimos 10s');
     assert.ok(movingAcc / movingN > 0.45,
       'demasiados parados: solo ' + Math.round(movingAcc / movingN * 100) + '% circulando en los ultimos 10s');
     // regresion: al chocar una pared se reseteaban a la misma velocidad cada frame y
@@ -795,6 +814,8 @@ describe('jugador', () => {
     for(let f=0;f<1800;f++){
       update(1/60);
       if(G.me.busted) G.me.busted = 0, G.me.bustT = 0;      // ignorar arrestos, medir solo persecucion
+      G.me.hp = G.me.maxhp;                           // y muertes: con 5 estrellas la yuta a pie lo baja
+                                                       // en segundos, y muerto no aparecen patrulleros
       G.me.wanted = 5;                                 // si no, la busqueda baja sola al perderlo de vista
       if(f % 10 === 0) render();                    // el tiroteo tambien se tiene que poder dibujar
       if(f === 1800-120) for(const c of G.cars) if(c.chase){ c.x2s = c.x; c.y2s = c.y; }
@@ -807,9 +828,10 @@ describe('jugador', () => {
     }
     // Clavado = lejos del jugador y sin moverse en los ultimos 2s. La velocidad sola no sirve:
     // uno que gira en el lugar contra una pared tiene velocidad, y uno que ya alcanzo al
-    // jugador (que esta quieto) frena al lado y esta bien. "Lejos" es mas de 3 largos de
-    // patrullero: con 5 amontonados alrededor del jugador, el ultimo queda a ~50px.
-    const stuckCh = ch.filter(c => c.x2s !== undefined && dist(c, G.me) > 80
+    // jugador (que esta quieto) frena al lado y esta bien. "Lejos" es fuera del operativo:
+    // el juego le guarda el lugar al patrullero hasta 120px (ver c.slot en game.js), y con
+    // 5 amontonados, autos en fila y un colectivo, alguno queda encajonado a 80-90px.
+    const stuckCh = ch.filter(c => c.x2s !== undefined && dist(c, G.me) > 120
       && Math.hypot(c.x - c.x2s, c.y - c.y2s) < 5);
     assert.equal(stuckCh.length, 0, 'patrulleros clavados lejos del jugador: ' + stuckCh.length + '/' + ch.length
       + ' ' + JSON.stringify(stuckCh.map(c => ({x: Math.round(c.x), y: Math.round(c.y), d: Math.round(dist(c, G.me))}))));
