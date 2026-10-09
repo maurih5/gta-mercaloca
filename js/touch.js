@@ -256,6 +256,10 @@ class TouchController {
       () => {}
     );
 
+    // Sonido: prender / apagar (mismo efecto que la N)
+    sound.syncButton();
+    bindBtn('btn-sound', () => { sound.unlock(); sound.toggleMute(); }, () => {});
+
     // Zoom del mapa (mismo mecanismo que las teclas +/-)
     bindBtn('btn-zoom-in', () => { keys.Equal = true; }, () => { keys.Equal = false; });
     bindBtn('btn-zoom-out', () => { keys.Minus = true; }, () => { keys.Minus = false; });

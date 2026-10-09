@@ -24,6 +24,12 @@ function frame(now) {
     }
     if (!keys.KeyM) G._m = false;
 
+    if (keys.KeyN && !G._n) {
+      G._n = true;
+      say(sound.toggleMute() ? 'SONIDO APAGADO' : 'SONIDO PRENDIDO', 1.4);
+    }
+    if (!keys.KeyN) G._n = false;
+
     if (G.mapOpen) {
       const f = 1 + MAP_ZOOM_RATE * dt;
       if (keys.Equal || keys.NumpadAdd) G.mapZoom = clamp(G.mapZoom * f, MAP_MIN_ZOOM, MAP_MAX_ZOOM);
@@ -38,6 +44,7 @@ function frame(now) {
     if (!solo || (!G.paused && !G.mapOpen && !G.shopOpen)) update(dt);
     render();
   }
+  sound.update();
 
   if (typeof requestAnimationFrame !== 'undefined') {
     requestAnimationFrame(frame);

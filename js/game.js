@@ -189,6 +189,7 @@ class Game {
     }
     P.hp = Math.max(P.hp, 1);
     this.shakeFor(P, 6);
+    sfxFor(P, 'arresto');
     this.say('QUEDATE QUIETO!', 2.2, P);
   }
 
@@ -218,6 +219,7 @@ class Game {
 
   exitCar(P = G.me) {
     if (!P || !P.car) return;
+    sfx('puerta', P.car.x, P.car.y);
     P.car.ai = true;
     P.car.spd = 0;
     P.car.nav = false; // la IA retoma desde donde lo dejaste
@@ -232,12 +234,14 @@ class Game {
     P.wanted = Math.min(5, P.wanted + n);
     P.wantCool = 0;
     if (P.wanted > old && P.wanted >= 2) {
+      sfxFor(P, 'busqueda');
       this.say('NIVEL DE BUSQUEDA ' + '*'.repeat(P.wanted), 2.6, P);
     }
   }
 
   wreckCar(car) {
     const P = driverOf(car);
+    sfx('explosion', car.x, car.y);
     boom(car.x, car.y, P ? 34 : 24, '255,150,40', 2);
     puff(car.x, car.y, '40,40,40', 10, 26);
     decal(car.x, car.y, P ? 14 : 12, 'rgba(10,10,10,.5)');
@@ -270,6 +274,7 @@ class Game {
   // Un balazo a un jugador: en el auto lo absorbe casi todo la chapa
   shootPlayer(P, dmg) {
     this.shakeFor(P, 1.6);
+    sfx('impacto', P.x, P.y);
     if (P.car) {
       P.car.hp -= dmg;
       this.hurtPlayer(P, (dmg * 2) / 7);
@@ -284,6 +289,7 @@ class Game {
     if (e.hp <= 0) return;
     e.hp -= dmg;
     boom(e.x, e.y, 7, '190,35,35');
+    sfx('impacto', e.x, e.y);
     if (e.kind === 'tranza') {
       if (e.villa.angry <= 0) this.say('SE PUDRIO TODO EN ' + e.villa.name, 3, by);
       e.villa.angry = 45;
@@ -357,6 +363,7 @@ class Game {
         t: 1.15,
         owner: P,
       });
+      sfx('granada', P.x, P.y);
     } else {
       for (let i = 0; i < W.pellets; i++) {
         const a = P.ang + rnd(-W.spread, W.spread);
@@ -372,6 +379,7 @@ class Game {
         });
       }
       P.muzzle = 1;
+      sfx(id, P.x, P.y);
       this.shakeFor(P, W.shake);
       boom(P.x + Math.cos(P.ang) * W.barrel, P.y + Math.sin(P.ang) * W.barrel, 3, '255,225,150');
     }
@@ -387,6 +395,7 @@ class Game {
   // Bastonazo: pega a todo lo que esté adelante y lo empuja
   swing(P, W) {
     P.swing = 1;
+    sfx('swing', P.x, P.y);
     let hit = false;
     for (const e of this.targetsOf(P)) {
       const d = dist(e, P);
@@ -403,6 +412,7 @@ class Game {
       hit = true;
     }
     if (hit) {
+      sfx('golpe', P.x, P.y);
       this.shakeFor(P, 2);
       if (P.wanted < 1) this.wantUp(P, 1);
     }
@@ -411,6 +421,7 @@ class Game {
   // by: el jugador que la provocó (granada, auto que revienta), o null
   explode(x, y, R, dmg, by = null) {
     const at = { x, y };
+    sfx('explosion', x, y);
     boom(x, y, 40, '255,150,40', 2.2);
     boom(x, y, 16, '255,230,160', 1.2);
     puff(x, y, '40,40,40', 12, 24);
@@ -495,6 +506,7 @@ class Game {
           if (uzi && Math.random() < 0.08) t.cool = rnd(0.8, 1.4); // pausa entre ráfagas
           const a = t.ang + rnd(-0.18, 0.18);
           t.muzzle = 1;
+          sfx(t.wpn === 'uzi' ? 'uzi' : 'pistola', t.x, t.y);
           G.bullets.push({
             x: t.x + Math.cos(a) * 9,
             y: t.y + Math.sin(a) * 9,
@@ -540,6 +552,7 @@ class Game {
       if (P.healT > HOSPITAL_TIME) {
         P.hp = P.maxhp;
         P.healing = 0;
+        sfxFor(P, 'hospital');
         this.say('LISTO. A LA CALLE.', 2.6, P);
       }
       return;
@@ -561,6 +574,7 @@ class Game {
         P.slowmo = PORRO_TIME;
         P.hp = Math.min(P.maxhp, P.hp + 15);
         puff(P.x, P.y - 6, '200,220,200', 6, 10);
+        sfxFor(P, 'porro');
         this.say('TE BAJASTE UN CAMBIO...', 2.2, P);
       } else if (P.porros <= 0) {
         this.say('NO TENES PORROS. BUSCA UN TRANZA', 1.8, P);
@@ -613,6 +627,7 @@ class Game {
           car.hp -= dmg;
           P.hp -= dmg * 0.5;
           boom(car.x, car.y, 8, '255,190,90');
+          sfx('choque', car.x, car.y, dmg);
           this.shakeFor(P, dmg * 0.5);
         }
         car.spd *= -0.25;
@@ -694,6 +709,7 @@ class Game {
           best.ai = false;
           best.chase = false; // un patrullero robado deja de perseguir
           P.car = best;
+          sfx('puerta', best.x, best.y);
           if (!best.cop) this.wantUp(P, 1);
           this.say(best.cop ? 'AUTO DE LA YUTA' : 'AUTO ROBADO', 2.6, P);
         }
@@ -753,6 +769,7 @@ class Game {
       if (hitBuilding(b.x, b.y, 1)) {
         b.life = 0;
         boom(b.x, b.y, 4, '220,220,200');
+        sfx('pared', b.x, b.y);
         continue;
       }
       if (b.owner) {
@@ -1254,6 +1271,7 @@ class Game {
           a.spd *= -0.3;
           b.spd *= -0.3;
           boom((a.x + b.x) / 2, (a.y + b.y) / 2, 10, '255,190,90');
+          sfx('choque', (a.x + b.x) / 2, (a.y + b.y) / 2, dmg);
           this.shakeAt((a.x + b.x) / 2, (a.y + b.y) / 2, Math.min(10, dmg * 0.5));
           const da = driverOf(a), db = driverOf(b);
           if (da) da.hp -= dmg * 0.5;
@@ -1309,6 +1327,7 @@ class Game {
         c.cool = rnd(0.7, 1.6) / (1 + P.wanted * 0.15);
         const a = c.ang + rnd(-0.16, 0.16);
         c.muzzle = 1;
+        sfx('pistola', c.x, c.y);
         G.bullets.push({
           x: c.x + Math.cos(a) * 9,
           y: c.y + Math.sin(a) * 9,
@@ -1351,6 +1370,7 @@ class Game {
           P.hp = Math.min(P.maxhp, P.hp + heal);
           this.say('+' + heal + ' VIDA (' + pk.food.toUpperCase() + ')', 2.6, P);
         }
+        sfxFor(P, { cash: 'guita', weapon: 'arma' }[pk.kind] || 'comida');
         const col = { cash: '120,220,120', hp: '230,90,90', weapon: '255,200,90' }[pk.kind];
         boom(pk.x, pk.y, 8, col);
         if (pk.drop) pk.gone = true;
@@ -1383,6 +1403,7 @@ class Game {
         P.hp = 0;
         this.exitCar(P);
         boom(P.x, P.y, 32, '170,30,30');
+        sfxFor(P, 'muerte');
         decal(P.x, P.y, 9, 'rgba(95,12,12,.55)');
         this.shakeFor(P, 10);
       }
