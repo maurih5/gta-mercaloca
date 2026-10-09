@@ -49,6 +49,28 @@ const RIVER_WOBBLE = 0.24;
 // Ancho base de la franja de arena que rodea todo el cauce (varia por tramo y se
 // hace un playon en la desembocadura)
 const BEACH_BAND = 30;
+// Agua del Riachuelo: paleta de la orilla (verdosa, baja) al centro (hondo), espuma
+// contra la costa, barro humedo y su ancho, y el color en el minimapa
+const WATER_PAL = ['#7ea68c', '#64947f', '#4f8079', '#426f72', '#385f68', '#2f505d'];
+const WATER_FOAM = '#c3d5c4';
+const WATER_MUD = '#6f6449';
+const WATER_MUD_W = 9;
+const WATER_MINI = '#3f6f73';
+// Lo que navega el rio: tipo, velocidad (px/s), sentido (1 = aguas abajo), fase
+// inicial (fraccion del largo) y carril (fraccion del medio ancho, a la derecha
+// de la marcha). La posicion es funcion de G.t: igual para todos los jugadores.
+const RIVER_BOATS = [
+  { k: 'barcaza', v: 9, dir: 1, ph: 0.08, lane: 0.22 },
+  { k: 'remolcador', v: 15, dir: -1, ph: 0.47, lane: 0.3 },
+  { k: 'lancha', v: 44, dir: 1, ph: 0.31, lane: 0.4 },
+  { k: 'lancha', v: 38, dir: -1, ph: 0.76, lane: 0.42 },
+  { k: 'bote', v: 6, dir: 1, ph: 0.62, lane: 0.5 },
+  { k: 'bote', v: 5, dir: -1, ph: 0.19, lane: 0.48 },
+  { k: 'remolcador', v: 13, dir: 1, ph: 0.88, lane: 0.18 },
+  { k: 'barcaza', v: 8, dir: -1, ph: 0.55, lane: 0.25 },
+];
+// Camalotes, basura y patos que van a la deriva con la corriente
+const RIVER_FLOATS = 70;
 
 // Puentes: cuantos hay en total (las dos avenidas y el resto en calles comunes)
 const BRIDGE_COUNT = 7;

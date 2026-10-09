@@ -41,6 +41,77 @@ function weaponIcon(g, id, x, y) {
   }
 }
 
+/* ---- Riachuelo: lo que se mueve sobre el agua ----
+   Todo es funcion de G.t (y de la curva del rio), sin estado: con varios jugadores
+   cada pantalla ve la misma lancha en el mismo lugar sin mandar nada por la red. */
+
+// Azar determinista en [0, 1) para el agua. hash() se degenera con numeros grandes
+// (pierde precision en los doubles), y aca las claves son indices de celda del mundo.
+const wrand = (n) => { const s = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return s - Math.floor(s); };
+// Punto del cauce a s px de la entrada norte: posicion, tangente (sentido de la corriente) y t
+function riverAt(s) {
+  const t = clamp(s / RIVER_LEN, 0, 1);
+  let lo = 0, hi = riverPts.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (riverPts[m].t <= t) lo = m; else hi = m; }
+  const a = riverPts[lo], b = riverPts[hi], u = b.t > a.t ? (t - a.t) / (b.t - a.t) : 0;
+  const tx = lerp(a.tx, b.tx, u), ty = lerp(a.ty, b.ty, u), l = Math.hypot(tx, ty) || 1;
+  return { x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u), tx: tx / l, ty: ty / l, t };
+}
+// Distancia a la orilla precisa: proyecta sobre los tramos de la curva vecinos e
+// interpola el ancho. shoreDist() sale de la grilla de 12px y alcanza para la colision,
+// pero en la desembocadura (donde el ancho cambia rapido) su costa queda serruchada.
+// La usan el horneado del agua (bakeGround) y la espuma: solo cerca de la orilla.
+function shoreDistFine(x, y) {
+  const t = shoreT(x, y);
+  let lo = 0, hi = riverPts.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (riverPts[m].t <= t) lo = m; else hi = m; }
+  let best = Infinity;
+  for (let i = Math.max(0, lo - 4), e = Math.min(riverPts.length - 1, lo + 5); i < e; i++) {
+    const a = riverPts[i], b = riverPts[i + 1], dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy;
+    const u = L2 > 0 ? clamp(((x - a.x) * dx + (y - a.y) * dy) / L2, 0, 1) : 0;
+    const d = Math.hypot(x - a.x - dx * u, y - a.y - dy * u) - riverWidthAt(a.t + (b.t - a.t) * u);
+    if (d < best) best = d;
+  }
+  return best;
+}
+// Algo que navega a s px, corrido 'lane' medio anchos a la derecha de su marcha
+function riverSpot(s, lane, dir) {
+  const p = riverAt(s), r = riverWidthAt(p.t) * lane, hx = p.tx * dir, hy = p.ty * dir;
+  return { x: p.x - hy * r, y: p.y + hx * r, ang: Math.atan2(hy, hx), t: p.t };
+}
+// Medidas del casco (largo L, manga W) de cada tipo de embarcacion
+const BOAT_DIM = { lancha: { L: 18, W: 7 }, bote: { L: 12, W: 5 }, remolcador: { L: 24, W: 10 }, barcaza: { L: 50, W: 17 } };
+const wrapS = (s) => ((s % RIVER_LEN) + RIVER_LEN) % RIVER_LEN;
+// Las embarcaciones en el instante 'time': entran por un borde del mapa y salen por el otro
+function boatsAt(time) {
+  return RIVER_BOATS.map((b, i) => {
+    const s = wrapS(b.ph * RIVER_LEN + b.dir * b.v * time), p = riverSpot(s, b.lane, b.dir);
+    return { i, k: b.k, x: p.x, y: p.y, ang: p.ang, s, dir: b.dir, lane: b.lane, v: b.v };
+  });
+}
+// Camalotes, basura y patos a la deriva (los patos remontan despacito)
+function floatsAt(time) {
+  const out = [];
+  for (let i = 0; i < RIVER_FLOATS; i++) {
+    const h0 = wrand(i * 3 + 0.1), h1 = wrand(i * 3 + 1.1), h2 = wrand(i * 3 + 2.1) * 2 - 1;
+    const k = h1 < 0.55 ? 'camalote' : h1 < 0.8 ? 'basura' : 'pato';
+    const dir = k === 'pato' && h0 < 0.6 ? -1 : 1, v = k === 'pato' ? 4 + h1 * 3 : 7 + h1 * 6;
+    const s = wrapS(h0 * RIVER_LEN + dir * v * time);
+    const p = riverSpot(s, h2 * 0.7 + Math.sin(time * 0.3 + i) * 0.04, dir);
+    out.push({ i, k, x: p.x, y: p.y, ang: p.ang, h: h1 });
+  }
+  return out;
+}
+// Sentido de la corriente segun t, tabulado (lo pide cada celda de agua en cada frame)
+let FLOW = null;
+function flowAt(t) {
+  if (!FLOW) {
+    FLOW = [];
+    for (let k = 0; k <= 256; k++) { const p = riverAt(k / 256 * RIVER_LEN); FLOW.push([p.tx, p.ty]); }
+  }
+  return FLOW[clamp(Math.round(t * 256), 0, 256)];
+}
+
 class Renderer {
   constructor() {
     this.cv = (typeof document !== 'undefined') ? document.getElementById('cv') : null;
@@ -841,6 +912,253 @@ class Renderer {
     ctx.restore();
   }
 
+  // Recorta los tableros de los puentes: lo que va sobre el agua (olas, lanchas,
+  // estelas) pasa por debajo, porque el tablero esta horneado en GROUND.
+  clipBridges() {
+    const ctx = this.ctx;
+    ctx.beginPath();
+    ctx.rect(-20, -20, RW + 40, RH + 40);
+    for (const b of bridges) {
+      const c = b.line + b.w / 2, h = b.half + 2;
+      if (b.horiz) ctx.rect(b.a - G.cam.x, c - h - G.cam.y, b.b - b.a, h * 2);
+      else ctx.rect(c - h - G.cam.x, b.a - G.cam.y, h * 2, b.b - b.a);
+    }
+    ctx.clip('evenodd');
+  }
+
+  // Agua animada: recorre solo la grilla de 12px de la vista (~40x23 celdas).
+  // En la orilla, una linea de espuma que respira y corre a lo largo de la costa;
+  // adentro, destellos y vetas que viajan en el sentido de la corriente.
+  drawWater() {
+    const ctx = this.ctx, C = WATER_CELL, cx = G.cam.x, cy = G.cam.y;
+    if (shoreDist(cx + RW / 2, cy + RH / 2) > RW * 0.6) return; // el rio no esta en pantalla
+    const night = darkness();
+    const i0 = Math.floor(cx / C), j0 = Math.floor(cy / C);
+    const i1 = Math.floor((cx + RW) / C), j1 = Math.floor((cy + RH) / C);
+    ctx.save();
+    this.clipBridges();
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const x = i * C + C / 2, y = j * C + C / 2, sd = shoreDist(x, y);
+        if (sd > 8) continue;
+        const t = shoreT(x, y);
+        if (sd > -16) {
+          // Espuma: se proyecta sobre una curva de nivel de la distancia a la costa que
+          // va y viene. Cada celda dibuja solo el pedazo de costa que cae adentro suyo.
+          const sf = shoreDistFine, fd = sf(x, y);
+          const gx = sf(x + 3, y) - sf(x - 3, y), gy = sf(x, y + 3) - sf(x, y - 3);
+          const l = Math.hypot(gx, gy) || 1, nx = gx / l, ny = gy / l;
+          const br = 0.5 + 0.5 * Math.sin(G.t * 1.3 - t * 110);
+          for (let w = 0; w < 2; w++) {
+            const tgt = w ? -7 - br * 5 : -1.5 - br * 3;
+            const qx = x - nx * (fd - tgt), qy = y - ny * (fd - tgt);
+            if (Math.floor(qx / C) !== i || Math.floor(qy / C) !== j) continue;
+            ctx.globalAlpha = w ? 0.22 * br : 0.3 + 0.4 * (1 - br);
+            ctx.fillStyle = WATER_FOAM;
+            for (let q = -6; q < 6; q += w ? 2 : 1) ctx.fillRect(px(qx - ny * q - cx), px(qy + nx * q - cy), 1, 1);
+          }
+        }
+        if (sd > -6 || !inWater(x, y)) continue;
+        const k = i * 0.7349 + j * 9.2821, kind = wrand(k);
+        if (kind > 0.45) continue;
+        const per = 2.2 + wrand(k + 1) * 2.6, ph = (G.t / per + wrand(k + 2)) % 1;
+        const life = (ph + 1) % 1;
+        if (life > 0.55) continue;
+        const a = Math.sin(life / 0.55 * Math.PI), f = flowAt(t);
+        const veta = kind > 0.3, drift = (life - 0.27) * (veta ? 22 : 12);
+        const gx = x + (wrand(k + 3) - 0.5) * 10 + f[0] * drift - cx, gy = y + (wrand(k + 4) - 0.5) * 10 + f[1] * drift - cy;
+        if (veta) {
+          // Veta de corriente: rayita de puntos a lo largo del flujo
+          ctx.globalAlpha = a * 0.2;
+          ctx.fillStyle = WATER_PAL[0];
+          for (let q = -4; q <= 4; q++) ctx.fillRect(px(gx + f[0] * q * 1.4), px(gy + f[1] * q * 1.4), 1, 1);
+        } else {
+          // Destello: rayita clara; de noche, mas tenue y calida (luces de la costa)
+          ctx.globalAlpha = a * (0.65 - night * 0.3);
+          ctx.fillStyle = night > 0.5 ? '#ffe2a8' : '#e6f2ea';
+          const hz = Math.abs(f[0]) > Math.abs(f[1]);
+          ctx.fillRect(px(gx - (hz ? 1 : 0)), px(gy - (hz ? 0 : 1)), hz ? 3 : 1, hz ? 1 : 3);
+          if (a > 0.85) ctx.fillRect(px(gx), px(gy), 1, 1);
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+    this.drawFloats();
+    this.drawBoats();
+    ctx.restore();
+  }
+
+  // Camalotes, basura y patos (dentro del recorte de los puentes)
+  drawFloats() {
+    const ctx = this.ctx;
+    for (const f of floatsAt(G.t)) {
+      const x = px(f.x - G.cam.x), y = px(f.y - G.cam.y);
+      if (x < -8 || y < -8 || x > RW + 8 || y > RH + 8) continue;
+      if (f.k === 'camalote') {
+        ctx.fillStyle = 'rgba(20,40,30,.3)';
+        ctx.fillRect(x - 2, y - 1, 7, 4);
+        ctx.fillStyle = '#4c7a2c';
+        ctx.fillRect(x - 3, y - 2, 6, 4);
+        ctx.fillRect(x - 1, y - 3, 3, 6);
+        ctx.fillStyle = '#76a43c';
+        ctx.fillRect(x - 2, y - 2, 2, 2);
+        ctx.fillRect(x + 1, y, 2, 1);
+        if (f.h < 0.25) { ctx.fillStyle = '#b994d6'; ctx.fillRect(x, y - 1, 1, 1); } // flor de camalote
+      } else if (f.k === 'basura') {
+        ctx.fillStyle = f.h < 0.65 ? '#dfe8e2' : f.h < 0.72 ? '#c0392b' : '#d8cfb4';
+        ctx.fillRect(x, y, f.h < 0.65 ? 3 : 2, f.h < 0.72 ? 1 : 2);
+      } else {
+        // Pato: cuerpo, cabeza verde hacia donde nada y una V chiquita detras
+        const hx = Math.round(Math.cos(f.ang) * 2), hy = Math.round(Math.sin(f.ang) * 2);
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = WATER_FOAM;
+        ctx.fillRect(x - hx * 2 - hy, y - hy * 2 + hx, 1, 1);
+        ctx.fillRect(x - hx * 2 + hy, y - hy * 2 - hx, 1, 1);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#7a5c3c';
+        ctx.fillRect(x - 1, y - 1, 3, 2);
+        ctx.fillStyle = '#2f6b3a';
+        ctx.fillRect(x + hx, y + hy - 1, 1, 1);
+        ctx.fillStyle = '#e0a030';
+        ctx.fillRect(x + hx + Math.sign(hx), y + hy - 1 + Math.sign(hy), 1, 1);
+      }
+    }
+  }
+
+  // Lanchas, botes, remolcadores y barcazas con su estela
+  drawBoats() {
+    const ctx = this.ctx;
+    for (const b of boatsAt(G.t)) {
+      const x = b.x - G.cam.x, y = b.y - G.cam.y, D = BOAT_DIM[b.k], L = D.L, W = D.W;
+      if (x < -90 || y < -90 || x > RW + 90 || y > RH + 90) continue;
+      // Estela: puntos de espuma en las posiciones por donde paso, abriendose en V
+      const fast = b.v > 30, n = b.k === 'bote' ? 5 : fast ? 16 : 11;
+      ctx.fillStyle = WATER_FOAM;
+      for (let k = 1; k <= n; k++) {
+        const p = riverSpot(b.s - b.dir * (L / 2 + k * (fast ? 4 : 3)), b.lane, b.dir);
+        const sx = p.x - G.cam.x, sy = p.y - G.cam.y, nx = -Math.sin(p.ang), ny = Math.cos(p.ang);
+        const spread = W / 2 + k * (fast ? 1.3 : 0.7), fade = 1 - k / (n + 1);
+        const wob = Math.sin(G.t * 6 + k * 1.7) * 0.6;
+        ctx.globalAlpha = fade * 0.6;
+        for (const sg of [-1, 1]) ctx.fillRect(px(sx + nx * (spread + wob) * sg), px(sy + ny * (spread + wob) * sg), 1, 1);
+        if (b.k !== 'bote' && k < n * 0.6) {
+          // Remolino de la helice en el medio
+          ctx.globalAlpha = fade * 0.45;
+          ctx.fillRect(px(sx + nx * wob * 2), px(sy + ny * wob * 2), 2, 1);
+        }
+      }
+      ctx.globalAlpha = 1;
+      // Bamboleo suave de la embarcacion
+      const ang = b.ang + Math.sin(G.t * 1.7 + b.i) * 0.02;
+      ctx.save();
+      ctx.translate(x + 2, y + 3);
+      ctx.rotate(ang);
+      ctx.fillStyle = 'rgba(10,25,30,.32)';
+      ctx.fillRect(-L / 2, -W / 2, L, W);
+      ctx.restore();
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(ang);
+      const hull = (col, l, w, bow) => {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.moveTo(-l / 2, -w / 2);
+        ctx.lineTo(l / 2 - bow, -w / 2);
+        ctx.lineTo(l / 2, 0);
+        ctx.lineTo(l / 2 - bow, w / 2);
+        ctx.lineTo(-l / 2, w / 2);
+        ctx.closePath();
+        ctx.fill();
+      };
+      if (b.k === 'lancha') {
+        hull('#b9b6ac', L, W, 6);
+        hull('#ecebe4', L - 2, W - 2, 5);
+        ctx.fillStyle = '#c8463c';
+        ctx.fillRect(-L / 2, -W / 2, L - 6, 1);
+        ctx.fillRect(-L / 2, W / 2 - 1, L - 6, 1);
+        ctx.fillStyle = '#3d5f78';
+        ctx.fillRect(0, -W / 2 + 1, 2, W - 2); // parabrisas
+        ctx.fillStyle = '#8a5a3a';
+        ctx.fillRect(-6, -2, 5, 4); // asientos
+        ctx.fillStyle = '#2b2b2e';
+        ctx.fillRect(-L / 2 - 1, -1, 2, 2); // motor fuera de borda
+      } else if (b.k === 'bote') {
+        hull('#5e3b20', L, W, 4);
+        hull('#a87445', L - 2, W - 2, 3);
+        ctx.fillStyle = '#5e3b20';
+        ctx.fillRect(-1, -W / 2, 2, W);
+        // Remos que van y vienen
+        const r = Math.sin(G.t * 3 + b.i) * 2;
+        ctx.fillStyle = '#c9a06a';
+        ctx.fillRect(-1 + r, -W / 2 - 3, 1, 3);
+        ctx.fillRect(-1 + r, W / 2, 1, 3);
+        ctx.fillStyle = '#d24a3a';
+        ctx.fillRect(-4, -1, 2, 2); // el remero
+      } else if (b.k === 'remolcador') {
+        hull('#26262a', L, W, 6);
+        hull('#a8382c', L - 3, W - 3, 5);
+        ctx.fillStyle = '#1b1b1e'; // gomas de defensa
+        for (const u of [-8, -2, 4]) { ctx.fillRect(u, -W / 2 - 1, 3, 1); ctx.fillRect(u, W / 2, 3, 1); }
+      } else {
+        hull('#4a2f1e', L, W, 5);
+        hull('#7a4a2c', L - 3, W - 3, 4);
+        ctx.fillStyle = '#5a3822';
+        ctx.fillRect(-L / 2 + 3, -W / 2 + 3, L - 10, W - 6);
+        // Carga: contenedores o arena, segun la barcaza
+        if (b.i % 2) {
+          const cols = ['#2f5f8f', '#a8382c', '#3f7a3a', '#c9a227'];
+          for (let u = 0; u < 4; u++) {
+            ctx.fillStyle = cols[(u + b.i) % 4];
+            ctx.fillRect(-L / 2 + 4 + u * 9, -W / 2 + 4, 8, W - 8);
+            ctx.fillStyle = 'rgba(0,0,0,.25)';
+            ctx.fillRect(-L / 2 + 4 + u * 9, -W / 2 + 4, 8, 1);
+          }
+        } else {
+          ctx.fillStyle = '#b8955a';
+          ctx.fillRect(-L / 2 + 5, -W / 2 + 4, L - 14, W - 8);
+          ctx.fillStyle = '#d4b47a';
+          ctx.fillRect(-L / 2 + 9, -2, L - 22, 3);
+        }
+      }
+      ctx.restore();
+      // Cabina del remolcador, elevada como la carroceria de los autos
+      if (b.k === 'remolcador') {
+        const H = 8, dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL;
+        ctx.save();
+        ctx.translate(x + dx, y + dy);
+        ctx.rotate(ang);
+        ctx.fillStyle = '#dcd6c8';
+        ctx.fillRect(-5, -3.5, 9, 7);
+        ctx.fillStyle = '#3d5f78';
+        ctx.fillRect(2, -3, 2, 6);
+        ctx.fillStyle = '#1b1b1e'; // chimenea con franja
+        ctx.fillRect(-9, -1.5, 3, 3);
+        ctx.fillStyle = '#c9a227';
+        ctx.fillRect(-8, -1.5, 1, 3);
+        ctx.restore();
+      }
+    }
+  }
+
+  // Luces de navegacion de noche: blanca a proa, roja a babor y verde a estribor
+  drawBoatLights(k) {
+    let any = false;
+    for (const b of boatsAt(G.t)) {
+      const x = b.x - G.cam.x, y = b.y - G.cam.y;
+      if (x < -40 || y < -40 || x > RW + 40 || y > RH + 40 || inBridgeCorridor(b.x, b.y)) continue;
+      const D = BOAT_DIM[b.k], c = Math.cos(b.ang), s = Math.sin(b.ang);
+      const at = (u, v) => [x + c * u - s * v, y + s * u + c * v];
+      for (const [u, v, r, gg, bb, sz] of [[D.L / 2 - 2, 0, 255, 240, 200, 18], [-D.L / 4, -D.W / 2, 255, 60, 50, 12], [-D.L / 4, D.W / 2, 60, 230, 90, 12]]) {
+        const [lx, ly] = at(u, v);
+        ECTX.globalAlpha = 0.8 * k;
+        ECTX.drawImage(this.glow(r, gg, bb, sz), lx - sz / 2, ly - sz / 2);
+      }
+      any = true;
+    }
+    ECTX.globalAlpha = 1;
+    return any;
+  }
+
   drawLights(night) {
     if (!LIGHT || !EMIT) return;
     const ctx = this.ctx;
@@ -994,6 +1312,7 @@ class Renderer {
       ECTX.drawImage(this.glow(255, 150, 50, gsz), x - gsz / 2, y - gsz / 2);
       any = true;
     }
+    if (night > 0.18 && this.drawBoatLights(k)) any = true; // luces de las lanchas
 
     ECTX.globalAlpha = 1;
     if (any) {
@@ -1249,6 +1568,7 @@ class Renderer {
       ctx.translate(px(Math.cos(a) * m), px(Math.sin(a) * m));
     }
     this.drawGround();
+    this.drawWater(); // olas, espuma, camalotes y lanchas del Riachuelo
 
     for (const pk of G.pickups) this.drawPickup(pk);
 

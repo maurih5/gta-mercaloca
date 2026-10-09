@@ -1027,23 +1027,72 @@ class World {
         for (let k = 2; k < h2 - 1; k += 4) g.fillRect(x, y + k, w2, 1);
       }
     }
-    g.fillStyle = '#8a7f60'; // barro humedo pegado al agua
-    for (const w2 of this.river) {
-      g.beginPath();
-      g.arc(w2.x, w2.y, w2.r + 4, 0, TAU);
-      g.fill();
-    }
-    g.fillStyle = '#3f7ea6';
-    for (const w2 of this.river) {
-      g.beginPath();
-      g.arc(w2.x, w2.y, w2.r, 0, TAU);
-      g.fill();
-    }
-    g.fillStyle = 'rgba(255,255,255,.12)'; // reflejos, solo donde realmente hay agua
-    for (let i = 0; i < 900; i++) {
-      const x = rnd(0, WORLD), y = rnd(0, WORLD);
-      if (!inWater(x, y)) continue;
-      g.fillRect(x, y, rnd(6, 16), 2);
+    // Agua horneada pixel a pixel con la distancia a la orilla (shoreDist, interpolada
+    // de la grilla de 12px, asi la costa sale curva y no escalonada ni como cadena de
+    // circulos; pegado a la costa se afina con shoreDistFine): barro humedo que oscurece la arena pegada al agua, una linea de espuma,
+    // y adentro bandas de profundidad (orilla verdosa, centro hondo) mezcladas con un
+    // dithering ordenado de 4x4 para que se lea pixel-art. Las vetas siguen la costa,
+    // que es como corre la corriente. Se procesa por tiles y solo los que tocan el rio.
+    {
+      const hex = (c) => { const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+      const PAL = WATER_PAL.map(hex), FOAM = hex(WATER_FOAM), MUD = hex(WATER_MUD);
+      const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+      const T = 240, M = WATER_MUD_W, wc = (t) => riverWidthAt(t);
+      let done = false;
+      try {
+        for (let ty = 0; ty < WORLD; ty += T) {
+          for (let tx = 0; tx < WORLD; tx += T) {
+            const w = Math.min(T, WORLD - tx), h = Math.min(T, WORLD - ty);
+            // El tile se procesa solo si alguna celda de la mascara cae cerca del agua
+            let near = false;
+            for (let y = ty; y <= ty + h && !near; y += WATER_CELL) {
+              for (let x = tx; x <= tx + w; x += WATER_CELL) if (shoreDist(x, y) < M + WATER_CELL) { near = true; break; }
+            }
+            if (!near) continue;
+            const img = g.getImageData(tx, ty, w, h), d = img && img.data;
+            if (!d) continue;
+            for (let y = 0; y < h; y++) {
+              const wy = ty + y + 0.5;
+              for (let x = 0; x < w; x++) {
+                const wx = tx + x + 0.5;
+                let sd = shoreDist(wx, wy);
+                if (sd > -8 && sd < M + 5) sd = shoreDistFine(wx, wy); // la costa, sin serrucho
+                if (sd >= M) continue;
+                const o = (y * w + x) * 4, b = (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16;
+                if (sd >= 0) {
+                  // Barro humedo: mas oscuro cuanto mas pegado al agua, en escalones
+                  const a = Math.floor((1 - sd / M) * 3 + b) / 3 * 0.8;
+                  for (let c = 0; c < 3; c++) d[o + c] = d[o + c] + (MUD[c] - d[o + c]) * a;
+                  continue;
+                }
+                let col;
+                if (sd > -1.6 || (sd > -3.2 && b < 0.5)) col = FOAM; // espuma contra la orilla
+                else {
+                  const r = wc(shoreT(wx, wy));
+                  const dep = Math.min(1, -sd / (r * 0.85));
+                  // Ruido grueso (manchas) + vetas paralelas a la costa
+                  const n = Math.sin(wx * 0.021 + Math.sin(wy * 0.013) * 2.1) * Math.sin(wy * 0.017 - wx * 0.007);
+                  const veta = Math.sin(sd * 0.55 + n * 3) * Math.sin(wx * 0.004 + wy * 0.006);
+                  const lv = Math.sqrt(dep) * (PAL.length - 1) + n * 0.45 + veta * 0.3;
+                  col = PAL[clamp(Math.floor(lv + b - 0.5), 0, PAL.length - 1)];
+                }
+                d[o] = col[0]; d[o + 1] = col[1]; d[o + 2] = col[2]; d[o + 3] = 255;
+              }
+            }
+            g.putImageData(img, tx, ty);
+          }
+        }
+        done = true;
+      } catch (e) { done = false; }
+      if (!done) {
+        // Sin acceso a los pixeles (no deberia pasar): el agua plana de antes
+        g.fillStyle = WATER_PAL[2];
+        for (const w2 of this.river) {
+          g.beginPath();
+          g.arc(w2.x, w2.y, w2.r, 0, TAU);
+          g.fill();
+        }
+      }
     }
 
     // Puentes: donde la calle cruza el cauce va deck de asfalto con baranda, de costa a
@@ -1279,7 +1328,7 @@ class World {
       m.fillStyle = b.villa ? '#8a6e50' : '#6c6c62';
       m.fillRect(b.x * k, b.y * k, Math.max(1, b.w * k), Math.max(1, b.h * k));
     }
-    m.fillStyle = '#3f7ea6';
+    m.fillStyle = WATER_MINI;
     for (const w2 of this.water) {
       m.beginPath();
       m.arc(w2.x * k, w2.y * k, Math.max(1, w2.r * k), 0, TAU);

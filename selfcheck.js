@@ -28,6 +28,7 @@ global.innerWidth = 1920; global.innerHeight = 1080;
 
 const api = new Function(js + `
 ;return {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
+         boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
          startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
          PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
          lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
@@ -37,6 +38,7 @@ const api = new Function(js + `
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
          inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
+       boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
        lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
@@ -351,6 +353,43 @@ describe('riachuelo y monumentos', () => {
       sawBand = true;
     }
     assert.ok(sawBand, 'la diagonal tiene longitud positiva');
+  });
+
+  test('las lanchas y lo que flota van siempre por el agua', () => {
+    // A lo largo de un dia entero (y mas), el casco entero de cada embarcacion tiene que
+    // caer adentro del cauce: bajo un puente pasa por debajo (shoreDist sigue < 0 ahi),
+    // nunca por arriba de la arena ni de la costa.
+    let pasoBajoPuente = false;
+    for (let t = 0; t < DAY * 2; t += 0.5) {
+      for (const b of boatsAt(t)) {
+        const D = BOAT_DIM[b.k], c = Math.cos(b.ang), s = Math.sin(b.ang);
+        assert.ok(Number.isFinite(b.x) && Number.isFinite(b.y) && Number.isFinite(b.ang), 'lancha con posicion valida');
+        for (const [u, v] of [[D.L / 2, 0], [D.L / 2 - 4, -D.W / 2], [D.L / 2 - 4, D.W / 2], [-D.L / 2, -D.W / 2], [-D.L / 2, D.W / 2]]) {
+          const x = b.x + c * u - s * v, y = b.y + s * u + c * v;
+          if (x < 0 || y < 0 || x > WORLD || y > WORLD) continue; // entrando o saliendo del mapa
+          assert.ok(shoreDist(x, y) < -1, b.k + ' encallada en ' + JSON.stringify({ t, x, y, sd: shoreDist(x, y) }));
+        }
+        if (bridgeAt(b.x, b.y)) pasoBajoPuente = true;
+      }
+      if (t % 5 === 0) {
+        for (const f of floatsAt(t)) {
+          if (f.x < 0 || f.y < 0 || f.x > WORLD || f.y > WORLD) continue;
+          assert.ok(shoreDist(f.x, f.y) < -2, f.k + ' varado en la orilla ' + JSON.stringify({ t, x: f.x, y: f.y }));
+        }
+      }
+    }
+    assert.ok(pasoBajoPuente, 'en un dia alguna lancha tiene que pasar por debajo de un puente');
+    // Las posiciones dependen solo del tiempo: cualquier pantalla ve lo mismo
+    assert.deepStrictEqual(boatsAt(123.4), boatsAt(123.4));
+    assert.ok(RIVER_BOATS.every(b => BOAT_DIM[b.k]), 'cada embarcacion tiene sus medidas');
+    // El agua animada se dibuja (con stubs) parada arriba del rio, de dia y de noche
+    startGame(CREW[0]);
+    const w = water[(water.length / 2) | 0];
+    for (const t of [0, DAY * 0.5, DAY * 0.8]) {
+      G.t = t;
+      G.cam.x = w.x - 240; G.cam.y = w.y - 135;
+      render();
+    }
   });
 });
 
