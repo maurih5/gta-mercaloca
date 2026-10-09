@@ -132,6 +132,9 @@ async function boot() {
     G.faces['tranza' + i] = c3;
   });
 
+  // Caras de los famosos, dibujadas a mano según su look (pelo, barba, sonrisa)
+  for (const f of FAMOUS) G.faces['famous-' + f.id] = famousFace(f.look);
+
   // Generar cara pixel art del policía
   const cop = document.createElement('canvas');
   cop.width = cop.height = 12;

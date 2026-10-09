@@ -126,6 +126,31 @@ const HOSPITAL_TIME = 3.2;
 const FOOD_HEAL = { pernil: 45, choripan: 30, mate: 15 };
 const FOODS = Object.keys(FOOD_HEAL);
 
+// Famosos: NPCs con nombre (parodias) que aparecen cada tanto cerca de algún jugador,
+// pasean un rato y se van. Cada uno tiene su cara (look), sus frases y lo que suelta.
+//  near: lo que dice cuando un jugador se le acerca; hurt: cuando le pegan
+//  immortal: no se lo puede bajar; drop: lo que suelta al caer; stripes: rayas de la camiseta
+const FAMOUS = [
+  {
+    id: 'listorti', name: 'JOSE MARIA LISTORTO', immortal: true, hp: 30,
+    shirt: '#2b2f3a', pants: '#1a1a1f', spd: 26,
+    look: { skin: '#e2b896', hair: '#2a1d12', hairStyle: 'corto', smile: true },
+    near: ['¿QUE HACES, CAPO?', 'JA JA JA JA', 'MIRA LA CAMARA, SALUDA'],
+    hurt: ['OOOOOOOOOOH!', 'OOOOOOOOOOOH!', 'OOOOOOOOOOH! JA JA'],
+  },
+  {
+    id: 'messi', name: 'LIONEL MESSIAS', hp: 60,
+    shirt: '#75aadb', pants: '#1a1a1a', stripes: '#ffffff', spd: 34,
+    look: { skin: '#d9a87f', hair: '#4a2f1c', hairStyle: 'corto', beard: '#4a2f1c' },
+    near: ['¿QUE MIRAS, BOBO?', 'ANDA PA ALLA, BOBO', 'ANDA PA ALLA'],
+    hurt: ['¿QUE MIRAS, BOBO?', 'BOBO!'],
+    drop: { kind: 'gold', n: 5, value: 400 },
+  },
+];
+const FAMOUS_EVERY = [40, 80];          // cada cuánto (s, al azar) puede aparecer uno cerca de cada jugador
+const FAMOUS_LIFE = 150;                // segundos que pasea antes de irse (cuando nadie lo ve)
+const FAMOUS_TALK = 34;                 // distancia a la que te habla
+
 // Poblacion viva y radios de simulacion
 const SIM_R = 560;                       // radio de simulacion
 const PED_TARGET = 58, CAR_TARGET = 46;  // poblacion viva alrededor del jugador

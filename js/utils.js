@@ -115,3 +115,41 @@ function pixelFace(img, crop, size) {
   g.putImageData(d, 0, 0);
   return c;
 }
+
+/**
+ * Cara de un famoso en pixel art, a partir de su look: piel, pelo, barba y sonrisa.
+ * Se dibuja en la grilla de 12 de la cabeza, con el doble de definición (RENDER_SCALE).
+ */
+function famousFace(look) {
+  const c = document.createElement('canvas');
+  c.width = c.height = FACE_PX;
+  const g = c.getContext('2d');
+  g.scale(FACE_PX / 12, FACE_PX / 12);
+  const r = (col, x, y, w, h) => {
+    g.fillStyle = col;
+    g.fillRect(x, y, w, h);
+  };
+  r('#14100c', 0, 0, 12, 12);
+  r(look.skin, 1.5, 2.5, 9, 9);
+  r(shade(look.skin, 0.85), 1.5, 9.5, 9, 2); // sombra del mentón
+  r(look.hair, 1, 0.5, 10, 3); // pelo
+  r(look.hair, 1, 2.5, 1.5, 3); // patillas
+  r(look.hair, 9.5, 2.5, 1.5, 3);
+  if (look.beard) {
+    r(look.beard, 1.5, 7, 9, 4.5);
+    r(look.skin, 4, 7.5, 4, 1.5); // labios a la vista
+  }
+  r('#ffffff', 3, 5, 2, 1.5); // ojos
+  r('#ffffff', 7, 5, 2, 1.5);
+  r('#1a1a1a', 3.7, 5, 1, 1.5);
+  r('#1a1a1a', 7.7, 5, 1, 1.5);
+  r(shade(look.hair, 0.9), 2.8, 4.2, 2.4, 0.6); // cejas
+  r(shade(look.hair, 0.9), 6.8, 4.2, 2.4, 0.6);
+  if (look.smile) {
+    r('#5a1a14', 3.5, 8.3, 5, 1.6); // boca abierta, carcajada
+    r('#ffffff', 3.8, 8.3, 4.4, 0.6);
+  } else {
+    r(shade(look.skin, 0.6), 4.5, 8.6, 3, 0.7);
+  }
+  return c;
+}

@@ -14,6 +14,7 @@ const ctxStub = new Proxy({}, {get:(t,k)=>{
   if(k === 'canvas') return {};
   if(k === 'createLinearGradient' || k === 'createRadialGradient') return () => ({addColorStop:noop});
   if(k === 'getImageData') return (x,y,w,h) => ({data:new Uint8ClampedArray(w*h*4)});
+  if(k === 'measureText') return t => ({width: String(t).length * 6});
   return typeof t[k] === 'undefined' ? noop : t[k];
 }, set:()=>true});
 const el = () => new Proxy({style:{}, classList:{toggle:noop,add:noop,remove:noop},
@@ -36,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -46,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -1155,6 +1156,74 @@ describe('multijugador', () => {
     game.exitCar(G.me);
     radio.update();
     assert.equal(radio.station, -1, 'al bajar se apaga');
+  });
+
+  test('los famosos aparecen cerca de un jugador sin que el otro los vea aparecer', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    lejos(P2, SIM_R * 2);
+    for (let f = 0; f < 5; f++) update(1/60);
+    G.peds = G.peds.filter(p => !p.famous);
+    G.me.famousT = 0; P2.famousT = 999;
+    for (let f = 0; f < 240 && !G.peds.some(p => p.famous); f++) { G.me.famousT = Math.min(G.me.famousT, 0); update(1/60); }
+    const fam = G.peds.find(p => p.famous);
+    assert.ok(fam, 'aparecio un famoso');
+    assert.ok(dist(fam, G.me) < SIM_R, 'cerca del jugador que le toco');
+    assert.ok(dist(fam, P2) > OFFSCREEN, 'fuera de la pantalla del otro');
+    // Uno solo de cada uno en todo el mapa
+    P2.famousT = 0;
+    for (let f = 0; f < 600; f++) { P2.famousT = Math.min(P2.famousT, 0); update(1/60); }
+    const ids = G.peds.filter(p => p.famous && p.hp > 0).map(p => p.famous.id);
+    assert.equal(new Set(ids).size, ids.length, 'no hay dos del mismo famoso: ' + ids);
+  });
+
+  test('el famoso inmortal acusa los tiros y no cae; el otro suelta balones de oro', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    for (let f = 0; f < 5; f++) update(1/60);
+    G.peds = []; G.cops = [];
+    const L = makeFamous(FAMOUS.find(f => f.immortal), G.me.x + 120, G.me.y);
+    G.peds.push(L);
+    for (let i = 0; i < 10; i++) game.hurt(L, 50, P2);
+    game.explode(L.x, L.y, 40, 200, P2);
+    assert.ok(L.hp > 0, 'no se lo puede bajar');
+    assert.ok(L.lineT > 0 && L.famous.hurt.includes(L.line), 'dice su frase: ' + L.line);
+
+    const M = makeFamous(FAMOUS.find(f => f.drop), G.me.x + 40, G.me.y);
+    G.peds.push(M);
+    const pk0 = G.pickups.length;
+    game.hurt(M, 999, P2);
+    const golds = G.pickups.slice(pk0).filter(pk => pk.kind === 'gold');
+    assert.equal(golds.length, M.famous.drop.n, 'suelta sus balones de oro');
+    // Se dibujan de dia y de noche, con los carteles de los famosos
+    for (const h of [0.5, 0]) { G.t = h * DAY; L.lineT = 1; render(); }
+    assert.ok(P2.wanted > 0, 'la busqueda es del que lo bajo');
+    // Los balones los levanta cualquiera: el local pasa por encima de uno
+    const m0 = G.me.money;
+    G.me.x = golds[0].x; G.me.y = golds[0].y;
+    update(1/60);
+    const got = G.me.money - m0;
+    assert.ok(got >= M.famous.drop.value && got % M.famous.drop.value === 0, 'cada balon vale guita: ' + got);
+  });
+
+  test('los famosos hablan al que se acerca y se van cuando nadie los ve', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    lejos(P2, SIM_R * 2);
+    for (let f = 0; f < 5; f++) update(1/60);
+    G.peds = []; G.cops = [];
+    const F = makeFamous(FAMOUS[0], P2.x + FAMOUS_TALK * 0.5, P2.y);
+    F.sped = 0;
+    G.peds.push(F);
+    update(1/60);
+    assert.ok(F.lineT > 0 && F.famous.near.includes(F.line), 'le habla al que se acerco (el remoto)');
+    F.life = 0;
+    update(1/60);
+    assert.ok(G.peds.includes(F), 'con un jugador mirando no se va');
+    F.x = G.me.x + SIM_R * 0.9; F.y = G.me.y;
+    P2.x = G.me.x; P2.y = G.me.y;
+    update(1/60);
+    assert.ok(!G.peds.includes(F), 'ya paseo y nadie lo ve: se va');
   });
 
   test('con otros jugando, morir reaparece solo al muerto', () => {

@@ -1177,6 +1177,18 @@ class Renderer {
       ctx.scale(0.7, 0.7);
       weaponIcon(ctx, pk.w, 0, 0);
       ctx.restore();
+    } else if (pk.kind === 'gold') {
+      // Balón de oro: pelota dorada con brillo
+      ctx.fillStyle = '#a8790f';
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#f2c63a';
+      ctx.beginPath();
+      ctx.arc(x - 0.5, y - 0.5, 3.2, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#fff6c8';
+      ctx.fillRect(px(x - 2), px(y - 2), 1.5, 1.5);
     } else if (pk.kind === 'cash') {
       ctx.fillStyle = '#1f5c23';
       ctx.fillRect(px(x - 5), px(y - 4), 10, 7);
@@ -1241,6 +1253,12 @@ class Renderer {
     ctx.fillRect(-4, -4.2, 6.8, 8.5);
     ctx.fillStyle = 'rgba(255,255,255,.13)';
     ctx.fillRect(-4, -4.2, 6.8, 2);
+    if (e.famous && e.famous.stripes) {
+      // Camiseta a rayas (vistas desde arriba, cruzan el torso de hombro a hombro)
+      ctx.fillStyle = e.famous.stripes;
+      ctx.fillRect(-4, -2.2, 6.8, 1.1);
+      ctx.fillRect(-4, 1.1, 6.8, 1.1);
+    }
     ctx.fillStyle = '#c49a72'; // Brazos
     ctx.fillRect(2, -5.5, 3, 2.6);
     ctx.fillRect(2, 3, 3, 2.6);
@@ -1808,7 +1826,7 @@ class Renderer {
       if (x < -40 || y < -40 || x > RW + 40 || y > RH + 40) continue;
       const gsz = 38;
       ECTX.globalAlpha = (0.30 + Math.sin(pk.t * 3) * 0.14) * Math.max(k, 0.5);
-      const gc = { cash: [110, 255, 120], hp: [255, 110, 110], weapon: [255, 200, 80] }[pk.kind];
+      const gc = { cash: [110, 255, 120], gold: [255, 215, 70], hp: [255, 110, 110], weapon: [255, 200, 80] }[pk.kind] || [255, 255, 255];
       ECTX.drawImage(this.glow(gc[0], gc[1], gc[2], gsz), x - gsz / 2, y - gsz / 2);
       any = true;
     }
@@ -1947,6 +1965,33 @@ class Renderer {
     ctx.fillText(t, x + 2, y + 2);
     ctx.fillStyle = col;
     ctx.fillText(t, x, y);
+  }
+
+  // Nombre arriba de cada famoso y, si está hablando, su globito
+  drawFamousTags() {
+    const ctx = this.ctx;
+    for (const p of G.peds) {
+      if (!p.famous || p.hp <= 0 || p.inside) continue;
+      const x = p.x - G.cam.x, y = p.y - G.cam.y - 16;
+      if (x < -60 || y < -30 || x > RW + 60 || y > RH + 30) continue;
+      this.text(p.famous.name, px(x), px(y), '#ffd34a', 4, 'center');
+      if (p.lineT > 0) {
+        ctx.font = '5px "Press Start 2P", monospace';
+        const w = ctx.measureText(p.line).width + 6, by = y - 14;
+        ctx.globalAlpha = Math.min(1, p.lineT * 3);
+        ctx.fillStyle = 'rgba(250,250,245,.95)';
+        ctx.fillRect(px(x - w / 2), px(by), w, 9);
+        ctx.beginPath();
+        ctx.moveTo(x - 2.5, by + 9);
+        ctx.lineTo(x + 2.5, by + 9);
+        ctx.lineTo(x, by + 12);
+        ctx.fill();
+        ctx.fillStyle = '#141414';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.line, x, by + 7);
+        ctx.globalAlpha = 1;
+      }
+    }
   }
 
   // El HUD es del jugador local (G.me): su guita, su búsqueda, su arresto
@@ -2185,6 +2230,7 @@ class Renderer {
     ctx.globalAlpha = 1;
 
     this.drawLights(night);
+    this.drawFamousTags();
     ctx.restore();
 
     // Porro: gradiente verde que respira mientras dura la cámara lenta
