@@ -567,7 +567,7 @@ describe('dia y noche', () => {
 });
 
 describe('simulacion', () => {
-  let movingAcc = 0, movingN = 0;   // fraccion de autos andando en los ultimos 10s
+  let movingAcc = 0, flowAcc = 0, movingN = 0;   // fraccion de autos andando (y andando o esperando) en los ultimos 10s
 
   test('arranca la partida con autos, peatones y guardias', () => {
     startGame(CREW[0]);
@@ -603,11 +603,12 @@ describe('simulacion', () => {
     // (los autos tocan bocina y esperan, como corresponde) y eso no es transito de la ciudad.
     // Donde no molesta a nadie: a mitad de cuadra (en la esquina los que doblan pasan rozandolo),
     // contra la cuadra (el carril va pegado al cordon y un auto ancho lo toca si esta del lado
-    // de la calle) y lejos del borde del mapa (en las esquinas del mapa todo el transito dobla
-    // en la misma bocacalle y se arma fila sin que el jugador tenga nada que ver).
+    // de la calle) y con todo el radio de simulacion adentro del mapa: cerca del borde los
+    // autos se reparten en menos calles (en las esquinas todo el transito dobla en la misma
+    // bocacalle) y se arma fila sin que el jugador tenga nada que ver.
     // Con un spawn al azar en cualquiera de esos lugares este test fallaba de vez en cuando.
     {
-      const P = G.me, BORDE = 2 * CELL;
+      const P = G.me, BORDE = SIM_R * 1.5;
       const ancho = (i, eje) => (i === eje ? AVENUE_ROAD : ROAD);
       const ci = Math.floor(P.x / CELL), cj = Math.floor(P.y / CELL);
       let best = null, bd = Infinity;
@@ -639,7 +640,11 @@ describe('simulacion', () => {
       // a proposito; la persecucion se prueba aparte ('los patrulleros persiguen...').
       if(f >= 3000){                                // ultimos 10s: fraccion de autos andando, frame a frame
         const tr = G.cars.filter(c => c.ai && c.hp > 0);
-        if(tr.length){ movingAcc += tr.filter(c => Math.abs(c.spd) > 12).length / tr.length; movingN++; }
+        if(tr.length){
+          movingAcc += tr.filter(c => Math.abs(c.spd) > 12).length / tr.length;
+          flowAcc += tr.filter(c => Math.abs(c.spd) > 12 || (c.waitLight||0) > 0 || c.queued).length / tr.length;
+          movingN++;
+        }
       }
     }
     assert.ok(G.fx.length < 4000 && G.smoke.length < 900, 'las particulas no se acumulan sin control');
@@ -716,10 +721,12 @@ describe('simulacion', () => {
     const jammed  = traffic.filter(c => c.stopT > 4).length;
     // parado en rojo es correcto; lo que no puede haber son autos trabados sin motivo
     assert.ok(jammed <= traffic.length*0.10, 'autos trabados sin motivo: ' + jammed);
-    assert.ok((moving + atRed) / traffic.length > 0.75,
-      'trafico muerto: ' + moving + ' en movimiento + ' + atRed + ' en rojo de ' + traffic.length);
     // Promedio de los ultimos 10s y no una foto de un solo frame: la foto depende de en que fase
-    // estaban los semaforos justo en ese instante y fallaba de vez en cuando aun con trafico sano.
+    // estaban los semaforos justo en ese instante y fallaba de vez en cuando aun con trafico sano
+    // (los que arrancan con el verde o le ceden el paso a un peaton no cuentan ni como andando
+    // ni como esperando, y en un frame llegaban a ser un tercio).
+    assert.ok(flowAcc / movingN > 0.75,
+      'trafico muerto: solo ' + Math.round(flowAcc / movingN * 100) + '% andando o esperando el rojo en los ultimos 10s');
     assert.ok(movingAcc / movingN > 0.45,
       'demasiados parados: solo ' + Math.round(movingAcc / movingN * 100) + '% circulando en los ultimos 10s');
     // regresion: al chocar una pared se reseteaban a la misma velocidad cada frame y
