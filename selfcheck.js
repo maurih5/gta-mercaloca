@@ -4,7 +4,7 @@
 const { describe, test } = require('node:test');
 const fs = require('fs'), assert = require('assert');
 const scriptFiles = [
-  'constants.js', 'utils.js', 'audio.js', 'songs.js', 'radio.js', 'input.js', 'world.js',
+  'constants.js', 'utils.js', 'audio.js', 'songs.js', 'instruments.js', 'radio.js', 'input.js', 'world.js',
   'entities.js', 'traffic.js', 'game.js', 'renderer.js', 'ui.js'
 ];
 let js = scriptFiles.map(f => fs.readFileSync(__dirname + '/js/' + f, 'utf8')).join('\n');
@@ -36,7 +36,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -46,7 +46,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS} = api;
 
 describe('helpers de color', () => {
   test('shade y mix componen colores validos', () => {
@@ -935,7 +935,8 @@ describe('radio', () => {
         if (!SONGS[id].tracks.some(t => t.notes)) assert.ok(c.len > 45, id + ': los temas escritos a mano tienen partes y duran mas de 45s (' + c.len.toFixed(0) + 's)');
         for (const n of c.notes) {
           assert.ok(n.t >= 0 && n.d > 0 && n.t + n.d <= c.len + 1e-6 && n.v > 0, id + ': nota fuera del tema');
-          assert.ok(n.inst === 'drums' ? 'ksgh'.includes(n.n) : n.n >= 24 && n.n <= 108, id + ': nota invalida ' + n.n);
+          assert.ok(n.inst === 'drums' ? !!DRUMS[n.n] : n.n >= 24 && n.n <= 108, id + ': nota invalida ' + n.n);
+          assert.ok(n.inst === 'drums' || INSTRUMENTS[n.inst] || ['square', 'triangle', 'sawtooth', 'sine'].includes(n.inst), id + ': instrumento desconocido ' + n.inst);
         }
         // Las pistas escritas a mano tienen que durar lo mismo, o el tema se desfasa al repetir
         const lens = SONGS[id].tracks.filter(t => t.seq).map(t => t.seq.trim().split(/\s+/).reduce((s, k) => s + parseFloat(k.split(':')[1]), 0));
@@ -960,7 +961,7 @@ describe('radio', () => {
     const buf = Buffer.from([...Buffer.from('MThd'), ...u32(6), 0, 0, 0, 1, 0, 96, ...Buffer.from('MTrk'), ...u32(ev.length), ...ev]);
     const song = toSong(parseMidi(buf));
     assert.equal(Math.round(song.bpm), 100);
-    const bass = song.tracks.find(t => t.inst === 'triangle'), drums = song.tracks.find(t => t.inst === 'drums');
+    const bass = song.tracks.find(t => t.inst === 'bass'), drums = song.tracks.find(t => t.inst === 'drums');
     assert.ok(bass && drums, 'una pista de bajo y una de bateria');
     assert.deepEqual(bass.notes[0].slice(0, 3), [0, 1, 45]);
     assert.deepEqual(drums.notes[0].slice(0, 3), [1, 0.25, 'k']);

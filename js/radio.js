@@ -11,8 +11,10 @@
 //  - grabado: un archivo de music/ ('mi-tema.ogg' o .mp3), que se reproduce tal cual.
 
 // Temas escritos a mano. Cada pista: instrumento, volumen y la secuencia de notas.
-// Instrumentos: square, triangle, sawtooth, sine, pad (colchón de sintes), y drums (k bombo, s redoblante,
-// h platillo, g güiro). "-:1" es un silencio de un tiempo.
+// Instrumentos: los de js/instruments.js (bass, synthbass, guitar, egtr, leadgtr, piano,
+// accordion, violin, lead, arp, pad), una onda pelada (square, triangle, sawtooth, sine), o
+// drums (letras de DRUMS: k bombo, s redoblante, h platillo, g güiro, b legüero, r aro...).
+// "-:1" es un silencio de un tiempo. Mezcla por pista: pan (-1 a 1), rev (reverb), echo (en tiempos).
 const bar = (s, n) => (s + ' ').repeat(n);
 const beatsOf = seq => seq.trim().split(/\s+/).reduce((s, k) => s + parseFloat(k.split(':')[1]), 0);
 
@@ -46,11 +48,11 @@ Object.assign(SONGS, {
     const keys = (cs, i) => voice(prog(cs), i, n => bar(`-:0.5 ${n}:0.5`, 4));
     const A = 'Am Am Dm Dm G G E E', B = 'F G Am Am F G E E';
     return arrange(96, {
-      guiro: { inst: 'drums', vol: 0.6 },
-      perc: { inst: 'drums', vol: 0.8 },
-      bass: { inst: 'triangle', vol: 0.8 },
-      k1: { inst: 'square', vol: 0.08 }, k2: { inst: 'square', vol: 0.08 }, k3: { inst: 'square', vol: 0.08 },
-      lead: { inst: 'square', vol: 0.32 },
+      guiro: { inst: 'drums', vol: 0.55, pan: 0.4 },
+      perc: { inst: 'drums', vol: 0.8, pan: -0.1 },
+      bass: { inst: 'bass', vol: 0.8, rev: 0 },
+      k1: { inst: 'piano', vol: 0.16, pan: -0.35 }, k2: { inst: 'piano', vol: 0.16, pan: -0.35 }, k3: { inst: 'piano', vol: 0.16, pan: -0.35 },
+      lead: { inst: 'accordion', vol: 0.5, pan: 0.15, rev: 0.2 },
     }, {
       intro: {
         guiro: bar('g:0.5 g:0.25 g:0.25', 16),
@@ -106,13 +108,13 @@ Object.assign(SONGS, {
     const eighths = notes => prog(notes).map(n => bar(n + ':0.5', 8)).join(' ');
     const beat = bar('k:0.5 h:0.5 s:0.5 h:0.5 k:0.5 k:0.5 s:0.5 h:0.5', 8);
     const power = { E: ['E3', 'B3'], G: ['G3', 'D4'], A: ['A3', 'E4'], C: ['C4', 'G4'], D: ['D4', 'A4'] };
-    const gtr = (cs, i) => prog(cs).map(c => bar(power[c][i] + ':1', 4)).join(' ');
+    const gtr = (cs, i) => prog(cs).map(c => bar(power[c][i] + ':0.5', 8)).join(' ');
     const V = 'E E G A E E C D', CH = 'A A C D E E C D';
     return arrange(140, {
-      drums: { inst: 'drums', vol: 0.7 },
-      bass: { inst: 'sawtooth', vol: 0.35 },
-      g1: { inst: 'sawtooth', vol: 0.1 }, g2: { inst: 'sawtooth', vol: 0.1 },
-      lead: { inst: 'square', vol: 0.3 },
+      drums: { inst: 'drums', vol: 0.8, rev: 0.1 },
+      bass: { inst: 'bass', vol: 0.75, rev: 0 },
+      g1: { inst: 'egtr', vol: 0.32, pan: -0.55 }, g2: { inst: 'egtr', vol: 0.32, pan: 0.55 },
+      lead: { inst: 'leadgtr', vol: 0.4, pan: 0.05, rev: 0.22, echo: 0.75 },
     }, {
       intro: {
         drums: bar('k:1 s:1 k:1 s:1', 2) + ' ' + bar('k:0.5 h:0.5 s:0.5 h:0.5 k:0.5 k:0.5 s:0.5 h:0.5', 2),
@@ -180,12 +182,12 @@ Object.assign(SONGS, {
     const V = 'Am F C G Am F C G', CH = 'F G Em Am F G Am Am';
     const drums = n => bar('k:1 s:1 k:0.5 k:0.5 s:1', n);
     return arrange(118, {
-      drums: { inst: 'drums', vol: 0.8 },
-      hats: { inst: 'drums', vol: 0.5 },
-      bass: { inst: 'sawtooth', vol: 0.4 },
-      arp: { inst: 'square', vol: 0.16 },
-      p0: { inst: 'pad', vol: 0.12 }, p1: { inst: 'pad', vol: 0.12 }, p2: { inst: 'pad', vol: 0.12 },
-      lead: { inst: 'square', vol: 0.3 },
+      drums: { inst: 'drums', vol: 0.85, rev: 0.3 },
+      hats: { inst: 'drums', vol: 0.5, pan: 0.3 },
+      bass: { inst: 'synthbass', vol: 0.55, rev: 0 },
+      arp: { inst: 'arp', vol: 0.3, pan: -0.3, echo: 0.75 },
+      p0: { inst: 'pad', vol: 0.17, pan: -0.4, rev: 0.35 }, p1: { inst: 'pad', vol: 0.17, rev: 0.35 }, p2: { inst: 'pad', vol: 0.17, pan: 0.4, rev: 0.35 },
+      lead: { inst: 'lead', vol: 0.42, pan: 0.1, rev: 0.25, echo: 0.75 },
     }, {
       intro: { arp: arp('Am F C G'), ...pads('Am F C G') },
       groove: { drums: drums(4), hats: bar('h:0.5', 32), bass: bass('Am F C G'), arp: arp('Am F C G'), ...pads('Am F C G') },
@@ -228,12 +230,12 @@ Object.assign(SONGS, {
     const ritmo = n => ({ kick: bar('k:1', 4 * n), snare: bar('-:0.5 s:0.5', 4 * n), guiro: bar('g:0.5 g:0.25 g:0.25', 4 * n) });
     const A = 'D A A D D Gd A D', B = 'Gd D A D Gd D A D';
     return arrange(124, {
-      kick: { inst: 'drums', vol: 0.7 },
-      snare: { inst: 'drums', vol: 0.45 },
-      guiro: { inst: 'drums', vol: 0.4 },
-      bass: { inst: 'triangle', vol: 0.8 },
-      k0: { inst: 'square', vol: 0.1 }, k1: { inst: 'square', vol: 0.1 }, k2: { inst: 'square', vol: 0.1 },
-      acc: { inst: 'sawtooth', vol: 0.22 },
+      kick: { inst: 'drums', vol: 0.75 },
+      snare: { inst: 'drums', vol: 0.4, pan: -0.15 },
+      guiro: { inst: 'drums', vol: 0.45, pan: 0.45 },
+      bass: { inst: 'bass', vol: 0.8, rev: 0 },
+      k0: { inst: 'piano', vol: 0.2, pan: -0.4 }, k1: { inst: 'piano', vol: 0.2, pan: -0.4 }, k2: { inst: 'piano', vol: 0.2, pan: -0.4 },
+      acc: { inst: 'accordion', vol: 0.5, pan: 0.2, rev: 0.18 },
     }, {
       intro: { kick: bar('k:1', 8), guiro: bar('g:0.5 g:0.25 g:0.25', 8), ...piano('D D') },
       a: {
@@ -276,7 +278,7 @@ Object.assign(SONGS, {
     const strums = { Am: 'A3 C4 E4 A4 E4 C4', E: 'E3 G#3 B3 E4 B3 G#3', Dm: 'D3 F3 A3 D4 A3 F3' };
     const strum = cs => prog(cs).map(c => strums[c].split(' ').map(n => n + ':1').join(' ')).join(' ');
     const bass = cs => prog(cs).map(c => bar(`${c[0]}2:3`, 2)).join(' ');
-    const bombo = n => bar('k:2 s:1 k:1 s:1 s:1', n);
+    const bombo = n => bar('b:2 r:1 b:1 r:1 r:1', n);
     const A = 'Am Am E E Am Am E Am', B = 'Dm Am E Am Dm Am E Am';
     const violinA = [
       'E5:2 D5:1 C5:2 B4:1',
@@ -289,10 +291,10 @@ Object.assign(SONGS, {
       'A4:6',
     ].join(' ');
     return arrange(300, {
-      bombo: { inst: 'drums', vol: 0.8 },
-      gtr: { inst: 'triangle', vol: 0.5 },
-      bass: { inst: 'triangle', vol: 0.7 },
-      violin: { inst: 'sawtooth', vol: 0.2 },
+      bombo: { inst: 'drums', vol: 1.1, rev: 0.15 },
+      gtr: { inst: 'guitar', vol: 0.9, pan: -0.3, rev: 0.18 },
+      bass: { inst: 'guitar', vol: 1, pan: -0.1 },
+      violin: { inst: 'violin', vol: 0.75, pan: 0.3, rev: 0.3 },
     }, {
       intro: { bombo: bombo(4), gtr: strum('Am E Am E') },
       a: { bombo: bombo(8), gtr: strum(A), bass: bass(A), violin: violinA },
@@ -310,7 +312,7 @@ Object.assign(SONGS, {
         ].join(' '),
       },
       interludio: { bombo: bombo(4), gtr: strum('Am E Am E') },
-      zapateo: { bombo: bar('k:1 k:1 s:1 k:1 k:1 s:1', 4), bass: bass('Am E Am E') },
+      zapateo: { bombo: bar('b:1 b:1 r:1 b:1 b:1 r:1', 4), bass: bass('Am E Am E') },
     }, ['intro', 'a', 'b', 'interludio', 'a', 'b', 'zapateo', 'a']);
   })(),
 });
@@ -338,7 +340,7 @@ function compileSong(song) {
   const spb = 60 / song.bpm;
   const notes = [];
   let beats = song.beats || 0;
-  for (const tr of song.tracks) {
+  song.tracks.forEach((tr, ti) => {
     let list = tr.notes;
     if (!list) {
       list = [];
@@ -352,15 +354,75 @@ function compileSong(song) {
       beats = Math.max(beats, t);
     }
     for (const [t, d, n, v] of list) {
-      notes.push({ t: t * spb, d: d * spb, n, v: v * tr.vol, inst: tr.inst });
+      // Acentos: lo que cae a contratiempo (platillos, güiro) va más suave, como lo toca alguien
+      const off = Math.abs(t - Math.round(t)) > 1e-6;
+      const acc = tr.inst === 'drums' && off && 'hg'.includes(n) ? 0.72 : 1;
+      notes.push({ t: t * spb, d: d * spb, n, v: v * tr.vol * acc, inst: tr.inst, tr: ti });
       beats = Math.max(beats, t + d);
     }
-  }
+  });
   notes.sort((a, b) => a.t - b.t);
-  return { notes, len: beats * spb };
+  // Mezcla de cada pista: paneo, cuánto va a la reverb y eco (en tiempos del tema)
+  const mix = song.tracks.map(tr => ({ pan: tr.pan || 0, rev: tr.rev ?? 0.12, echo: tr.echo ? tr.echo * spb : 0 }));
+  return { notes, len: beats * spb, mix };
+}
+
+// Las entradas de cada pista: paneo, reverb compartida y eco, todo hacia dest
+function buildMix(c, dest, song) {
+  const verb = makeReverb(c);
+  verb.connect(dest);
+  const nodes = [verb];
+  const inputs = song.mix.map(m => {
+    const inp = c.createGain();
+    nodes.push(inp);
+    let node = inp;
+    if (c.createStereoPanner) {
+      const p = c.createStereoPanner();
+      p.pan.value = m.pan;
+      inp.connect(p);
+      node = p;
+    }
+    node.connect(dest);
+    if (m.rev) {
+      const send = c.createGain();
+      send.gain.value = m.rev;
+      node.connect(send);
+      send.connect(verb);
+      nodes.push(send);
+    }
+    if (m.echo) {
+      const dl = c.createDelay(2), fb = c.createGain(), wet = c.createGain();
+      dl.delayTime.value = m.echo;
+      fb.gain.value = 0.32;
+      wet.gain.value = 0.28;
+      nodes.push(dl, fb, wet);
+      node.connect(dl);
+      dl.connect(fb);
+      fb.connect(dl);
+      dl.connect(wet);
+      wet.connect(dest);
+    }
+    return inp;
+  });
+  inputs.nodes = nodes;
+  return inputs;
+}
+
+// Toca una nota del tema, con las pequeñas imperfecciones de alguien tocando de verdad
+function playNote(inputs, n, t) {
+  const d = inputs[n.tr];
+  if (n.inst === 'drums') {
+    (DRUMS[n.n] || DRUMS.h)(d, t + Math.random() * 0.004, n.v * (0.92 + Math.random() * 0.1), n.d);
+    return;
+  }
+  const v = n.v * (0.9 + Math.random() * 0.12), tt = t + Math.random() * 0.012;
+  const play = INSTRUMENTS[n.inst];
+  if (play) play(d, tt, mtof(n.n), n.d, v);
+  else sound.tone(d, tt, { dur: Math.max(0.08, n.d * 0.95), f0: mtof(n.n), wave: n.inst, vol: v, attack: 0.008 });
 }
 
 const isFile = id => /\.(ogg|mp3|m4a|wav)$/i.test(id);
+const RADIO_VOL = 0.5;
 
 class Radio {
   constructor() {
@@ -404,9 +466,14 @@ class Radio {
     if (this.out) {
       // Corta las notas que ya estaban agendadas
       const out = this.out;
+      const old = this.inputs;
       out.gain.setTargetAtTime(0, sound.ctx.currentTime, 0.02);
-      setTimeout(() => out.disconnect(), 200);
+      setTimeout(() => {
+        out.disconnect();
+        if (old) old.nodes.forEach(n => n.disconnect());
+      }, 200);
       this.out = null;
+      this.inputs = null;
     }
     this.cur = null;
   }
@@ -425,9 +492,13 @@ class Radio {
     } else if (sound.ctx) {
       if (!this.out) {
         this.out = sound.ctx.createGain();
-        this.out.gain.value = 0.32;
+        this.out.gain.value = RADIO_VOL;
         this.out.connect(sound.master);
       }
+      // La mezcla del tema anterior se suelta cuando ya terminaron de sonar sus colas
+      const old = this.inputs;
+      if (old) setTimeout(() => old.nodes.forEach(n => n.disconnect()), 4000);
+      this.inputs = buildMix(sound.ctx, this.out, this.song(id));
       this.t0 = at === null ? sound.ctx.currentTime + 0.05 : at;
       this.ni = 0;
     }
@@ -483,40 +554,20 @@ class Radio {
       }
       const at = this.t0 + n.t;
       if (at > ahead) break;
-      if (at >= now - 0.05) this.play(n, Math.max(at, now));
+      if (at >= now - 0.05) playNote(this.inputs, n, Math.max(at, now));
       this.ni++;
     }
   }
 
-  play(n, t) {
-    const d = this.out;
-    if (n.inst === 'pad') {
-      // Dos serruchos apenas desafinados entre sí, que entran despacio
-      const f = 440 * Math.pow(2, (n.n - 69) / 12);
-      for (const k of [0.996, 1.004]) {
-        sound.tone(d, t, { dur: Math.max(0.2, n.d), f0: f * k, wave: 'sawtooth', vol: n.v, attack: 0.15 });
-      }
-      return;
-    }
-    if (n.inst !== 'drums') {
-      const f = 440 * Math.pow(2, (n.n - 69) / 12);
-      sound.tone(d, t, { dur: Math.max(0.08, n.d * 0.95), f0: f, wave: n.inst, vol: n.v, attack: 0.008 });
-      return;
-    }
-    switch (n.n) {
-      case 'k':
-        sound.tone(d, t, { dur: 0.16, f0: 150, f1: 45, vol: n.v });
-        break;
-      case 's':
-        sound.burst(d, t, { dur: 0.13, type: 'bandpass', f0: 1800, q: 0.9, vol: n.v * 0.7 });
-        sound.tone(d, t, { dur: 0.06, f0: 210, f1: 150, wave: 'triangle', vol: n.v * 0.4 });
-        break;
-      case 'g':
-        sound.burst(d, t, { dur: Math.min(0.14, n.d * 0.8), type: 'bandpass', f0: 3600, f1: 4200, q: 3, vol: n.v * 0.5, attack: 0.01 });
-        break;
-      default:
-        sound.burst(d, t, { dur: 0.045, type: 'highpass', f0: 7000, vol: n.v * 0.35 });
-    }
+  // Renderiza los primeros secs segundos de un tema sin sonar (para medir niveles o exportarlo)
+  async render(id, secs = 30, sr = 44100) {
+    const c = new OfflineAudioContext(2, Math.floor(sr * secs), sr);
+    const out = c.createGain();
+    out.gain.value = RADIO_VOL;
+    out.connect(c.destination);
+    const song = this.song(id), inputs = buildMix(c, out, song);
+    for (const n of song.notes) if (n.t < secs - 0.5) playNote(inputs, n, n.t + 0.01);
+    return c.startRendering();
   }
 }
 

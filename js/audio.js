@@ -102,7 +102,7 @@ class SoundManager {
 
   // Golpe de ruido filtrado: disparos, choques, explosiones
   burst(dest, t, { dur, vol = 1, type = 'lowpass', f0, f1 = f0, q = 0.8, attack = 0.002 }) {
-    const c = this.ctx;
+    const c = dest.context; // el contexto de destino: sirve también para renderizar offline
     const src = c.createBufferSource();
     src.buffer = this.noise;
     const flt = c.createBiquadFilter();
@@ -123,7 +123,7 @@ class SoundManager {
 
   // Nota con barrido de frecuencia: golpes graves, monedas, avisos
   tone(dest, t, { dur, vol = 1, wave = 'sine', f0, f1 = f0, attack = 0.004 }) {
-    const c = this.ctx;
+    const c = dest.context; // el contexto de destino: sirve también para renderizar offline
     const o = c.createOscillator();
     o.type = wave;
     o.frequency.setValueAtTime(f0, t);
