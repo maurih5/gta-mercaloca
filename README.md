@@ -22,6 +22,7 @@ Juego estilo GTA top-down retro 2D desarrollado en HTML5 Canvas y JavaScript van
 | <kbd>+</kbd> <kbd>-</kbd> | Zoom del mapa (con el mapa abierto) |
 | <kbd>P</kbd> | Pausa (solo jugando solo) |
 | <kbd>N</kbd> | Prender / apagar el sonido |
+| <kbd>R</kbd> | Cambiar de emisora / apagar la radio (manejando) |
 
 ---
 
@@ -100,7 +101,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
   - [x] Sirenas de la policía al subir el nivel de búsqueda
   - [x] Sonido de motores, aceleración, frenadas y choques de autos
   - [x] Sonido al levantar fajos de guita
-- [ ] Música de fondo / radio de los vehículos estilo GTA retro (#71)
+- [x] Música de fondo / radio de los vehículos estilo GTA retro (#71)
 
 ### 🎭 Personajes & Lore
 - [ ] Cambiar y pulir los nombres de los personajes (#72)
@@ -209,6 +210,11 @@ node --test selfcheck.js
 
 Corre el juego headless (mundo, semáforos, 60 s de simulación, arresto, hospital...).
 En cada PR cada test aparece como un check propio.
+
+### Música de la radio
+
+Los temas van en `music/`: grabados (`.ogg`/`.mp3`) o en MIDI, que el juego sintetiza.
+Cómo sumarlos a una emisora: [music/LEEME.md](music/LEEME.md).
 
 ---
 

@@ -30,6 +30,12 @@ function frame(now) {
     }
     if (!keys.KeyN) G._n = false;
 
+    if (keys.KeyR && !G._r) {
+      G._r = true;
+      radio.next();
+    }
+    if (!keys.KeyR) G._r = false;
+
     if (G.mapOpen) {
       const f = 1 + MAP_ZOOM_RATE * dt;
       if (keys.Equal || keys.NumpadAdd) G.mapZoom = clamp(G.mapZoom * f, MAP_MIN_ZOOM, MAP_MAX_ZOOM);
@@ -45,6 +51,7 @@ function frame(now) {
     render();
   }
   sound.update();
+  radio.update();
 
   if (typeof requestAnimationFrame !== 'undefined') {
     requestAnimationFrame(frame);

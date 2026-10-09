@@ -17,6 +17,11 @@ error() { echo "❌ $*" >&2; exit 1; }
 rm -rf "$dest"
 mkdir -p "$dest"
 cp -r "$raiz/index.html" "$raiz/js" "$raiz/img" "$dest/"
+# Los temas grabados de la radio (los .mid ya están en js/songs.js, no hace falta subirlos)
+if [ -d "$raiz/music" ]; then
+  mkdir -p "$dest/music"
+  find "$raiz/music" -maxdepth 1 -type f \( -iname '*.ogg' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.wav' \) -exec cp {} "$dest/music/" \;
+fi
 
 sed -i -E "s/^(const VERSION = )'[^']*'/\1'$version'/" "$dest/js/constants.js"
 grep -qF "const VERSION = '$version'" "$dest/js/constants.js" ||

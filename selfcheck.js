@@ -4,7 +4,7 @@
 const { describe, test } = require('node:test');
 const fs = require('fs'), assert = require('assert');
 const scriptFiles = [
-  'constants.js', 'utils.js', 'audio.js', 'input.js', 'world.js',
+  'constants.js', 'utils.js', 'audio.js', 'songs.js', 'radio.js', 'input.js', 'world.js',
   'entities.js', 'traffic.js', 'game.js', 'renderer.js', 'ui.js'
 ];
 let js = scriptFiles.map(f => fs.readFileSync(__dirname + '/js/' + f, 'utf8')).join('\n');
@@ -36,7 +36,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -46,7 +46,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum} = api;
 
 describe('helpers de color', () => {
   test('shade y mix componen colores validos', () => {
@@ -918,6 +918,55 @@ describe('audio', () => {
   });
 });
 
+describe('radio', () => {
+  test('los temas compilan a notas validas y las pistas cierran juntas', () => {
+    assert.equal(noteNum('A4'), 69);
+    assert.equal(noteNum('C4'), 60);
+    assert.equal(noteNum('G#4'), 68);
+    assert.equal(noteNum('Bb3'), 58);
+    assert.ok(STATIONS.length >= 2, 'hay emisoras');
+    for (const st of STATIONS) {
+      assert.ok(st.name && st.songs.length, 'emisora con nombre y temas');
+      for (const id of st.songs) {
+        if (/\.(ogg|mp3|m4a|wav)$/i.test(id)) continue;
+        assert.ok(SONGS[id], 'el tema existe: ' + id);
+        const c = compileSong(SONGS[id]);
+        assert.ok(c.notes.length > 20 && c.len > 4, id + ' tiene notas');
+        for (const n of c.notes) {
+          assert.ok(n.t >= 0 && n.d > 0 && n.t + n.d <= c.len + 1e-6 && n.v > 0, id + ': nota fuera del tema');
+          assert.ok(n.inst === 'drums' ? 'ksgh'.includes(n.n) : n.n >= 24 && n.n <= 108, id + ': nota invalida ' + n.n);
+        }
+        // Las pistas escritas a mano tienen que durar lo mismo, o el tema se desfasa al repetir
+        const lens = SONGS[id].tracks.filter(t => t.seq).map(t => t.seq.trim().split(/\s+/).reduce((s, k) => s + parseFloat(k.split(':')[1]), 0));
+        assert.ok(lens.every(l => Math.abs(l - lens[0]) < 1e-9), id + ': pistas de distinto largo ' + lens);
+      }
+    }
+  });
+
+  test('el convertidor de MIDI lee notas, tempo, instrumento y bateria', () => {
+    const { parseMidi, toSong } = require('./tools/midi2songs.js');
+    const vlq = n => n < 128 ? [n] : [0x80 | (n >> 7), n & 0x7f];
+    const ev = [
+      0, 0xff, 0x51, 3, 0x09, 0x27, 0xc0,        // tempo 600000 us = 100 bpm
+      0, 0xc0, 33,                               // canal 1: bajo
+      0, 0x90, 45, 100,                          // nota on
+      ...vlq(96), 0x80, 45, 0,                   // nota off a la negra
+      0, 0x99, 36, 127,                          // canal 10: bombo
+      ...vlq(24), 0x89, 36, 0,
+      0, 0xff, 0x2f, 0,
+    ];
+    const u32 = n => [n >>> 24, (n >> 16) & 255, (n >> 8) & 255, n & 255];
+    const buf = Buffer.from([...Buffer.from('MThd'), ...u32(6), 0, 0, 0, 1, 0, 96, ...Buffer.from('MTrk'), ...u32(ev.length), ...ev]);
+    const song = toSong(parseMidi(buf));
+    assert.equal(Math.round(song.bpm), 100);
+    const bass = song.tracks.find(t => t.inst === 'triangle'), drums = song.tracks.find(t => t.inst === 'drums');
+    assert.ok(bass && drums, 'una pista de bajo y una de bateria');
+    assert.deepEqual(bass.notes[0].slice(0, 3), [0, 1, 45]);
+    assert.deepEqual(drums.notes[0].slice(0, 3), [1, 0.25, 'k']);
+    assert.ok(compileSong(song).len > 0, 'el juego lo puede tocar');
+  });
+});
+
 describe('multijugador', () => {
   // Pone a P sobre la calle, a d px de G.me (en una dirección donde haya calle libre)
   const lejos = (P, d) => {
@@ -1069,6 +1118,28 @@ describe('multijugador', () => {
     } finally {
       sound.play = play;
     }
+  });
+
+  test('la radio suena en el auto del jugador de esta pantalla', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    for (let f = 0; f < 10; f++) update(1/60);
+    radio.update();
+    assert.equal(radio.station, -1, 'a pie no hay radio');
+    const [c1, c2] = G.cars.filter(c => c.ai && c.hp > 0);
+    P2.car = c2; c2.ai = false;
+    update(1/60); radio.update();
+    assert.equal(radio.station, -1, 'el otro sube a un auto: aca no suena nada');
+    G.me.car = c1; c1.ai = false;
+    update(1/60); radio.update();
+    assert.ok(radio.station >= 0, 'el local sube a un auto: prende la radio');
+    for (let i = 0; i <= STATIONS.length && radio.station >= 0; i++) radio.next();
+    assert.equal(radio.station, -1, 'R pasa por todas las emisoras hasta apagarla');
+    radio.next();
+    assert.equal(radio.station, 0, 'y vuelve a la primera');
+    game.exitCar(G.me);
+    radio.update();
+    assert.equal(radio.station, -1, 'al bajar se apaga');
   });
 
   test('con otros jugando, morir reaparece solo al muerto', () => {
