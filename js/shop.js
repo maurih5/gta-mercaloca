@@ -53,12 +53,13 @@ class ShopManager {
     if (el) el.classList.remove('on');
     // Que las teclas usadas en el menú no disparen ni suban al auto al volver
     keys.Space = keys.Enter = keys.KeyE = false;
-    if (G.player) G.player.cool = 0.5;
+    if (G.me) G.me.cool = 0.5;
   }
 
   // Qué se puede hacer con cada ítem según lo que ya tiene el jugador
+  // La tienda es del jugador local (G.me)
   status(it) {
-    const P = G.player;
+    const P = G.me;
     if (it.id === 'porro') {
       return P.porros >= PORRO_MAX
         ? { can: false, label: 'BOLSILLO LLENO' }
@@ -80,13 +81,13 @@ class ShopManager {
   }
 
   buy(i) {
-    const it = this.items[i], st = this.status(it), P = G.player;
+    const it = this.items[i], st = this.status(it), P = G.me;
     if (!st.can) return;
-    if (G.money < st.price) {
+    if (P.money < st.price) {
       this.say('NO TE ALCANZA LA GUITA', true);
       return;
     }
-    G.money -= st.price;
+    P.money -= st.price;
     if (it.id === 'porro') {
       P.porros++;
       this.say('UNO MAS AL BOLSILLO. APRETA F PARA FUMAR');
@@ -112,7 +113,7 @@ class ShopManager {
   render() {
     const list = $('shop-list'), money = $('shop-money');
     if (!list) return;
-    if (money) money.textContent = '$' + G.money;
+    if (money) money.textContent = '$' + G.me.money;
     list.innerHTML = '';
     this.items.forEach((it, i) => {
       const st = this.status(it);

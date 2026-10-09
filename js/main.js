@@ -9,7 +9,10 @@ function frame(now) {
   lastTime = now;
 
   if (G.state === 'play') {
-    if (keys.KeyP && !G._p && !G.mapOpen) {
+    // Con otros jugando el mundo no se puede frenar: no hay pausa, y el mapa y los menús
+    // dejan al jugador local quieto (sin controles) pero la simulación sigue
+    const solo = G.players.length <= 1;
+    if (keys.KeyP && !G._p && !G.mapOpen && solo) {
       G.paused = !G.paused;
       G._p = true;
     }
@@ -32,7 +35,7 @@ function frame(now) {
     }
     if (touchController) touchController.syncMapButtons();
 
-    if (!G.paused && !G.mapOpen && !G.shopOpen) update(dt);
+    if (!solo || (!G.paused && !G.mapOpen && !G.shopOpen)) update(dt);
     render();
   }
 
@@ -143,9 +146,9 @@ async function boot() {
       const h = parseFloat(q.get('h'));
       if (!isNaN(h)) G.t = (((h / 24 - 0.34 + 1) % 1) * DAY);
       const w = parseInt(q.get('w'));
-      if (!isNaN(w)) G.wanted = clamp(w, 0, 5);
+      if (!isNaN(w)) G.me.wanted = clamp(w, 0, 5);
       if (q.get('bust')) {
-        G.money = 4200;
+        G.me.money = 4200;
         setTimeout(() => bust(), 400);
       }
     } else {

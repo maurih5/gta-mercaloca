@@ -277,10 +277,12 @@ class TouchController {
   }
 
   bindGlobalTouch() {
-    // Al tocar la pantalla tras morir, reiniciar la partida
+    // Al tocar la pantalla tras morir, volver al barrio (como apretar Enter: el juego
+    // decide si reinicia la partida o, con otros jugando, reaparece solo él)
     addEventListener('touchstart', () => {
-      if (G.player && G.player.dead) {
-        startGame(G.player.def);
+      if (G.me && G.me.dead) {
+        keys.Enter = true;
+        setTimeout(() => { keys.Enter = false; }, 150);
       }
     }, { passive: true });
 

@@ -2,12 +2,17 @@
    GTA MERCALOCA - Lógica Central del Juego, Estado y Simulación Física
    ========================================================================= */
 
+// El juego es multijugador: G guarda el mundo compartido (autos, peatones, yuta, balas)
+// y la vista local (cámara, temblor, mensajes, menús). Todo lo de cada jugador (guita,
+// búsqueda, arresto, hospital, armas) vive en su objeto, en G.players. G.me es el jugador
+// de esta pantalla: la cámara, el HUD y el teclado son suyos y de nadie más.
 const G = {
   state: 'load',
   t: 0,
   cam: { x: 0, y: 0 },
   shake: 0,
-  player: null,
+  players: [],
+  me: null,
   faces: {},
   cars: [],
   peds: [],
@@ -18,47 +23,82 @@ const G = {
   pickups: [],
   fx: [],
   smoke: [],
-  wanted: 0,
-  wantCool: 0,
-  money: 0,
   msg: '',
   msgT: 0,
   paused: false,
   mapOpen: false,
   mapZoom: MAP_MIN_ZOOM,
   flash: 0,
-  busted: 0,
-  bustT: 0,
-  bustFine: 0,
-  bustCar: null,
-  healing: 0,
-  healT: 0,
-  nearShop: null,
   shopOpen: false,
   tranzas: [],
-  nearTranza: null,
-  zone: null,
-  slowmo: 0,
   ts: 1,
 };
+
+// En juego: ni muerto, ni en la secuencia de arresto, ni adentro del hospital.
+// La IA solo persigue, apunta y arresta a los que están en juego.
+function inPlay(P) {
+  return !!P && !P.dead && !P.busted && !P.healing;
+}
+
+// El jugador más cercano a o (entre los que cumplen ok), con su distancia
+function nearestPlayer(o, ok = null) {
+  let p = null, d = Infinity;
+  for (const P of G.players) {
+    if (ok && !ok(P)) continue;
+    const dp = dist(o, P);
+    if (dp < d) { d = dp; p = P; }
+  }
+  return { p, d };
+}
+
+const distToPlayers = o => nearestPlayer(o).d;
+const farFromPlayers = (o, r) => distToPlayers(o) > r;
+// Ninguno de los otros jugadores lo ve (para aparecer gente alrededor de uno sin que se vea en la pantalla del otro)
+const offscreenForOthers = (o, P) => G.players.every(q => q === P || dist(q, o) > OFFSCREEN);
+
+function driverOf(car) {
+  for (const P of G.players) if (P.car === car) return P;
+  return null;
+}
 
 class Game {
   constructor() {
     this.state = G;
   }
 
-  say(t, s = 2.6) {
+  // Los mensajes y el temblor son de la pantalla local: lo que le pasa a otro jugador
+  // no se le muestra a este (con P = null es para todos)
+  say(t, s = 2.6, P = null) {
+    if (P && P !== G.me) return;
     G.msg = t;
     G.msgT = s;
   }
 
+  shakeFor(P, n) {
+    if (P === G.me) G.shake += n;
+  }
+
+  nearMe(x, y) {
+    return !!G.me && Math.hypot(x - G.me.x, y - G.me.y) < OFFSCREEN * 1.5;
+  }
+
+  shakeAt(x, y, n) {
+    if (this.nearMe(x, y)) G.shake += n;
+  }
+
+  snapCam() {
+    if (!G.me) return;
+    G.cam.x = clamp(G.me.x - RW / 2, 0, WORLD - RW);
+    G.cam.y = clamp(G.me.y - RH / 2, 0, WORLD - RH);
+  }
+
   startGame(def) {
-    G.player = makePlayer(def);
+    G.me = makePlayer(def, 0);
+    G.players = [G.me];
     const s = freeRoadSpot();
-    G.player.x = s.x;
-    G.player.y = s.y;
-    G.cam.x = clamp(s.x - RW / 2, 0, WORLD - RW);
-    G.cam.y = clamp(s.y - RH / 2, 0, WORLD - RH);
+    G.me.x = s.x;
+    G.me.y = s.y;
+    this.snapCam();
     G.cars = [];
     copNav.reset();
     G.peds = [];
@@ -69,11 +109,7 @@ class Game {
     G.pickups = [];
     G.fx = [];
     G.smoke = [];
-    G.nearShop = null;
     G.shopOpen = false;
-    G.nearTranza = null;
-    G.zone = null;
-    G.slowmo = 0;
     G.ts = 1;
     G.tranzas = [];
     for (const v of villas) {
@@ -98,47 +134,72 @@ class Game {
       }
     }
 
-    G.wanted = 0;
-    G.money = 0;
     G.state = 'play';
     G.paused = false;
     G.mapOpen = false;
     G.mapZoom = MAP_MIN_ZOOM;
     G.shake = 0;
-    G.busted = 0;
-    G.bustT = 0;
-    G.bustFine = 0;
-    G.healing = 0;
-    G.healT = 0;
     this.say('MERCALOCA EN LA CALLE. JUNTA GUITA.', 3.4);
     if (typeof touchController !== 'undefined') {
       touchController.updateVisibility();
     }
   }
 
-  bust() {
-    const P = G.player;
-    if (!P || P.dead || G.busted) return;
-    G.busted = 1;
-    G.bustT = 0;
-    G.bustFine = Math.round(G.money * 0.35) + 200 * G.wanted;
-    G.bustCar = P.car;
-    if (P.car) {
-      this.exitCar();
-    }
-    P.hp = Math.max(P.hp, 1);
-    G.shake += 6;
-    this.say('QUEDATE QUIETO!', 2.2);
+  // Suma un jugador a la partida en curso, cerca del local. Devuelve null si está llena.
+  addPlayer(def) {
+    if (G.players.length >= MAX_PLAYERS) return null;
+    const id = G.players.reduce((m, p) => Math.max(m, p.id), -1) + 1;
+    const P = makePlayer(def, id);
+    const s = (G.me && ringSpot(20, 120, true, G.me)) || freeRoadSpot();
+    P.x = s.x;
+    P.y = s.y;
+    G.players.push(P);
+    return P;
   }
 
-  finishBust() {
-    const P = G.player;
+  removePlayer(P) {
+    if (P.car) this.exitCar(P);
+    G.players = G.players.filter(p => p !== P);
+    if (G.me === P) G.me = G.players[0] || null;
+    // La yuta que lo buscaba se busca otro objetivo en el próximo frame
+    for (const c of G.cops) if (c.tgt === P) c.tgt = null;
+    for (const c of G.cars) if (c.tgt === P) c.tgt = null;
+  }
+
+  // Volver al barrio después de morir con otros jugando: no se reinicia el mundo de
+  // todos, reaparece solo él, sin fierros ni estrellas pero con su guita
+  respawn(P) {
+    const s = freeRoadSpot();
+    Object.assign(P, {
+      x: s.x, y: s.y, hp: P.maxhp, dead: false, car: null, cool: 0.5,
+      inv: { pistola: Infinity }, wpn: 'pistola', armor: 0,
+      wanted: 0, wantCool: 0, slowmo: 0,
+    });
+    if (P === G.me) this.snapCam();
+    this.say('DE VUELTA EN EL BARRIO', 2.6, P);
+  }
+
+  bust(P = G.me) {
+    if (!P || P.dead || P.busted) return;
+    P.busted = 1;
+    P.bustT = 0;
+    P.bustFine = Math.round(P.money * 0.35) + 200 * P.wanted;
+    if (P.car) {
+      this.exitCar(P);
+    }
+    P.hp = Math.max(P.hp, 1);
+    this.shakeFor(P, 6);
+    this.say('QUEDATE QUIETO!', 2.2, P);
+  }
+
+  finishBust(P = G.me) {
     if (!P) return;
-    G.money = Math.max(0, G.money - G.bustFine);
-    G.wanted = 0;
-    G.wantCool = 0;
-    G.cops.length = 0;
-    G.cars = G.cars.filter(c => !c.chase && !c.cop);
+    P.money = Math.max(0, P.money - P.bustFine);
+    P.wanted = 0;
+    P.wantCool = 0;
+    // Se van los que lo buscaban a él; la yuta de los otros jugadores sigue en lo suyo
+    G.cops = G.cops.filter(c => c.tgt !== P);
+    G.cars = G.cars.filter(c => !c.chase || c.tgt !== P || driverOf(c));
     const s = freeRoadSpot();
     P.x = s.x;
     P.y = s.y;
@@ -149,15 +210,13 @@ class Game {
     P.inv = { pistola: Infinity };
     P.wpn = 'pistola';
     P.armor = 0;
-    G.cam.x = clamp(P.x - RW / 2, 0, WORLD - RW);
-    G.cam.y = clamp(P.y - RH / 2, 0, WORLD - RH);
-    G.busted = 0;
-    G.bustT = 0;
-    this.say('TE SOLTARON SIN LOS FIERROS. PERDISTE $' + G.bustFine, 3.4);
+    if (P === G.me) this.snapCam();
+    P.busted = 0;
+    P.bustT = 0;
+    this.say('TE SOLTARON SIN LOS FIERROS. PERDISTE $' + P.bustFine, 3.4, P);
   }
 
-  exitCar() {
-    const P = G.player;
+  exitCar(P = G.me) {
     if (!P || !P.car) return;
     P.car.ai = true;
     P.car.spd = 0;
@@ -167,26 +226,28 @@ class Game {
     P.car = null;
   }
 
-  wantUp(n) {
-    const old = G.wanted;
-    G.wanted = Math.min(5, G.wanted + n);
-    G.wantCool = 0;
-    if (G.wanted > old && G.wanted >= 2) {
-      this.say('NIVEL DE BUSQUEDA ' + '*'.repeat(G.wanted));
+  wantUp(P, n) {
+    if (!P) return;
+    const old = P.wanted;
+    P.wanted = Math.min(5, P.wanted + n);
+    P.wantCool = 0;
+    if (P.wanted > old && P.wanted >= 2) {
+      this.say('NIVEL DE BUSQUEDA ' + '*'.repeat(P.wanted), 2.6, P);
     }
   }
 
   wreckCar(car) {
-    const P = G.player;
-    const mine = car === P.car;
-    boom(car.x, car.y, mine ? 34 : 24, '255,150,40', 2);
+    const P = driverOf(car);
+    boom(car.x, car.y, P ? 34 : 24, '255,150,40', 2);
     puff(car.x, car.y, '40,40,40', 10, 26);
-    decal(car.x, car.y, mine ? 14 : 12, 'rgba(10,10,10,.5)');
-    G.shake += mine ? 12 : 4;
-    if (mine) {
-      G.flash = 0.8;
+    decal(car.x, car.y, P ? 14 : 12, 'rgba(10,10,10,.5)');
+    if (P) {
+      this.shakeFor(P, 12);
+      if (P === G.me) G.flash = 0.8;
       P.hp -= 25;
-      this.exitCar();
+      this.exitCar(P);
+    } else {
+      this.shakeAt(car.x, car.y, 4);
     }
   }
 
@@ -197,8 +258,7 @@ class Game {
     if (isNew) P.wpn = id;
   }
 
-  hurtPlayer(n) {
-    const P = G.player;
+  hurtPlayer(P, n) {
     if (P.armor > 0) {
       const a = Math.min(P.armor, n * 0.7);
       P.armor -= a;
@@ -207,41 +267,68 @@ class Game {
     P.hp -= n;
   }
 
-  // Daño a peatón o policía, con premio y búsqueda si lo bajás
-  hurt(e, dmg) {
+  // Un balazo a un jugador: en el auto lo absorbe casi todo la chapa
+  shootPlayer(P, dmg) {
+    this.shakeFor(P, 1.6);
+    if (P.car) {
+      P.car.hp -= dmg;
+      this.hurtPlayer(P, (dmg * 2) / 7);
+    } else {
+      this.hurtPlayer(P, dmg);
+    }
+    boom(P.x, P.y, 5, '190,35,35');
+  }
+
+  // Daño a peatón o policía, con premio y búsqueda para el jugador que lo bajó (by)
+  hurt(e, dmg, by = null) {
     if (e.hp <= 0) return;
     e.hp -= dmg;
     boom(e.x, e.y, 7, '190,35,35');
     if (e.kind === 'tranza') {
-      if (e.villa.angry <= 0) this.say('SE PUDRIO TODO EN ' + e.villa.name, 3);
+      if (e.villa.angry <= 0) this.say('SE PUDRIO TODO EN ' + e.villa.name, 3, by);
       e.villa.angry = 45;
       if (e.hp <= 0) {
         decal(e.x, e.y, rnd(4, 7), 'rgba(95,12,12,.5)');
-        G.money += 150;
+        if (by) by.money += 150;
         if (Math.random() < 0.4) G.pickups.push(makeDrop(e.x, e.y, 'uzi', 30));
       }
       return;
     }
     if (e.hp <= 0) {
       decal(e.x, e.y, rnd(4, 7), 'rgba(95,12,12,.5)');
-      this.wantUp(e.kind === 'cop' ? 2 : 1);
-      G.money += e.kind === 'cop' ? 120 : 40;
+      this.wantUp(by, e.kind === 'cop' ? 2 : 1);
+      if (by) by.money += e.kind === 'cop' ? 120 : 40;
       if (e.kind === 'cop' && Math.random() < 0.3) G.pickups.push(makeDrop(e.x, e.y, 'escopeta', 6));
     }
+  }
+
+  // Lo que un jugador le puede pegar: la gente de la calle y, con PVP, los otros jugadores
+  targetsOf(P) {
+    const out = [];
+    for (const list of [G.cops, G.peds, G.tranzas]) {
+      for (const e of list) if (e.hp > 0 && !e.inside) out.push(e);
+    }
+    if (PVP) {
+      for (const q of G.players) if (q !== P && inPlay(q) && !q.car) out.push(q);
+    }
+    return out;
+  }
+
+  damage(e, dmg, by) {
+    if (e.kind === 'player') this.hurtPlayer(e, dmg);
+    else this.hurt(e, dmg, by);
   }
 
   // Q rota entre las armas con balas, 1-6 elige directo
   switchWeapon(P) {
     const owned = WEAPON_ORDER.filter(id => P.inv[id] > 0);
     let next = null;
-    if (keys.KeyQ && !G._q) next = owned[(owned.indexOf(P.wpn) + 1) % owned.length];
-    G._q = keys.KeyQ;
-    WEAPON_ORDER.forEach((id, i) => {
-      if (keys['Digit' + (i + 1)] && P.inv[id] > 0) next = id;
-    });
+    if (P.ctl.next && !P.prev.next) next = owned[(owned.indexOf(P.wpn) + 1) % owned.length];
+    const slot = WEAPON_ORDER[P.ctl.slot - 1];
+    if (slot && P.inv[slot] > 0) next = slot;
     if (next && next !== P.wpn) {
       P.wpn = next;
-      this.say(WEAPONS[next].name, 1.2);
+      this.say(WEAPONS[next].name, 1.2, P);
     }
   }
 
@@ -268,6 +355,7 @@ class Game {
         z: 4,
         vz: 70,
         t: 1.15,
+        owner: P,
       });
     } else {
       for (let i = 0; i < W.pellets; i++) {
@@ -279,63 +367,61 @@ class Game {
           vx: Math.cos(a) * v,
           vy: Math.sin(a) * v,
           life: W.life,
-          mine: true,
+          owner: P,
           dmg: W.dmg,
         });
       }
       P.muzzle = 1;
-      G.shake += W.shake;
+      this.shakeFor(P, W.shake);
       boom(P.x + Math.cos(P.ang) * W.barrel, P.y + Math.sin(P.ang) * W.barrel, 3, '255,225,150');
     }
 
     if (P.inv[id] !== Infinity && --P.inv[id] <= 0) {
       P.inv[id] = 0;
       P.wpn = 'pistola';
-      this.say('SIN ' + W.short + '. VOLVES A LA 9MM', 1.8);
+      this.say('SIN ' + W.short + '. VOLVES A LA 9MM', 1.8, P);
     }
-    if (G.wanted < 1) this.wantUp(1);
+    if (P.wanted < 1) this.wantUp(P, 1);
   }
 
   // Bastonazo: pega a todo lo que esté adelante y lo empuja
   swing(P, W) {
     P.swing = 1;
     let hit = false;
-    for (const list of [G.cops, G.peds, G.tranzas]) {
-      for (const e of list) {
-        if (e.hp <= 0 || e.inside) continue;
-        const d = dist(e, P);
-        if (d > W.reach) continue;
-        const a = Math.atan2(e.y - P.y, e.x - P.x);
-        const da = Math.abs(((a - P.ang + Math.PI * 3) % TAU) - Math.PI);
-        if (da > 1.1 && d > 7) continue;
-        this.hurt(e, W.dmg);
-        const nx = e.x + Math.cos(a) * 7, ny = e.y + Math.sin(a) * 7;
-        if (!pedBlocked(nx, ny, e.r)) {
-          e.x = nx;
-          e.y = ny;
-        }
-        hit = true;
+    for (const e of this.targetsOf(P)) {
+      const d = dist(e, P);
+      if (d > W.reach) continue;
+      const a = Math.atan2(e.y - P.y, e.x - P.x);
+      const da = Math.abs(((a - P.ang + Math.PI * 3) % TAU) - Math.PI);
+      if (da > 1.1 && d > 7) continue;
+      this.damage(e, W.dmg, P);
+      const nx = e.x + Math.cos(a) * 7, ny = e.y + Math.sin(a) * 7;
+      if (!pedBlocked(nx, ny, e.r)) {
+        e.x = nx;
+        e.y = ny;
       }
+      hit = true;
     }
     if (hit) {
-      G.shake += 2;
-      if (G.wanted < 1) this.wantUp(1);
+      this.shakeFor(P, 2);
+      if (P.wanted < 1) this.wantUp(P, 1);
     }
   }
 
-  explode(x, y, R, dmg) {
-    const P = G.player, at = { x, y };
+  // by: el jugador que la provocó (granada, auto que revienta), o null
+  explode(x, y, R, dmg, by = null) {
+    const at = { x, y };
     boom(x, y, 40, '255,150,40', 2.2);
     boom(x, y, 16, '255,230,160', 1.2);
     puff(x, y, '40,40,40', 12, 24);
     decal(x, y, 13, 'rgba(10,10,10,.5)');
-    G.shake += 10;
-    G.flash = Math.max(G.flash, 0.7);
+    this.shakeAt(x, y, 10);
+    if (this.nearMe(x, y)) G.flash = Math.max(G.flash, 0.7);
     for (const list of [G.cops, G.peds, G.tranzas]) {
       for (const e of list) {
         if (e.hp <= 0 || e.inside) continue;
         const d = dist(e, at);
-        if (d < R) this.hurt(e, dmg * (1 - (d / R) * 0.6));
+        if (d < R) this.hurt(e, dmg * (1 - (d / R) * 0.6), by);
       }
     }
     // Los autos que revientan hacen explotar a los de al lado
@@ -343,16 +429,18 @@ class Game {
       const d = dist(c, at);
       if (c.hp <= 0 || d >= R + 8) continue;
       c.hp -= dmg * (1 - (d / (R + 8)) * 0.5);
-      if (c.hp <= 0 && c !== P.car) {
+      if (c.hp <= 0 && !driverOf(c)) {
         c.spd = 0;
-        this.explode(c.x, c.y, 30, 60);
+        this.explode(c.x, c.y, 30, 60, by);
       }
     }
-    if (!P.dead && !P.car) {
+    for (const P of G.players) {
+      if (!inPlay(P) || P.car) continue;
+      if (by && P !== by && !PVP) continue;
       const d = dist(P, at);
-      if (d < R) this.hurtPlayer(dmg * 0.6 * (1 - (d / R) * 0.6));
+      if (d < R) this.hurtPlayer(P, dmg * 0.6 * (1 - (d / R) * 0.6));
     }
-    if (G.wanted < 1) this.wantUp(1);
+    if (by && by.wanted < 1) this.wantUp(by, 1);
   }
 
   updateNades(dt) {
@@ -371,29 +459,28 @@ class Game {
         n.vx *= 1 - 4 * dt;
         n.vy *= 1 - 4 * dt;
       }
-      if (n.t <= 0) this.explode(n.x, n.y, WEAPONS.granada.radius, WEAPONS.granada.dmg);
+      if (n.t <= 0) this.explode(n.x, n.y, WEAPONS.granada.radius, WEAPONS.granada.dmg, n.owner || null);
     }
     G.nades = G.nades.filter(n => n.t > 0);
   }
 
   updateTranzas(dt) {
-    const P = G.player;
     for (const v of villas) v.angry = Math.max(0, v.angry - dt);
     for (const t of G.tranzas) {
       t.muzzle = Math.max(0, t.muzzle - dt * 14);
 
-      // Al rato vuelve otro a la esquina, si no lo estás mirando
+      // Al rato vuelve otro a la esquina, si nadie lo está mirando
       if (t.hp <= 0) {
         t.dead += dt;
-        if (t.dead > 90 && dist(t.home, P) > OFFSCREEN) {
+        if (t.dead > 90 && farFromPlayers(t.home, OFFSCREEN)) {
           Object.assign(t, { x: t.home.x, y: t.home.y, hp: 60, dead: 0 });
         }
         continue;
       }
 
-      const d = dist(t, P);
-      if (t.villa.angry > 0 && d < 170 && !P.dead && !G.busted) {
-        // Modo guerra: te apunta, se acerca un poco y tira
+      const { p: P, d } = nearestPlayer(t, inPlay);
+      if (P && t.villa.angry > 0 && d < 170) {
+        // Modo guerra: le apunta al más cercano, se acerca un poco y tira
         t.ang = Math.atan2(P.y - t.y, P.x - t.x);
         if (d > 60) {
           const nx = t.x + Math.cos(t.ang) * 40 * dt, ny = t.y + Math.sin(t.ang) * 40 * dt;
@@ -414,7 +501,8 @@ class Game {
             vx: Math.cos(a) * 340,
             vy: Math.sin(a) * 340,
             life: 0.7,
-            mine: false,
+            owner: null,
+            dmg: 7,
           });
         }
       } else {
@@ -429,95 +517,76 @@ class Game {
           t.look -= dt;
           if (t.look <= 0) {
             t.look = rnd(1.5, 4);
-            t.ang = d < 60 ? Math.atan2(P.y - t.y, P.x - t.x) : rnd(0, TAU);
+            t.ang = P && d < 60 ? Math.atan2(P.y - t.y, P.x - t.x) : rnd(0, TAU);
           }
         }
       }
     }
   }
 
-  update(rdt) {
-    // Porro: el mundo va en cámara lenta (dt) mientras el jugador se mueve a tiempo real (rdt)
-    G.slowmo = Math.max(0, G.slowmo - rdt);
-    G.ts = lerp(G.ts, G.slowmo > 0 ? SLOWMO : 1, clamp(rdt * 4, 0, 1));
-    const dt = rdt * G.ts;
-    G.t += dt;
-    if (G.msgT > 0) G.msgT -= rdt;
-    G.shake = Math.max(0, G.shake - rdt * 22);
-    G.flash = Math.max(0, G.flash - rdt * 4);
-    G.guards = G.guards.filter(g => g.hp > 0);
-    const P = G.player;
-    if (!P) return;
-
-    // ---- Secuencia de arresto: 3.2s de corte, después comisaría
-    if (G.busted) {
-      G.bustT += dt;
-      for (const c of G.cops) {
-        if (c.hp <= 0) continue;
-        const d = dist(c, P);
-        c.ang = Math.atan2(P.y - c.y, P.x - c.x);
-        if (d > 13) {
-          c.x += Math.cos(c.ang) * 46 * dt;
-          c.y += Math.sin(c.ang) * 46 * dt;
-          c.walk += dt * 5;
-        }
-      }
-      for (const f of G.fx) {
-        f.x += f.vx * dt;
-        f.y += f.vy * dt;
-        f.life -= dt;
-      }
-      G.fx = G.fx.filter(f => f.life > 0);
-      if (G.bustT > 3.2) this.finishBust();
+  // Lo que hace un jugador en su frame: moverse, manejar, tirar, entrar a lugares.
+  // Solo lee P.ctl (sus controles), nunca el teclado. Devuelve 'reset' si se reinició la partida.
+  updatePlayer(P, rdt, dt) {
+    // ---- Secuencia de arresto: 3.2s de corte, después comisaría. El mundo sigue andando.
+    if (P.busted) {
+      P.bustT += dt;
+      if (P.bustT > 3.2) this.finishBust(P);
       return;
     }
 
     // ---- Secuencia de curacion: entraste a un hospital, unos segundos y salis con la vida llena
-    if (G.healing) {
-      G.healT += dt;
-      if (G.healT > HOSPITAL_TIME) {
+    if (P.healing) {
+      P.healT += dt;
+      if (P.healT > HOSPITAL_TIME) {
         P.hp = P.maxhp;
-        G.healing = 0;
-        this.say('LISTO. A LA CALLE.', 2.6);
+        P.healing = 0;
+        this.say('LISTO. A LA CALLE.', 2.6, P);
       }
       return;
     }
 
-    const ix = input.getHorizontalAxis();
-    const iy = input.getVerticalAxis();
+    const ctl = P.ctl;
+    const ix = ctl.x;
+    const iy = ctl.y;
     P.muzzle = Math.max(0, P.muzzle - rdt * 14);
     P.swing = Math.max(0, P.swing - rdt * 5);
-    G.nearShop = null;
-    G.nearTranza = null;
+    P.nearShop = null;
+    P.nearTranza = null;
     if (!P.dead) this.switchWeapon(P);
 
     // Fumarse un porro: F (o el botón 🌿)
-    if (keys.KeyF && !G._f && !P.dead) {
-      if (P.porros > 0 && G.slowmo <= 0) {
+    if (ctl.porro && !P.prev.porro && !P.dead) {
+      if (P.porros > 0 && P.slowmo <= 0) {
         P.porros--;
-        G.slowmo = PORRO_TIME;
+        P.slowmo = PORRO_TIME;
         P.hp = Math.min(P.maxhp, P.hp + 15);
         puff(P.x, P.y - 6, '200,220,200', 6, 10);
-        this.say('TE BAJASTE UN CAMBIO...', 2.2);
+        this.say('TE BAJASTE UN CAMBIO...', 2.2, P);
       } else if (P.porros <= 0) {
-        this.say('NO TENES PORROS. BUSCA UN TRANZA', 1.8);
+        this.say('NO TENES PORROS. BUSCA UN TRANZA', 1.8, P);
       }
     }
-    G._f = keys.KeyF;
 
     // Cartel de zona al entrar a una villa
     const zone = villaAt(P.x, P.y);
-    if (zone !== G.zone) {
-      G.zone = zone;
-      if (zone) this.say(zone.name + (zone.angry > 0 ? ' - TE ESTAN ESPERANDO' : ' - LA YUTA NO ENTRA'), 2.8);
+    if (zone !== P.zone) {
+      P.zone = zone;
+      if (zone) this.say(zone.name + (zone.angry > 0 ? ' - TE ESTAN ESPERANDO' : ' - LA YUTA NO ENTRA'), 2.8, P);
     }
 
     if (P.dead) {
       P.hp = 0;
-      if (keys.Enter) this.startGame(P.def);
+      if (ctl.respawn) {
+        // Solo: se arranca de cero como siempre. Con otros jugando, reaparece él nomás.
+        if (G.players.length <= 1) {
+          this.startGame(P.def);
+          return 'reset';
+        }
+        this.respawn(P);
+      }
     } else if (P.car) {
       const car = P.car;
-      const acc = (keys.ShiftLeft || keys.ShiftRight) ? 200 : 145;
+      const acc = ctl.run ? 200 : 145;
       if (iy < -0.1) car.spd += acc * rdt * Math.min(1, Math.abs(iy));
       else if (iy > 0.1) car.spd -= acc * 1.25 * rdt * Math.min(1, Math.abs(iy));
       else car.spd *= (1 - 1.6 * rdt);
@@ -544,7 +613,7 @@ class Game {
           car.hp -= dmg;
           P.hp -= dmg * 0.5;
           boom(car.x, car.y, 8, '255,190,90');
-          G.shake += dmg * 0.5;
+          this.shakeFor(P, dmg * 0.5);
         }
         car.spd *= -0.25;
       } else {
@@ -565,23 +634,22 @@ class Game {
         );
       }
 
-      for (const list of [G.peds, G.cops, G.tranzas]) {
-        for (const e of list) {
-          if (Math.abs(car.spd) > 40 && e.hp > 0 && dist(car, e) < 14) {
-            decal(e.x, e.y, rnd(3, 6), 'rgba(90,12,12,.45)');
-            this.hurt(e, Math.abs(car.spd) / 6);
-          }
+      // Atropellar: a la gente de la calle y, con PVP, a los otros jugadores a pie
+      for (const e of this.targetsOf(P)) {
+        if (Math.abs(car.spd) > 40 && dist(car, e) < 14) {
+          decal(e.x, e.y, rnd(3, 6), 'rgba(90,12,12,.45)');
+          this.damage(e, Math.abs(car.spd) / 6, P);
         }
       }
 
       if (car.hp <= 0) this.wreckCar(car);
 
-      if (keys.KeyE && P.cool <= 0) {
-        this.exitCar();
+      if (ctl.use && P.cool <= 0) {
+        this.exitCar(P);
         P.cool = 0.4;
       }
     } else {
-      const running = keys.ShiftLeft || keys.ShiftRight;
+      const running = ctl.run;
       const spd = running ? 94 : 58;
       P.run = lerp(P.run, running ? 1 : 0, rdt * 8);
       const m = Math.hypot(ix, iy) || 1;
@@ -596,24 +664,26 @@ class Game {
 
       for (const b of shops) {
         const d = b.door;
-        if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) G.nearShop = b;
+        if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearShop = b;
       }
       for (const t of G.tranzas) {
-        if (t.hp > 0 && t.villa.angry <= 0 && dist(t, P) < 16) G.nearTranza = t;
+        if (t.hp > 0 && t.villa.angry <= 0 && dist(t, P) < 16) P.nearTranza = t;
       }
 
-      if (keys.KeyE && P.cool <= 0 && G.nearShop) {
+      // Los menús (armería, tranza) son de la pantalla local: solo los abre G.me
+      if (ctl.use && P.cool <= 0 && P.nearShop) {
         P.cool = 0.4;
-        if (G.wanted >= 2) this.say('EL ARMERO NO ATIENDE CON LA YUTA ENCIMA');
-        else shop.open('armeria');
-      } else if (keys.KeyE && P.cool <= 0 && G.nearTranza) {
+        if (P.wanted >= 2) this.say('EL ARMERO NO ATIENDE CON LA YUTA ENCIMA', 2.6, P);
+        else if (P === G.me) shop.open('armeria');
+      } else if (ctl.use && P.cool <= 0 && P.nearTranza) {
         P.cool = 0.4;
-        G.nearTranza.ang = Math.atan2(P.y - G.nearTranza.y, P.x - G.nearTranza.x);
-        shop.open('tranza');
-      } else if (keys.KeyE && P.cool <= 0) {
+        P.nearTranza.ang = Math.atan2(P.y - P.nearTranza.y, P.x - P.nearTranza.x);
+        if (P === G.me) shop.open('tranza');
+      } else if (ctl.use && P.cool <= 0) {
         P.cool = 0.4;
         let best = null, bd = 26;
         for (const c of G.cars) {
+          if (driverOf(c)) continue; // el auto de otro jugador no se roba
           const d = dist(c, P);
           if (d < bd) {
             bd = d;
@@ -622,9 +692,10 @@ class Game {
         }
         if (best) {
           best.ai = false;
+          best.chase = false; // un patrullero robado deja de perseguir
           P.car = best;
-          if (!best.cop) this.wantUp(1);
-          this.say(best.cop ? 'AUTO DE LA YUTA' : 'AUTO ROBADO');
+          if (!best.cop) this.wantUp(P, 1);
+          this.say(best.cop ? 'AUTO DE LA YUTA' : 'AUTO ROBADO', 2.6, P);
         }
       }
 
@@ -632,9 +703,9 @@ class Game {
         for (const h of hospitals) {
           const d = h.door;
           if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 10) {
-            G.healing = 1;
-            G.healT = 0;
-            this.say('ENTRANDO AL HOSPITAL...', 2.4);
+            P.healing = 1;
+            P.healT = 0;
+            this.say('ENTRANDO AL HOSPITAL...', 2.4, P);
             break;
           }
         }
@@ -642,7 +713,34 @@ class Game {
     }
     P.cool -= rdt;
 
-    if (keys.Space && !P.dead && P.cool <= 0) this.attack(P);
+    if (ctl.fire && !P.dead && P.cool <= 0) this.attack(P);
+  }
+
+  update(rdt) {
+    // Porro: jugando solo, el mundo va en cámara lenta (dt) mientras el jugador se mueve a
+    // tiempo real (rdt). Con otros no se le puede frenar el mundo a nadie: queda el efecto
+    // en pantalla y la curación, nada más.
+    for (const P of G.players) {
+      P.slowmo = Math.max(0, P.slowmo - rdt);
+      P.high = lerp(P.high, P.slowmo > 0 ? 1 : 0, clamp(rdt * 4, 0, 1));
+    }
+    G.ts = G.players.length === 1 ? 1 - (1 - SLOWMO) * G.players[0].high : 1;
+    const dt = rdt * G.ts;
+    G.t += dt;
+    if (G.msgT > 0) G.msgT -= rdt;
+    G.shake = Math.max(0, G.shake - rdt * 22);
+    G.flash = Math.max(0, G.flash - rdt * 4);
+    G.guards = G.guards.filter(g => g.hp > 0);
+    if (!G.players.length) return;
+
+    // Controles: el jugador local los lee del teclado; los remotos llegan por la red
+    if (G.me) G.me.ctl = G.paused || G.mapOpen || G.shopOpen ? idleControls() : input.readControls();
+
+    for (const P of G.players.slice()) {
+      if (this.updatePlayer(P, rdt, dt) === 'reset') return;
+      P.prev = { ...P.ctl };
+    }
+
     this.updateNades(dt);
     this.updateTranzas(dt);
 
@@ -657,25 +755,25 @@ class Game {
         boom(b.x, b.y, 4, '220,220,200');
         continue;
       }
-      if (b.mine) {
+      if (b.owner) {
         for (const list of [G.cops, G.peds, G.tranzas]) {
           for (const e of list) {
             if (b.life > 0 && e.hp > 0 && segDist(b, e) < 7) {
               b.life = 0;
-              this.hurt(e, b.dmg);
+              this.hurt(e, b.dmg, b.owner);
             }
           }
         }
-      } else if (!P.dead && segDist(b, P) < (P.car ? 12 : 7)) {
-        b.life = 0;
-        G.shake += 1.6;
-        if (P.car) {
-          P.car.hp -= 7;
-          this.hurtPlayer(2);
-        } else {
-          this.hurtPlayer(7);
+      }
+      // Las balas de la yuta y los tranzas le pegan a cualquier jugador; las de un
+      // jugador, con PVP, a los otros (nunca a él mismo)
+      for (const P of G.players) {
+        if (b.life <= 0) break;
+        if (P === b.owner || (b.owner && !PVP) || !inPlay(P)) continue;
+        if (segDist(b, P) < (P.car ? 12 : 7)) {
+          b.life = 0;
+          this.shootPlayer(P, b.dmg);
         }
-        boom(P.x, P.y, 5, '190,35,35');
       }
     }
     G.bullets = G.bullets.filter(b => b.life > 0);
@@ -702,7 +800,14 @@ class Game {
       p.fade = Math.min(1, p.fade + dt * 2.6);
 
       p.tt -= dt;
-      const busy = G.wanted > 0 && dist(p, P) < 105;
+      // Algún jugador con la yuta encima cerca: nadie se va a un edificio, todos atentos.
+      // threat: el que lo asusta (buscado cerca, o pasando fuerte con el auto)
+      let busy = false, threat = null;
+      for (const q of G.players) {
+        const dq = dist(p, q);
+        if (q.wanted > 0 && dq < 105) busy = true;
+        if (!threat && ((q.wanted > 0 && dq < 105) || (q.car && Math.abs(q.car.spd) > 70 && dq < 65))) threat = q;
+      }
       if (!busy) {
         p.doorT -= dt;
         if (p.doorT <= 0 && !p.target) {
@@ -753,10 +858,9 @@ class Game {
         p.ang = Math.round(p.ang / (Math.PI / 2)) * (Math.PI / 2);
       }
 
-      const dp = dist(p, P);
-      const scared = (G.wanted > 0 && dp < 105) || (P.car && Math.abs(P.car.spd) > 70 && dp < 65);
+      const scared = !!threat;
       if (scared) {
-        p.ang = Math.atan2(p.y - P.y, p.x - P.x);
+        p.ang = Math.atan2(p.y - threat.y, p.x - threat.x);
         p.chat = 0;
       }
       const s = scared ? 78 * p.ty.panic : p.sped;
@@ -866,18 +970,24 @@ class Game {
       }
     }
 
-    // Streaming de peatones
-    G.peds = G.peds.filter(q => (q.hp > 0 && dist(q, P) < SIM_R * 1.12) || (q.hp <= 0 && dist(q, P) < 300));
-    const alive = G.peds.filter(q => q.hp > 0).length;
-    if (alive < PED_TARGET) {
-      G.pedSpawn = (G.pedSpawn || 0) + dt;
-      if (G.pedSpawn > 0.12) {
-        G.pedSpawn = 0;
-        const sp = sidewalkSpot(OFFSCREEN, SIM_R * 0.95);
-        if (sp) G.peds.push(makePedAt(sp.x, sp.y));
+    // Streaming de peatones: se mantienen los que están cerca de algún jugador
+    G.peds = G.peds.filter(q => {
+      const d = distToPlayers(q);
+      return q.hp > 0 ? d < SIM_R * 1.12 : d < 300;
+    });
+    // Cada jugador tiene su barrio poblado: se repone alrededor de cada uno, sin que lo vea otro
+    for (const P of G.players) {
+      const alive = G.peds.filter(q => q.hp > 0 && dist(q, P) < SIM_R * 1.12).length;
+      if (alive < PED_TARGET) {
+        P.pedSpawn = (P.pedSpawn || 0) + dt;
+        if (P.pedSpawn > 0.12) {
+          P.pedSpawn = 0;
+          const sp = sidewalkSpot(OFFSCREEN, SIM_R * 0.95, P);
+          if (sp && offscreenForOthers(sp, P)) G.peds.push(makePedAt(sp.x, sp.y));
+        }
+      } else {
+        P.pedSpawn = 0;
       }
-    } else {
-      G.pedSpawn = 0;
     }
 
     // Velocidad real de cada auto (cuánto se movió de verdad), para que nadie espere
@@ -891,89 +1001,95 @@ class Game {
     // Tráfico de autos civiles: carriles, giros con curva, rotonda y frenado (js/traffic.js)
     for (const c of G.cars) {
       if (!c.ai || c.chase || c.hp <= 0) continue;
-      trafficAI.update(c, dt, P);
+      trafficAI.update(c, dt);
     }
 
-    G.cars = G.cars.filter(c => c.hp > 0 || c === P.car);
-    G.cars = G.cars.filter(c => c === P.car || dist(c, P) < SIM_R * 1.12);
-    // Cuántos autos entran acá: en una esquina del mapa o contra el río hay menos calle,
-    // y meter los 46 de siempre arma un embotellamiento que no se desarma nunca
-    G.carCapT = (G.carCapT || 0) - dt;
-    if (G.carCapT <= 0 || !G.carCap) {
-      G.carCapT = 1;
-      let road = 0, n = 0;
-      for (let r = 80; r <= SIM_R; r += 80) {
-        for (let a = 0; a < TAU; a += TAU / 16) {
-          n++;
-          const x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
-          if (x > 0 && y > 0 && x < WORLD && y < WORLD && onRoad(x, y) && !hitBuilding(x, y, 2)) road++;
-        }
-      }
-      G.carCap = Math.round(CAR_TARGET * clamp(road / n / 0.45, 0.65, 1));
-    }
-    const carsNear = G.cars.filter(c => c.ai && c.hp > 0).length;
-    if (carsNear > G.carCap) {
-      // Sobran: se va uno que no se ve y está clavado en una fila (el que anda, sigue)
-      G.carTrim = (G.carTrim || 0) + dt;
-      if (G.carTrim > 0.25) {
-        G.carTrim = 0;
-        let pick = null, best = -1;
-        for (const c of G.cars) {
-          if (!c.ai || c.chase || c.hp <= 0 || c === P.car || c.spd >= 4) continue;
-          const d = dist(c, P);
-          if (d < OFFSCREEN) continue;
-          if (d > best) { best = d; pick = c; }
-        }
-        if (pick) { trafficAI.release(pick); pick.hp = 0; }
-      }
-    } else if (carsNear < G.carCap) {
-      G.carSpawn = (G.carSpawn || 0) + dt;
-      if (G.carSpawn > 0.22) {
-        G.carSpawn = 0;
-        // Busca un lugar con calle libre: no aparece adentro de una fila ni en una zona
-        // ya cargada (en una esquina del mapa o al lado del río hay menos calles para repartir)
-        for (let k = 0; k < 4; k++) {
-          const sp = ringSpot(OFFSCREEN, SIM_R * 0.95, true);
-          if (!sp) continue;
-          let near = 0, touching = false;
-          for (const o of G.cars) {
-            const dx = Math.abs(o.x - sp.x), dy = Math.abs(o.y - sp.y);
-            if (dx < 40 && dy < 40) { touching = true; break; }
-            if (dx < 120 && dy < 120) near++;
+    // Se mantienen los autos cerca de algún jugador, y siempre los que maneja un jugador
+    G.cars = G.cars.filter(c => driverOf(c) || (c.hp > 0 && distToPlayers(c) < SIM_R * 1.12));
+    // Cuántos autos entran alrededor de cada jugador: en una esquina del mapa o contra el
+    // río hay menos calle, y meter los 46 de siempre arma un embotellamiento que no se desarma nunca
+    for (const P of G.players) {
+      P.carCapT = (P.carCapT || 0) - dt;
+      if (P.carCapT <= 0 || !P.carCap) {
+        P.carCapT = 1;
+        let road = 0, n = 0;
+        for (let r = 80; r <= SIM_R; r += 80) {
+          for (let a = 0; a < TAU; a += TAU / 16) {
+            n++;
+            const x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
+            if (x > 0 && y > 0 && x < WORLD && y < WORLD && onRoad(x, y) && !hitBuilding(x, y, 2)) road++;
           }
-          if (touching || near >= 4) continue;
-          G.cars.push(makeCar(sp.x, sp.y));
-          break;
         }
+        P.carCap = Math.round(CAR_TARGET * clamp(road / n / 0.45, 0.65, 1));
       }
-    } else {
-      G.carSpawn = 0;
+      const carsNear = G.cars.filter(c => c.ai && c.hp > 0 && dist(c, P) < SIM_R * 1.12).length;
+      if (carsNear > P.carCap) {
+        // Sobran: se va uno que nadie ve y está clavado en una fila (el que anda, sigue)
+        P.carTrim = (P.carTrim || 0) + dt;
+        if (P.carTrim > 0.25) {
+          P.carTrim = 0;
+          let pick = null, best = -1;
+          for (const c of G.cars) {
+            if (!c.ai || c.chase || c.hp <= 0 || driverOf(c) || c.spd >= 4) continue;
+            if (distToPlayers(c) < OFFSCREEN) continue;
+            const d = dist(c, P);
+            if (d > best) { best = d; pick = c; }
+          }
+          if (pick) { trafficAI.release(pick); pick.hp = 0; }
+        }
+      } else if (carsNear < P.carCap) {
+        P.carSpawn = (P.carSpawn || 0) + dt;
+        if (P.carSpawn > 0.22) {
+          P.carSpawn = 0;
+          // Busca un lugar con calle libre: no aparece adentro de una fila ni en una zona
+          // ya cargada (en una esquina del mapa o al lado del río hay menos calles para repartir)
+          for (let k = 0; k < 4; k++) {
+            const sp = ringSpot(OFFSCREEN, SIM_R * 0.95, true, P);
+            if (!sp || !offscreenForOthers(sp, P)) continue;
+            let near = 0, touching = false;
+            for (const o of G.cars) {
+              const dx = Math.abs(o.x - sp.x), dy = Math.abs(o.y - sp.y);
+              if (dx < 40 && dy < 40) { touching = true; break; }
+              if (dx < 120 && dy < 120) near++;
+            }
+            if (touching || near >= 4) continue;
+            G.cars.push(makeCar(sp.x, sp.y));
+            break;
+          }
+        }
+      } else {
+        P.carSpawn = 0;
+      }
     }
 
-    // Policías a pie
-    const wantCops = [0, 2, 4, 6, 9, 12][G.wanted] || 0;
-    if (G.cops.filter(c => c.hp > 0).length < wantCops && Math.random() < 1.6 * dt) {
-      const cop = makeCop();
-      if (cop) G.cops.push(cop);
+    // Cada jugador buscado tiene su propia yuta: policías a pie y patrulleros que lo persiguen a él
+    for (const P of G.players) {
+      if (!inPlay(P)) continue;
+      const wantCops = [0, 2, 4, 6, 9, 12][P.wanted] || 0;
+      if (G.cops.filter(c => c.hp > 0 && c.tgt === P).length < wantCops && Math.random() < 1.6 * dt) {
+        const cop = makeCop(P);
+        if (cop) G.cops.push(cop);
+      }
+      const wantChase = [0, 0, 1, 2, 3, 5][P.wanted] || 0;
+      if (G.cars.filter(c => c.chase && c.hp > 0 && c.tgt === P).length < wantChase && Math.random() < 0.9 * dt) {
+        G.cars.push(makeChaser(P));
+      }
     }
 
-    // Patrulleros que persiguen
-    const wantChase = [0, 0, 1, 2, 3, 5][G.wanted] || 0;
-    const chasers = G.cars.filter(c => c.chase && c.hp > 0);
-    if (chasers.length < wantChase && Math.random() < 0.9 * dt) {
-      G.cars.push(makeChaser());
-    }
-
+    const chasers = G.cars.filter(c => c.chase && c.hp > 0 && !driverOf(c));
     for (const c of chasers) {
+      // Si su objetivo se fue de la partida, va por el más cercano
+      if (!c.tgt || !G.players.includes(c.tgt)) c.tgt = nearestPlayer(c).p;
+      const P = c.tgt;
       const d = dist(c, P);
-      // Va por las calles hacia el jugador (js/traffic.js); sin camino por la grilla, derecho
+      // Va por las calles hacia su jugador (js/traffic.js); sin camino por la grilla, derecho
       let nav = copNav.target(c, P, dt) || { x: P.x, y: P.y, turn: false };
       // Ya llegó y el jugador está a pie: se tira contra el cordón en vez de quedar en el medio
       // del carril (con el jugador en un auto sí se le va encima, para encajonarlo)
       if (!P.car && d < 70) {
         // Lugar propio en el operativo: el primer número libre entre los que ya estacionaron
         if (c.slot === undefined) {
-          const used = new Set(chasers.filter(o => o !== c && o.slot !== undefined).map(o => o.slot));
+          const used = new Set(chasers.filter(o => o !== c && o.tgt === P && o.slot !== undefined).map(o => o.slot));
           c.slot = 0;
           while (used.has(c.slot)) c.slot++;
         }
@@ -1026,7 +1142,7 @@ class Game {
         if (!got) {
           c.ang += Math.PI;
           c.spd = 16;
-          if (d > OFFSCREEN) c.hp = 0;
+          if (farFromPlayers(c, OFFSCREEN)) c.hp = 0;
         }
       } else {
         c.x = nx2;
@@ -1044,7 +1160,7 @@ class Game {
       if (c.progT >= 2) {
         const moved = Math.hypot(c.x - (c.progX ?? c.x + 99), c.y - (c.progY ?? c.y + 99));
         if (moved < 6 && d > 80) {
-          if (d > OFFSCREEN) c.hp = 0;
+          if (farFromPlayers(c, OFFSCREEN)) c.hp = 0;
           else {
             for (const a of [0, Math.PI / 2]) {
               const L = laneSnap(c.x, c.y, a);
@@ -1057,12 +1173,11 @@ class Game {
         }
         c.progT = 0; c.progX = c.x; c.progY = c.y;
       }
-
       // Encajonar jugador
-      if (!P.dead && !G.busted && P.car && d < 24) {
+      if (inPlay(P) && P.car && d < 24) {
         if (Math.abs(P.car.spd) < 34) {
           c.bustT = (c.bustT || 0) + dt;
-          if (c.bustT > 0.8) this.bust();
+          if (c.bustT > 0.8) this.bust(P);
         } else {
           c.bustT = 0;
           if (d < 17) {
@@ -1071,7 +1186,7 @@ class Game {
             P.car.x += Math.cos(push) * 26 * dt;
             P.car.y += Math.sin(push) * 26 * dt;
             P.car.hp -= 7 * dt;
-            G.shake += 22 * dt;
+            this.shakeFor(P, 22 * dt);
           }
         }
       } else {
@@ -1079,7 +1194,7 @@ class Game {
       }
     }
 
-    G.cars = G.cars.filter(c => !c.chase || (c.hp > 0 && dist(c, P) < SIM_R * 1.3));
+    G.cars = G.cars.filter(c => !c.chase || driverOf(c) || (c.hp > 0 && distToPlayers(c) < SIM_R * 1.3));
 
     // Choques entre autos: si dos terminan superpuestos se empujan y se danan,
     // en vez de cruzarse como si nada. Solo toca G.cars: los peatones (G.peds/G.cops
@@ -1139,9 +1254,10 @@ class Game {
           a.spd *= -0.3;
           b.spd *= -0.3;
           boom((a.x + b.x) / 2, (a.y + b.y) / 2, 10, '255,190,90');
-          G.shake += Math.min(10, dmg * 0.5);
-          if (a === P.car) P.hp -= dmg * 0.5;
-          if (b === P.car) P.hp -= dmg * 0.5;
+          this.shakeAt((a.x + b.x) / 2, (a.y + b.y) / 2, Math.min(10, dmg * 0.5));
+          const da = driverOf(a), db = driverOf(b);
+          if (da) da.hp -= dmg * 0.5;
+          if (db) db.hp -= dmg * 0.5;
           if (aAlive && a.hp <= 0) this.wreckCar(a);
           if (bAlive && b.hp <= 0) this.wreckCar(b);
         }
@@ -1150,11 +1266,24 @@ class Game {
 
     for (const c of G.cops) {
       if (c.hp <= 0) continue;
+      if (!c.tgt || !G.players.includes(c.tgt)) c.tgt = nearestPlayer(c).p;
+      const P = c.tgt;
       c.muzzle = Math.max(0, c.muzzle - dt * 14);
       const d = dist(c, P);
       c.ang = Math.atan2(P.y - c.y, P.x - c.x);
+
+      // Arresto en curso: se le acercan a esposarlo, sin tirar
+      if (P.busted) {
+        if (d > 13) {
+          c.x += Math.cos(c.ang) * 46 * dt;
+          c.y += Math.sin(c.ang) * 46 * dt;
+          c.walk += dt * 5;
+        }
+        continue;
+      }
+
       if (d > 34) {
-        const s = 52 + G.wanted * 6;
+        const s = 52 + P.wanted * 6;
         const nx = c.x + Math.cos(c.ang) * s * dt, ny = c.y + Math.sin(c.ang) * s * dt;
         // La yuta a pie no entra a la villa: se queda en el borde
         const out = !villaAt(c.x, c.y);
@@ -1163,11 +1292,11 @@ class Game {
         c.walk += (dt * s) / 8;
       }
 
-      if (!P.dead && !G.busted && d < 15) {
+      if (inPlay(P) && d < 15) {
         const slow = P.car ? Math.abs(P.car.spd) < 26 : true;
         if (slow) {
           c.bustT += dt;
-          if (c.bustT > 0.65) this.bust();
+          if (c.bustT > 0.65) this.bust(P);
         } else {
           c.bustT = 0;
         }
@@ -1176,8 +1305,8 @@ class Game {
       }
 
       c.cool -= dt;
-      if (d < 155 && c.cool <= 0 && !P.dead) {
-        c.cool = rnd(0.7, 1.6) / (1 + G.wanted * 0.15);
+      if (d < 155 && c.cool <= 0 && inPlay(P)) {
+        c.cool = rnd(0.7, 1.6) / (1 + P.wanted * 0.15);
         const a = c.ang + rnd(-0.16, 0.16);
         c.muzzle = 1;
         G.bullets.push({
@@ -1186,38 +1315,41 @@ class Game {
           vx: Math.cos(a) * 335,
           vy: Math.sin(a) * 335,
           life: 0.8,
-          mine: false,
+          owner: null,
+          dmg: 7,
         });
       }
     }
-    G.cops = G.cops.filter(c => c.hp > 0 && dist(c, P) < 700);
+    G.cops = G.cops.filter(c => c.hp > 0 && distToPlayers(c) < 700);
 
-    if (G.wanted > 0) {
+    for (const P of G.players) {
+      if (P.wanted <= 0 || P.busted) continue;
       // Adentro de la villa la búsqueda baja el doble de rápido y solo te "ven" de cerca
       const hidden = villaAt(P.x, P.y) && !P.car;
-      G.wantCool += hidden ? dt * 2 : dt;
-      if (G.cops.some(c => dist(c, P) < (hidden ? 80 : 195))) G.wantCool = 0;
-      if (G.wantCool > 12) {
-        G.wantCool = 0;
-        G.wanted--;
-        this.say(G.wanted ? 'BAJO LA BUSQUEDA' : 'LOS PERDISTE');
+      P.wantCool += hidden ? dt * 2 : dt;
+      if (G.cops.some(c => dist(c, P) < (hidden ? 80 : 195))) P.wantCool = 0;
+      if (P.wantCool > 12) {
+        P.wantCool = 0;
+        P.wanted--;
+        this.say(P.wanted ? 'BAJO LA BUSQUEDA' : 'LOS PERDISTE', 2.6, P);
       }
     }
 
     for (const pk of G.pickups) {
       pk.t += dt;
-      if (dist(pk, P) < 12) {
+      const { p: P, d } = nearestPlayer(pk, inPlay);
+      if (P && d < 12) {
         if (pk.kind === 'cash') {
           const v = 150 + ((Math.random() * 8) | 0) * 50;
-          G.money += v;
-          this.say('+$' + v);
+          P.money += v;
+          this.say('+$' + v, 2.6, P);
         } else if (pk.kind === 'weapon') {
           this.giveWeapon(P, pk.w, pk.ammo);
-          this.say(WEAPONS[pk.w].melee ? WEAPONS[pk.w].name : WEAPONS[pk.w].short + ' +' + pk.ammo);
+          this.say(WEAPONS[pk.w].melee ? WEAPONS[pk.w].name : WEAPONS[pk.w].short + ' +' + pk.ammo, 2.6, P);
         } else {
           const heal = FOOD_HEAL[pk.food] || 35;
           P.hp = Math.min(P.maxhp, P.hp + heal);
-          this.say('+' + heal + ' VIDA (' + pk.food.toUpperCase() + ')');
+          this.say('+' + heal + ' VIDA (' + pk.food.toUpperCase() + ')', 2.6, P);
         }
         const col = { cash: '120,220,120', hp: '230,90,90', weapon: '255,200,90' }[pk.kind];
         boom(pk.x, pk.y, 8, col);
@@ -1245,16 +1377,20 @@ class Game {
     }
     G.smoke = G.smoke.filter(s => s.life > 0);
 
-    if (P.hp <= 0 && !P.dead) {
-      P.dead = true;
-      P.hp = 0;
-      this.exitCar();
-      boom(P.x, P.y, 32, '170,30,30');
-      decal(P.x, P.y, 9, 'rgba(95,12,12,.55)');
-      G.shake += 10;
+    for (const P of G.players) {
+      if (P.hp <= 0 && !P.dead) {
+        P.dead = true;
+        P.hp = 0;
+        this.exitCar(P);
+        boom(P.x, P.y, 32, '170,30,30');
+        decal(P.x, P.y, 9, 'rgba(95,12,12,.55)');
+        this.shakeFor(P, 10);
+      }
     }
 
-    // Cámara con suavizado y adelanto según velocidad
+    // Cámara del jugador local, con suavizado y adelanto según velocidad
+    const P = G.me;
+    if (!P) return;
     const lead = P.car ? clamp(P.car.spd / 195, 0, 1) * 52 : 0;
     const tx = clamp(P.x + Math.cos(P.ang) * lead - RW / 2, 0, WORLD - RW);
     const ty = clamp(P.y + Math.sin(P.ang) * lead - RH / 2, 0, WORLD - RH);
@@ -1265,11 +1401,13 @@ class Game {
 
 const game = new Game();
 
-// Exportación para compatibilidad
-const say = (t, s) => game.say(t, s);
+// Exportación para compatibilidad. Sin jugador explícito, actúan sobre el local (G.me).
+const say = (t, s, P) => game.say(t, s, P);
 const startGame = def => game.startGame(def);
-const bust = () => game.bust();
-const finishBust = () => game.finishBust();
-const exitCar = () => game.exitCar();
-const wantUp = n => game.wantUp(n);
+const addPlayer = def => game.addPlayer(def);
+const removePlayer = P => game.removePlayer(P);
+const bust = (P = G.me) => game.bust(P);
+const finishBust = (P = G.me) => game.finishBust(P);
+const exitCar = (P = G.me) => game.exitCar(P);
+const wantUp = (n, P = G.me) => game.wantUp(P, n);
 const update = dt => game.update(dt);
