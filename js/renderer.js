@@ -384,17 +384,19 @@ class Renderer {
     }
   }
 
-  // Sombrilla de playa: palo extruido y lona de gajos vista desde arriba
+  // Sombrilla de playa: palo extruido y lona de gajos vista desde arriba. El viento
+  // la mece un poquito (todo sale de G.t: se ve igual en todas las pantallas).
   drawSombrilla(p) {
     const ctx = this.ctx;
     const x = p.x - G.cam.x, y = p.y - G.cam.y;
     if (x < -24 || y < -30 || x > RW + 24 || y > RH + 24) return;
     const H = 20 * p.s;
     const dx = (x - RW / 2) * H / FOCAL, dy = (y - RH / 2) * H / FOCAL - 6 * p.s;
-    const tx = x + dx, ty = y + dy, R = 11 * p.s;
+    const vi = Math.sin(G.t * 1.7 + p.x * 0.13) * 0.7 + Math.sin(G.t * 4.3 + p.y * 0.2) * 0.25;
+    const tx = x + dx + vi, ty = y + dy + vi * 0.35, R = 11 * p.s;
     ctx.fillStyle = 'rgba(0,0,0,.20)'; // sombra en la arena
     ctx.beginPath();
-    ctx.ellipse(x + 3, y + 3, R * 0.9, R * 0.55, 0, 0, TAU);
+    ctx.ellipse(x + 3 + vi * 0.5, y + 3, R * 0.9, R * 0.55, 0, 0, TAU);
     ctx.fill();
     ctx.strokeStyle = '#8a7f60'; // palo
     ctx.lineWidth = 2 * p.s;
@@ -402,20 +404,399 @@ class Renderer {
     ctx.moveTo(x, y);
     ctx.lineTo(tx, ty);
     ctx.stroke();
-    // Lona: gajos alternados del color de la sombrilla y blanco
+    // Lona: gajos alternados del color de la sombrilla y blanco; con el viento giran
+    // apenas y el borde de cada gajo se infla y se desinfla.
+    const giro = Math.sin(G.t * 0.8 + p.y * 0.05) * 0.12;
     for (let i = 0; i < 8; i++) {
-      const a0 = i / 8 * TAU, a1 = (i + 1) / 8 * TAU;
+      const a0 = i / 8 * TAU + giro, a1 = (i + 1) / 8 * TAU + giro;
+      const Ri = R * (1 + Math.sin(G.t * 5.1 + i * 1.9 + p.x) * 0.035);
       ctx.fillStyle = i % 2 ? '#f2ede0' : p.col;
       ctx.beginPath();
       ctx.moveTo(tx, ty);
-      ctx.arc(tx, ty, R, a0, a1);
+      ctx.arc(tx, ty, Ri, a0, a1);
       ctx.closePath();
       ctx.fill();
     }
+    ctx.fillStyle = 'rgba(0,0,0,.10)'; // el lado de la lona que no le da el sol
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.arc(tx, ty, R, 0.15 * TAU + giro, 0.6 * TAU + giro);
+    ctx.closePath();
+    ctx.fill();
     ctx.fillStyle = '#6b6152';
     ctx.beginPath();
     ctx.arc(tx, ty, 1.6 * p.s, 0, TAU);
     ctx.fill();
+  }
+
+  // Extrusion de un punto de pantalla hacia "arriba" segun su altura
+  upPt(x, y, H) {
+    return [x + (x - RW / 2) * H / FOCAL, y + (y - RH / 2) * H / FOCAL];
+  }
+
+  // Bañista chiquito parado (alto ~8) o sentado (alto ~4): piernas, malla, torso y
+  // cabeza escalonados por la extrusion, como el tronco de las palmeras.
+  drawBanista(x, y, alto, q) {
+    const ctx = this.ctx;
+    const m = this.upPt(x, y, alto * 0.45), t = this.upPt(x, y, alto);
+    ctx.fillStyle = 'rgba(0,0,0,.22)';
+    ctx.fillRect(px(x - 1), px(y), 4, 2);
+    ctx.strokeStyle = q.piel;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(m[0], m[1]);
+    ctx.stroke();
+    ctx.lineWidth = 3.4;
+    ctx.beginPath();
+    ctx.moveTo(m[0], m[1]);
+    ctx.lineTo(t[0], t[1]);
+    ctx.stroke();
+    ctx.fillStyle = q.malla;
+    ctx.fillRect(px(m[0] - 2), px(m[1] - 1), 4, 2);
+    ctx.fillStyle = q.piel;
+    ctx.fillRect(px(t[0] - 1.5), px(t[1] - 3), 3, 3);
+    ctx.fillStyle = 'rgba(40,28,18,.85)';
+    ctx.fillRect(px(t[0] - 1.5), px(t[1] - 3), 3, 1);
+  }
+
+  // Caja extruida (piso en coordenadas de pantalla): paredes de la mas lejana del
+  // centro a la mas cercana, y el techo encima.
+  cajita(x, y, w, h, H0, H1, pared, techo) {
+    const c = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+    const lo = c.map(([a, b]) => this.upPt(a, b, H0)), hi = c.map(([a, b]) => this.upPt(a, b, H1));
+    const lados = [0, 1, 2, 3].map(i => {
+      const k = (i + 1) % 4, mx = (c[i][0] + c[k][0]) / 2 - RW / 2, my = (c[i][1] + c[k][1]) / 2 - RH / 2;
+      return { i, k, d: mx * mx + my * my };
+    }).sort((a, b) => b.d - a.d);
+    for (const { i, k } of lados) {
+      this.quad(lo[i][0], lo[i][1], lo[k][0], lo[k][1], hi[k][0], hi[k][1], hi[i][0], hi[i][1], i % 2 ? shade(pared, 0.8) : pared);
+    }
+    if (techo) this.quad(hi[0][0], hi[0][1], hi[1][0], hi[1][1], hi[2][0], hi[2][1], hi[3][0], hi[3][1], techo);
+    return hi;
+  }
+
+  // Puesto de choripan: casilla de madera con techito de paja, cartel, humo de la
+  // parrilla y la cola de gente esperando del lado del agua.
+  drawChiringuito(p, night) {
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x < -50 || y < -60 || x > RW + 50 || y > RH + 50) return;
+    const w = 22, h = 14, x0 = x - w / 2, y0 = y - h / 2;
+    ctx.fillStyle = 'rgba(0,0,0,.25)';
+    ctx.fillRect(px(x0 + 3), px(y0 + 4), w + 2, h + 2);
+    for (const q of p.gente) if (q.dy < 0 || q.dx < 0) this.drawBanista(x + q.dx, y + q.dy, 8, q);
+    this.cajita(x0, y0, w, h, 0, 9, '#b8946a', null);
+    // Mostrador del lado del agua
+    const f = this.upPt(x + p.fx * (w / 2 + 1), y + p.fy * (h / 2 + 1), 6);
+    ctx.fillStyle = '#7a5634';
+    ctx.fillRect(px(f[0] - (p.fx ? 1.5 : 9)), px(f[1] - (p.fy ? 1.5 : 6)), p.fx ? 3 : 18, p.fy ? 3 : 12);
+    // Techo de paja con alero
+    const t = this.cajita(x0 - 3, y0 - 3, w + 6, h + 6, 12, 14, '#8a6a3a', '#c49a52');
+    ctx.strokeStyle = 'rgba(110,80,40,.6)';
+    ctx.lineWidth = 1;
+    for (let k = 1; k < 6; k++) {
+      const a = k / 6;
+      ctx.beginPath();
+      ctx.moveTo(t[0][0] + (t[1][0] - t[0][0]) * a, t[0][1] + (t[1][1] - t[0][1]) * a);
+      ctx.lineTo(t[3][0] + (t[2][0] - t[3][0]) * a, t[3][1] + (t[2][1] - t[3][1]) * a);
+      ctx.stroke();
+    }
+    // Toldito a rayas sobre el mostrador
+    for (let k = 0; k < 6; k++) {
+      ctx.fillStyle = k % 2 ? '#f2ede0' : p.col;
+      const a = this.upPt(x + p.fx * (w / 2 + 3) + (p.fx ? 0 : (k - 3) * 4), y + p.fy * (h / 2 + 3) + (p.fy ? 0 : (k - 3) * 4), 11);
+      ctx.fillRect(px(a[0]), px(a[1]), p.fx ? 3 : 4, p.fy ? 3 : 4);
+    }
+    // Cartel
+    const c = this.upPt(x, y, 15);
+    ctx.font = '5px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    const cw = p.cartel.length * 5 + 4;
+    ctx.fillStyle = '#2a1e14';
+    ctx.fillRect(px(c[0] - cw / 2), px(c[1] - 4), cw, 7);
+    ctx.fillStyle = night > 0.3 && Math.floor(G.t * 1.5 + p.x) % 4 ? '#ffd34a' : '#f2ede0';
+    ctx.fillText(p.cartel, px(c[0]), px(c[1] + 2));
+    // Humo de la parrilla: bocanadas que suben y se apagan (solo de G.t)
+    for (let k = 0; k < 4; k++) {
+      const ph = (G.t * 0.6 + k / 4 + p.x * 0.01) % 1;
+      const s = this.upPt(x + w / 2 - 4 + Math.sin(G.t * 1.3 + k) * 2, y - h / 2 + 3, 16 + ph * 22);
+      ctx.fillStyle = 'rgba(225,222,215,' + (0.4 * (1 - ph)).toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.arc(s[0] + ph * 6, s[1], 2 + ph * 3.5, 0, TAU);
+      ctx.fill();
+    }
+    for (const q of p.gente) if (!(q.dy < 0 || q.dx < 0)) this.drawBanista(x + q.dx, y + q.dy, 8, q);
+  }
+
+  // Torre de guardavidas: cuatro patas, plataforma, casilla roja y la bandera que flamea
+  drawGuardavidas(p) {
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x < -50 || y < -70 || x > RW + 50 || y > RH + 50) return;
+    const s = 5;
+    ctx.fillStyle = 'rgba(0,0,0,.22)';
+    ctx.fillRect(px(x - s + 6), px(y - s + 8), s * 2 + 2, s * 2);
+    ctx.strokeStyle = '#e8e2d2';
+    ctx.lineWidth = 1.4;
+    for (const [a, b] of [[-s, -s], [s, -s], [s, s], [-s, s]]) {
+      const t = this.upPt(x + a, y + b, 16);
+      ctx.beginPath();
+      ctx.moveTo(x + a, y + b);
+      ctx.lineTo(t[0], t[1]);
+      ctx.stroke();
+    }
+    // Escalera que baja para el lado del agua
+    const ex = Math.cos(p.a), ey = Math.sin(p.a);
+    ctx.strokeStyle = '#cfc9ba';
+    ctx.lineWidth = 1;
+    for (let k = 0; k <= 4; k++) {
+      const a = this.upPt(x + ex * (s + 6 - k * 1.4), y + ey * (s + 6 - k * 1.4), k * 4);
+      ctx.fillStyle = '#cfc9ba';
+      ctx.fillRect(px(a[0] - 2), px(a[1]), 4, 1);
+    }
+    this.cajita(x - s - 1, y - s - 1, s * 2 + 2, s * 2 + 2, 15, 16, '#8a6a44', '#a07a4e');
+    // Baranda roja y el guardavidas parado mirando al agua
+    ctx.strokeStyle = '#d8352a';
+    ctx.lineWidth = 1;
+    const bar = [[-s - 1, -s - 1], [s + 1, -s - 1], [s + 1, s + 1], [-s - 1, s + 1]].map(([a, b]) => this.upPt(x + a, y + b, 20));
+    ctx.beginPath();
+    ctx.moveTo(bar[0][0], bar[0][1]);
+    for (let k = 1; k <= 4; k++) ctx.lineTo(bar[k % 4][0], bar[k % 4][1]);
+    ctx.stroke();
+    const pl = this.upPt(x + ex * 2, y + ey * 2, 16);
+    this.drawBanista(pl[0], pl[1], 8, { malla: '#d8352a', piel: '#c4926a' });
+    // Techito a dos aguas rojo y amarillo, corrido para el lado de tierra
+    const tx0 = x - ex * 3, ty0 = y - ey * 3;
+    const r0 = this.upPt(tx0 - s, ty0 - s, 25), r1 = this.upPt(tx0 + s, ty0 - s, 25);
+    const r2 = this.upPt(tx0 + s, ty0 + s, 25), r3 = this.upPt(tx0 - s, ty0 + s, 25);
+    this.quad(r0[0], r0[1], r1[0], r1[1], (r1[0] + r2[0]) / 2, (r1[1] + r2[1]) / 2, (r0[0] + r3[0]) / 2, (r0[1] + r3[1]) / 2, '#d8352a');
+    this.quad((r0[0] + r3[0]) / 2, (r0[1] + r3[1]) / 2, (r1[0] + r2[0]) / 2, (r1[1] + r2[1]) / 2, r2[0], r2[1], r3[0], r3[1], '#f2c230');
+    // Bandera: palo y paño rojo y amarillo que flamea con el viento
+    const b0 = this.upPt(x + s - 1, y - s + 1, 23), b1 = this.upPt(x + s - 1, y - s + 1, 34);
+    ctx.strokeStyle = '#e8e2d2';
+    ctx.beginPath();
+    ctx.moveTo(b0[0], b0[1]);
+    ctx.lineTo(b1[0], b1[1]);
+    ctx.stroke();
+    for (let k = 0; k < 4; k++) {
+      const ond = Math.sin(G.t * 7 - k * 1.1) * 1.2;
+      ctx.fillStyle = (k + 1) % 2 ? '#d8352a' : '#f2c230';
+      ctx.fillRect(px(b1[0] + 1 + k * 2), px(b1[1] + ond), 2, 4);
+    }
+  }
+
+  // Canchita de voley: postes, red y la pelota que va y viene por arriba, con los
+  // jugadores saltando. Las lineas de la cancha estan horneadas en el piso.
+  drawVoley(p) {
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x < -50 || y < -60 || x > RW + 50 || y > RH + 50) return;
+    const ux = Math.cos(p.a), uy = Math.sin(p.a), vx = -uy, vy = ux;
+    const at = (u, v) => [x + ux * u + vx * v, y + uy * u + vy * v];
+    const ph = (G.t * 0.55 + p.seed) % 2, ida = ph < 1 ? 1 : -1, f = ph % 1;
+    for (const q of p.gente) {
+      if (q.u * ida > 0) continue; // primero los del lado que recibe (quedan atras)
+      const [gx, gy] = at(q.u, q.v);
+      this.drawBanista(gx, gy, 8 + Math.max(0, Math.sin(G.t * 5 + q.v)) * 2, q);
+    }
+    const P0 = at(0, -13), P1 = at(0, 13);
+    const a0 = this.upPt(P0[0], P0[1], 11), a1 = this.upPt(P1[0], P1[1], 11);
+    const b0 = this.upPt(P0[0], P0[1], 6), b1 = this.upPt(P1[0], P1[1], 6);
+    this.quad(b0[0], b0[1], b1[0], b1[1], a1[0], a1[1], a0[0], a0[1], 'rgba(240,240,232,.28)');
+    ctx.strokeStyle = 'rgba(30,30,30,.35)';
+    ctx.lineWidth = 0.6;
+    for (let k = 1; k < 8; k++) {
+      const a = k / 8;
+      ctx.beginPath();
+      ctx.moveTo(b0[0] + (b1[0] - b0[0]) * a, b0[1] + (b1[1] - b0[1]) * a);
+      ctx.lineTo(a0[0] + (a1[0] - a0[0]) * a, a0[1] + (a1[1] - a0[1]) * a);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#f2ede0';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(a0[0], a0[1]);
+    ctx.lineTo(a1[0], a1[1]);
+    ctx.stroke();
+    ctx.strokeStyle = '#6b5636';
+    ctx.lineWidth = 1.6;
+    for (const [P, A] of [[P0, a0], [P1, a1]]) {
+      ctx.beginPath();
+      ctx.moveTo(P[0], P[1]);
+      ctx.lineTo(A[0], A[1]);
+      ctx.stroke();
+    }
+    for (const q of p.gente) {
+      if (q.u * ida <= 0) continue;
+      const [gx, gy] = at(q.u, q.v);
+      this.drawBanista(gx, gy, 8 + Math.max(0, Math.sin(G.t * 5 + q.v)) * 2, q);
+    }
+    // Pelota: parabola de un lado al otro
+    const [bx, by] = at(-ida * 13 + ida * 26 * f, Math.sin(ph * 3.1) * 5);
+    const z = 9 + Math.sin(f * Math.PI) * 17;
+    ctx.fillStyle = 'rgba(0,0,0,.2)';
+    ctx.fillRect(px(bx - 1), px(by), 3, 2);
+    const bp = this.upPt(bx, by, z);
+    ctx.fillStyle = '#f6f2e4';
+    ctx.beginPath();
+    ctx.arc(bp[0], bp[1] - z * 0.25, 1.9, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#e0b83a';
+    ctx.fillRect(px(bp[0] - 1), px(bp[1] - z * 0.25 - 1), 1, 2);
+  }
+
+  // Carpa canadiense: dos faldones que suben a la cumbrera
+  drawCarpa(p) {
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x < -30 || y < -30 || x > RW + 30 || y > RH + 30) return;
+    const L = 9, W = 6, H = 8;
+    const ax = p.horiz ? L : 0, ay = p.horiz ? 0 : L, bx = p.horiz ? 0 : W, by = p.horiz ? W : 0;
+    ctx.fillStyle = 'rgba(0,0,0,.22)';
+    ctx.fillRect(px(x - L + 2), px(y - L + 3), L * 2, L * 2 - 2);
+    const r0 = this.upPt(x - ax, y - ay, H), r1 = this.upPt(x + ax, y + ay, H);
+    const lados = [
+      [[x - ax - bx, y - ay - by], [x + ax - bx, y + ay - by]],
+      [[x - ax + bx, y - ay + by], [x + ax + bx, y + ay + by]],
+    ].map(e => ({ e, d: Math.hypot((e[0][0] + e[1][0]) / 2 - RW / 2, (e[0][1] + e[1][1]) / 2 - RH / 2) }))
+      .sort((a, b) => b.d - a.d);
+    lados.forEach(({ e }, k) => {
+      this.quad(e[0][0], e[0][1], e[1][0], e[1][1], r1[0], r1[1], r0[0], r0[1], k ? p.col : shade(p.col, 0.72));
+    });
+    // Puerta en una punta
+    const pu = [x + ax, y + ay];
+    this.quad(pu[0] - bx * 0.6, pu[1] - by * 0.6, pu[0] + bx * 0.6, pu[1] + by * 0.6, r1[0], r1[1], r1[0], r1[1], '#2a2a2e');
+    ctx.strokeStyle = shade(p.col, 1.25);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(r0[0], r0[1]);
+    ctx.lineTo(r1[0], r1[1]);
+    ctx.stroke();
+  }
+
+  // Fogon: la ronda sentada en los troncos y el fuego. De dia es brasa y humito;
+  // a la noche prende en serio (el brillo va en drawLights).
+  drawFogata(p, night) {
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x < -40 || y < -50 || x > RW + 40 || y > RH + 40) return;
+    const atras = [], adelante = [];
+    for (const q of p.gente) (Math.sin(q.a) < 0 ? atras : adelante).push(q);
+    for (const q of atras) this.drawBanista(x + Math.cos(q.a) * 10, y + Math.sin(q.a) * 10, 5, q);
+    const fuego = clamp((night - 0.12) * 3, 0.25, 1);
+    for (let k = 0; k < 5; k++) {
+      const a = k / 5 * TAU + 0.6, r = k ? 1.8 : 0;
+      const fx = x + Math.cos(a) * r, fy = y + Math.sin(a) * r;
+      const h = (3 + 4 * Math.abs(Math.sin(G.t * 9 + k * 1.7 + p.x))) * fuego;
+      const t = this.upPt(fx, fy, h);
+      this.quad(fx - 1.6, fy, fx + 1.6, fy, t[0], t[1], t[0], t[1], k % 2 ? '#ff8a2a' : '#ffc23a');
+    }
+    ctx.fillStyle = '#ffe9a0';
+    ctx.fillRect(px(x - 1), px(y - 1), 2, 2);
+    // Chispas y humo
+    for (let k = 0; k < 3; k++) {
+      const ph = (G.t * (0.5 + k * 0.13) + k / 3) % 1;
+      const s = this.upPt(x + Math.sin(G.t * 2 + k * 2) * 2, y, 6 + ph * 24);
+      if (fuego > 0.5 && k < 2) {
+        ctx.fillStyle = 'rgba(255,190,80,' + (1 - ph).toFixed(3) + ')';
+        ctx.fillRect(px(s[0] + ph * 3), px(s[1]), 1, 1);
+      }
+      ctx.fillStyle = 'rgba(200,198,190,' + (0.3 * (1 - ph) * (1.3 - fuego)).toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.arc(s[0] + ph * 5, s[1] - 4, 1.5 + ph * 3, 0, TAU);
+      ctx.fill();
+    }
+    for (const q of adelante) this.drawBanista(x + Math.cos(q.a) * 10, y + Math.sin(q.a) * 10, 5, q);
+  }
+
+  // Muelle de pescadores: tablones sobre pilotes que salen de la arena y entran al
+  // agua, con el pescador en la punta y la boya que sube y baja.
+  drawMuelle(p) {
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x + p.dx * p.L < -60 && x < -60 || x + p.dx * p.L > RW + 60 && x > RW + 60
+      || y + p.dy * p.L < -60 && y < -60 || y + p.dy * p.L > RH + 60 && y > RH + 60) return;
+    const W = 4, H = 3, nx = -p.dy, ny = p.dx;
+    const ex = x + p.dx * p.L, ey = y + p.dy * p.L;
+    // Sombra sobre el agua y pilotes
+    this.quad(x + nx * W + 3, y + ny * W + 4, ex + nx * W + 3, ey + ny * W + 4,
+      ex - nx * W + 3, ey - ny * W + 4, x - nx * W + 3, y - ny * W + 4, 'rgba(0,0,0,.25)');
+    ctx.fillStyle = '#3e2e1e';
+    for (let u = 8; u <= p.L; u += 8) {
+      for (const s of [-1, 1]) ctx.fillRect(px(x + p.dx * u + nx * W * s - 1), px(y + p.dy * u + ny * W * s - 1), 2, 2);
+    }
+    const c = [[x + nx * W, y + ny * W], [ex + nx * W, ey + ny * W], [ex - nx * W, ey - ny * W], [x - nx * W, y - ny * W]]
+      .map(([a, b]) => this.upPt(a, b, H));
+    this.quad(c[0][0], c[0][1], c[1][0], c[1][1], c[2][0], c[2][1], c[3][0], c[3][1], '#9a7a50');
+    ctx.strokeStyle = 'rgba(60,42,26,.55)'; // juntas de los tablones
+    ctx.lineWidth = 0.7;
+    for (let u = 2; u < p.L; u += 2.5) {
+      const a = this.upPt(x + p.dx * u + nx * W, y + p.dy * u + ny * W, H);
+      const b = this.upPt(x + p.dx * u - nx * W, y + p.dy * u - ny * W, H);
+      ctx.beginPath();
+      ctx.moveTo(a[0], a[1]);
+      ctx.lineTo(b[0], b[1]);
+      ctx.stroke();
+    }
+    for (const q of p.gente) {
+      const u = p.L * q.f, sx = x + p.dx * u + nx * 2 * q.lado, sy = y + p.dy * u + ny * 2 * q.lado;
+      const b = this.upPt(sx, sy, H);
+      this.drawBanista(b[0], b[1], q.lado > 0 ? 8 : 5, q);
+      // Caña: sale de las manos y la tanza baja a la boya, afuera del muelle
+      const m = this.upPt(b[0], b[1], 6), tip = this.upPt(sx + p.dx * 9 + nx * 7 * q.lado, sy + p.dy * 9 + ny * 7 * q.lado, 16);
+      ctx.strokeStyle = '#3a2a1a';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(m[0], m[1]);
+      ctx.lineTo(tip[0], tip[1]);
+      ctx.stroke();
+      const bob = Math.sin(G.t * 2.3 + q.f * 9) * 0.7;
+      const fx = sx + p.dx * 16 + nx * 9 * q.lado, fy = sy + p.dy * 16 + ny * 9 * q.lado + bob;
+      ctx.strokeStyle = 'rgba(235,235,235,.45)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(tip[0], tip[1]);
+      ctx.lineTo(fx, fy);
+      ctx.stroke();
+      ctx.fillStyle = '#e8402a';
+      ctx.fillRect(px(fx - 0.5), px(fy - 0.5), 2, 2);
+      const ola = (G.t * 0.7 + q.f) % 1; // ondita alrededor de la boya
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.35 * (1 - ola)).toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.ellipse(fx + 0.5, fy + 0.5, 1 + ola * 4, 0.6 + ola * 2.2, 0, 0, TAU);
+      ctx.stroke();
+    }
+  }
+
+  // Gaviotas dando vueltas: la posicion sale solo de G.t, sin estado
+  drawGaviotas(p, night) {
+    if (night > 0.6) return;
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x < -120 || y < -120 || x > RW + 120 || y > RH + 120) return;
+    ctx.globalAlpha = 1 - night;
+    for (let k = 0; k < p.n; k++) {
+      const dir = k % 2 ? 1 : -1, a = G.t * (0.32 + k * 0.05) * dir + p.seed + k * 2.1;
+      const R = 34 + k * 13;
+      const bx = x + Math.cos(a) * R + Math.sin(G.t * 0.21 + k) * 24, by = y + Math.sin(a) * R * 0.65;
+      ctx.fillStyle = 'rgba(0,0,0,.12)'; // sombra en el piso
+      ctx.fillRect(px(bx + 10), px(by + 14), 4, 1);
+      const [sx, sy] = this.upPt(bx, by, 26);
+      const al = Math.sin(G.t * 8 + k * 1.3 + p.seed) * 1.8, fx = Math.cos(a + dir * Math.PI / 2), fy = Math.sin(a + dir * Math.PI / 2);
+      const nx = -fy, ny = fx;
+      ctx.strokeStyle = '#f4f4ee';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(sx + nx * 4 - fx, sy + ny * 4 - fy + al);
+      ctx.lineTo(sx, sy);
+      ctx.lineTo(sx - nx * 4 - fx, sy - ny * 4 - fy + al);
+      ctx.stroke();
+      ctx.fillStyle = '#5a5a5a';
+      ctx.fillRect(px(sx + nx * 4 - fx), px(sy + ny * 4 - fy + al), 1, 1);
+      ctx.fillRect(px(sx - nx * 4 - fx), px(sy - ny * 4 - fy + al), 1, 1);
+    }
+    ctx.globalAlpha = 1;
   }
 
   // Puente: lo que le faltaba era altura. El tablero va horneado en el piso, pero
@@ -961,6 +1342,33 @@ class Renderer {
       ECTX.drawImage(this.glow(255, 140, 50, gsz), x - gsz / 2, y - gsz / 2 - 4);
       any = true;
     }
+    // Playa de noche: el fogon ilumina la ronda y el puesto de choripan prende sus lamparitas
+    if (night > 0.12) {
+      for (const p of props) {
+        if (p.t !== 'fogata' && p.t !== 'chiringuito') continue;
+        const x = p.x - G.cam.x, y = p.y - G.cam.y;
+        if (x < -70 || y < -70 || x > RW + 70 || y > RH + 70) continue;
+        if (p.t === 'fogata') {
+          const gsz = 96;
+          ECTX.globalAlpha = (0.7 + Math.sin(G.t * 13 + p.x) * 0.08 + Math.sin(G.t * 5.3) * 0.06) * k;
+          ECTX.drawImage(this.glow(255, 150, 60, gsz), x - gsz / 2, y - gsz / 2 - 3);
+        } else {
+          const gsz = 70;
+          ECTX.globalAlpha = 0.55 * k;
+          ECTX.drawImage(this.glow(255, 200, 120, gsz), x + p.fx * 10 - gsz / 2, y + p.fy * 10 - gsz / 2 - 6);
+          // Guirnalda de lamparitas en el alero
+          ECTX.globalAlpha = k;
+          for (let i = 0; i < 7; i++) {
+            const on = Math.floor(G.t * 2 + i) % 3;
+            ECTX.fillStyle = on ? ['#ffd34a', '#ff6a5a', '#7ad0ff'][i % 3] : '#5a4a30';
+            const a = this.upPt(x - 14 + i * 4.7, y - 10, 12);
+            ECTX.fillRect(px(a[0]), px(a[1]), 1, 1);
+          }
+        }
+        any = true;
+      }
+      ECTX.globalAlpha = 1;
+    }
     for (const c of G.cops.concat(G.tranzas)) {
       if (c.muzzle > 0) {
         const gsz = 74;
@@ -1301,6 +1709,13 @@ class Renderer {
       else if (p.t === 'ropa') this.drawRopa(p);
       else if (p.t === 'barril') this.drawBarril(p, night);
       else if (p.t === 'sombrilla') this.drawSombrilla(p);
+      else if (p.t === 'chiringuito') this.drawChiringuito(p, night);
+      else if (p.t === 'guardavidas') this.drawGuardavidas(p);
+      else if (p.t === 'voley') this.drawVoley(p);
+      else if (p.t === 'carpa') this.drawCarpa(p);
+      else if (p.t === 'fogata') this.drawFogata(p, night);
+      else if (p.t === 'muelle') this.drawMuelle(p);
+      else if (p.t === 'gaviotas') this.drawGaviotas(p, night);
     }
     for (const l of lamps) this.drawLamp(l, night);
     for (const L of lights) if (L) this.drawTrafficLight(L);

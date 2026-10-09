@@ -352,6 +352,76 @@ describe('riachuelo y monumentos', () => {
     }
     assert.ok(sawBand, 'la diagonal tiene longitud positiva');
   });
+
+  test('la playa tiene sus cosas sobre la arena, sin pisarse ni tapar los puentes', () => {
+    const PLAYA = ['sombrilla', 'reposera', 'toalla', 'conservadora', 'kayak', 'carpa', 'fogata',
+      'chiringuito', 'guardavidas', 'voley', 'muelle'];
+    // Las palmeras de playa son las que tienen grupo (las de vereda no)
+    const cosas = props.filter(p => PLAYA.includes(p.t) || (p.t === 'palm' && p.g));
+    assert.ok(cosas.length > 150, 'la playa tiene que estar llena de cosas: ' + cosas.length);
+    for (const t of ['toalla', 'reposera', 'conservadora', 'chiringuito', 'guardavidas', 'fogata', 'muelle'])
+      assert.ok(cosas.some(p => p.t === t), 'en la playa tiene que haber ' + t);
+    assert.ok(cosas.some(p => p.t === 'palm'), 'y palmeras en la arena');
+    assert.ok(props.some(p => p.t === 'gaviotas'), 'y gaviotas volando');
+    assert.ok(props.filter(p => p.t === 'toalla' && p.gente).length > 20, 'gente tomando sol en las toallas');
+
+    for (const p of cosas) {
+      assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y) && p.r > 0 && p.g > 0, 'cosa de playa invalida: ' + JSON.stringify(p));
+      assert.ok(sandZone(p.x, p.y), p.t + ' fuera de la arena: ' + p.x.toFixed(0) + ',' + p.y.toFixed(0));
+      assert.ok(!inWater(p.x, p.y), p.t + ' en el agua: ' + p.x.toFixed(0) + ',' + p.y.toFixed(0));
+      const hb = hitBuilding(p.x, p.y, p.r);
+      assert.ok(!hb || hb.water, p.t + ' arriba de un edificio: ' + p.x.toFixed(0) + ',' + p.y.toFixed(0));
+    }
+
+    // Ninguna tapa un puente: se deja libre el corredor mas un margen (las palmeras,
+    // de vereda o de playa, mas lejos: su copa se extruye lejos del tronco)
+    const puentes = props.filter(p => p.t === 'puente');
+    const cerca = (x, y, b, m) => {
+      const u = b.horiz ? x : y, v = b.horiz ? y : x;
+      return u > b.a - m && u < b.b + m && Math.abs(v - (b.base + b.w / 2)) < b.w / 2 + 6 + m;
+    };
+    for (const b of puentes) {
+      for (const p of cosas) {
+        assert.ok(!cerca(p.x, p.y, b, p.r + 18), p.t + ' pegado al puente: ' + p.x.toFixed(0) + ',' + p.y.toFixed(0));
+      }
+      for (const p of props) {
+        if (p.t !== 'palm') continue;
+        assert.ok(!cerca(p.x, p.y, b, 30), 'palmera que tapa el puente: ' + p.x.toFixed(0) + ',' + p.y.toFixed(0));
+      }
+    }
+
+    // No se pisan: entre grupos distintos cada una respeta el lugar de la otra
+    let pisadas = 0;
+    for (let i = 0; i < cosas.length; i++) {
+      for (let j = i + 1; j < cosas.length; j++) {
+        const a = cosas[i], b = cosas[j];
+        if (a.g !== b.g && Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r) pisadas++;
+      }
+    }
+    assert.equal(pisadas, 0, 'cosas de playa encimadas: ' + pisadas);
+
+    // Los muelles arrancan en la arena y la punta cae al agua (sin cambiar la colision)
+    for (const m of cosas.filter(p => p.t === 'muelle')) {
+      const tx = m.x + m.dx * m.L, ty = m.y + m.dy * m.L;
+      assert.ok(inWater(tx, ty), 'la punta del muelle tiene que estar sobre el agua: ' + tx.toFixed(0) + ',' + ty.toFixed(0));
+      assert.ok(hitBuilding(tx, ty, 2), 'el muelle no se camina: el agua sigue frenando');
+    }
+
+    // Se dibuja todo, de dia y de noche, con la camara parada en cada cosa
+    startGame(CREW[0]);
+    let tNoche = 0;
+    for (let t = 0; t < DAY; t += DAY / 48) if (G.t = t, darkness() > 0.7) { tNoche = t; break; }
+    for (const t of [0, tNoche]) {
+      G.t = t;
+      for (const tipo of PLAYA.concat(['gaviotas'])) {
+        const p = props.find(q => q.t === tipo);
+        if (!p) continue;
+        G.cam.x = p.x - 240; G.cam.y = p.y - 135;
+        render();
+      }
+    }
+    G.t = 0;
+  });
 });
 
 describe('dia y noche', () => {
