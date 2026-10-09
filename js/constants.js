@@ -181,3 +181,7 @@ const TRANZA_ITEMS = [
 const PORRO_MAX = 5;      // cuantos entran en el bolsillo
 const PORRO_TIME = 7;     // segundos de camara lenta
 const SLOWMO = 0.38;      // velocidad del mundo mientras dura
+
+// Multijugador
+const MAX_PLAYERS = 4;
+const PVP = true;         // las balas, granadas y atropellos de un jugador lastiman a los otros

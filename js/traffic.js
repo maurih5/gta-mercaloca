@@ -436,8 +436,8 @@ class TrafficAI {
   }
 
   // Lo más cercano que hay adelante en la trayectoria: auto, jugador o peatón
-  leader(c, fx, fy, P) {
-    let s = Infinity, v = 0, who = null;
+  leader(c, fx, fy) {
+    let s = Infinity, v = 0, who = null, obj = null;
     const scan = 26 + c.spd * 1.6;
     const consider = (o, w, h, ov, kind) => {
       const rx = o.x - c.x, ry = o.y - c.y;
@@ -445,7 +445,7 @@ class TrafficAI {
       if (fwd <= 0 || fwd > scan) return;
       if (Math.abs(-rx * fy + ry * fx) > (c.h + h) * 0.5 + 1.5) return;
       const gap = fwd - (c.w + w) / 2;
-      if (gap < s) { s = gap; v = ov; who = kind; }
+      if (gap < s) { s = gap; v = ov; who = kind; obj = o; }
     };
     // Solo cuenta como "el de adelante" el que va para el mismo lado. El que cruza o
     // viene de frente se resuelve con la prioridad de paso (crossConflict): si se lo
@@ -462,7 +462,7 @@ class TrafficAI {
           const rx = o.x - c.x, ry = o.y - c.y, fwd = rx * fx + ry * fy;
           if (fwd > 0 && fwd < 40 && Math.abs(-rx * fy + ry * fx) < (c.h + o.w) / 2) {
             const gap = fwd - (c.w + o.h) / 2;
-            if (gap < s) { s = gap; v = 0; who = o; }
+            if (gap < s) { s = gap; v = 0; who = o; obj = o; }
           }
         }
         continue;
@@ -470,7 +470,8 @@ class TrafficAI {
       const ov = Math.min(Math.abs(o.spd), o.rv === undefined ? Infinity : o.rv);
       consider(o, o.w, o.h, Math.max(0, ov * along), o);
     }
-    if (!P.dead) {
+    for (const P of G.players) {
+      if (P.dead || P.healing) continue;
       if (P.car && P.car !== skip) consider(P.car, P.car.w, P.car.h, 0, P.car);
       else if (!P.car && skip !== P) consider(P, 6, 6, 0, 'player');
     }
@@ -482,7 +483,7 @@ class TrafficAI {
         consider(p, 6, 6, 0, 'ped');
       }
     }
-    return { s, v, who };
+    return { s, v, who, obj };
   }
 
   // Cesión de paso en los cruces sin prioridad clara: proyecta las dos trayectorias
@@ -551,7 +552,7 @@ class TrafficAI {
     c.signalT = 1.4;
   }
 
-  update(c, dt, P) {
+  update(c, dt) {
     if (!c.nav) this.initNav(c);
     c.horn = Math.max(0, c.horn - dt);
     if (c.revT > 0) {
@@ -697,7 +698,7 @@ class TrafficAI {
     if (c.pullOver > 0) v0 = Math.min(v0, 14);
 
     // Quién está adelante
-    const lead = this.leader(c, fx, fy, P);
+    const lead = this.leader(c, fx, fy);
     let s = lead.s, vl = lead.v;
     let why = lead.who ? (lead.who === 'ped' || lead.who === 'player' ? lead.who : 'car') : 'libre';
     c.queued = false;
@@ -709,7 +710,7 @@ class TrafficAI {
     // En la fila: detrás de uno que espera, o de uno que recién arranca (la ola de arranque del verde)
     if (lead.who && lead.who !== 'ped' && lead.who !== 'player' && lead.s < 30 && c.spd < 20
       && ((lead.who.waitLight || 0) > 0 || lead.who.queued || (Math.abs(lead.who.spd) < 12 && (lead.who.stopT || 0) < 1))) c.queued = true;
-    if ((lead.who === 'player' || lead.who === P.car) && lead.s < 20 && c.horn <= 0 && Math.random() < 0.5) c.horn = 1.1;
+    if ((lead.who === 'player' || (lead.who && lead.who.kind === 'car' && driverOf(lead.who))) && lead.s < 20 && c.horn <= 0 && Math.random() < 0.5) c.horn = 1.1;
     if (stopAt < s) { s = stopAt; vl = 0; why = lineWhy || 'semaforo'; }
     if ((why === 'bocacalle' || why === 'cruce') && c.spd < 8) c.queued = true;
 
@@ -729,7 +730,7 @@ class TrafficAI {
       && !(typeof lo === 'object' && ((lo.waitLight || 0) > 0 || lo.queued));
     c.blockT = stuckBehind ? (c.blockT || 0) + dt : 0;
     if (c.blockT > (isCop ? 1.2 : 2.2) && !c.path && !c.diag && !c.dodge) {
-      const obst = lo === 'player' ? P : lo === 'ped' ? { x: c.x + fx * (lead.s + c.w / 2 + 3), y: c.y + fy * (lead.s + c.w / 2 + 3), w: 6 } : lo;
+      const obst = lo === 'player' ? lead.obj : lo === 'ped' ? { x: c.x + fx * (lead.s + c.w / 2 + 3), y: c.y + fy * (lead.s + c.w / 2 + 3), w: 6 } : lo;
       if (this.tryDodge(c, obst)) { c.blockT = 0; if (lo === 'ped') c.pedIgn = 2.5; }
       else c.blockT = 1.2; // viene gente de frente: reintenta en un rato
     }
@@ -793,7 +794,7 @@ class TrafficAI {
       c.why = 'pared';
       c.wallT = (c.wallT || 0) + dt;
       if (c.wallT > 0.6) {
-        if (dist(c, P) > OFFSCREEN) c.hp = 0;
+        if (farFromPlayers(c, OFFSCREEN)) c.hp = 0;
         else { c.revT = 0.9; c.wallT = 0; } // marcha atrás y vuelve a intentar
       }
     } else {
@@ -816,11 +817,11 @@ class TrafficAI {
     // Trabado sin motivo (ni semáforo ni cola ni cediendo): lo mide el selfcheck y el despawn
     if (c.spd < 4 && !c.waitLight && !c.queued) c.stopT += dt;
     else c.stopT = 0;
-    if (c.stopT > 9 && dist(c, P) > OFFSCREEN) c.hp = 0;
+    if (c.stopT > 9 && farFromPlayers(c, OFFSCREEN)) c.hp = 0;
     // Fila eterna fuera de cámara (esquina del mapa, costa del río): se metió en un garaje.
     // Libera la calle y el spawner pone otro donde haya lugar.
     c.idleT = c.spd < 4 ? (c.idleT || 0) + dt : 0;
-    if (c.idleT > 12 && dist(c, P) > OFFSCREEN) { this.release(c); c.hp = 0; }
+    if (c.idleT > 12 && farFromPlayers(c, OFFSCREEN)) { this.release(c); c.hp = 0; }
   }
 }
 
@@ -838,7 +839,10 @@ class CopNav {
   reset() {
     this.open = null;
     this.field = null;
-    this.goalKey = '';
+    this.goal = null;
+    // Un campo de distancias por tramo destino: con varios jugadores buscados, cada
+    // patrullero va hacia el suyo y no se rehace la BFS cada vez que cambia de objetivo
+    this.fields = new Map();
   }
 
   nodeX(i) { return i * CELL + trafficAI.colW(i) / 2; }
@@ -908,10 +912,10 @@ class CopNav {
     if (!this.open) this.build();
     const g = this.roadGoal(P);
     const key = g ? g.ends.join(',') : 'x';
-    // El punto sigue al jugador siempre; la BFS solo se rehace si cambió de tramo
+    // El punto sigue al jugador siempre; la BFS solo se hace la primera vez que alguien está en ese tramo
     this.goal = g;
-    if (key === this.goalKey && this.field) return;
-    this.goalKey = key;
+    this.field = this.fields.get(key);
+    if (this.field) return;
     const field = new Int16Array(GRID * GRID).fill(-1);
     if (g) {
       const q = [];
@@ -922,6 +926,8 @@ class CopNav {
         }
       }
     }
+    if (this.fields.size >= 16) this.fields.delete(this.fields.keys().next().value);
+    this.fields.set(key, field);
     this.field = field;
   }
 

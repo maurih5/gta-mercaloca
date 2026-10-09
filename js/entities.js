@@ -3,9 +3,12 @@
    ========================================================================= */
 
 class EntityManager {
-  makePlayer(def) {
+  // Todo lo que es de cada jugador vive acá (guita, búsqueda, arresto, hospital...):
+  // en el estado global (G) solo queda el mundo compartido y la vista local.
+  makePlayer(def, id = 0) {
     return {
       kind: 'player',
+      id,
       def,
       x: 0,
       y: 0,
@@ -24,6 +27,21 @@ class EntityManager {
       armor: 0,
       swing: 0,
       porros: 0,
+      money: 0,
+      wanted: 0,
+      wantCool: 0,
+      busted: 0,
+      bustT: 0,
+      bustFine: 0,
+      healing: 0,
+      healT: 0,
+      nearShop: null,
+      nearTranza: null,
+      zone: null,
+      slowmo: 0,
+      high: 0,
+      ctl: idleControls(),
+      prev: idleControls(),
     };
   }
 
@@ -54,9 +72,8 @@ class EntityManager {
     };
   }
 
-  sidewalkSpot(near, far) {
-    const px0 = (typeof G !== 'undefined' && G.player) ? G.player.x : WORLD / 2;
-    const py0 = (typeof G !== 'undefined' && G.player) ? G.player.y : WORLD / 2;
+  sidewalkSpot(near, far, center) {
+    const c0 = spawnCenter(center), px0 = c0.x, py0 = c0.y;
     for (let i = 0; i < 150; i++) {
       const a = rnd(0, TAU), d = rnd(near, far);
       const x = clamp(px0 + Math.cos(a) * d, 12, WORLD - 12);
@@ -129,9 +146,8 @@ class EntityManager {
     };
   }
 
-  makeCop() {
-    const px0 = (typeof G !== 'undefined' && G.player) ? G.player.x : WORLD / 2;
-    const py0 = (typeof G !== 'undefined' && G.player) ? G.player.y : WORLD / 2;
+  makeCop(center) {
+    const c0 = spawnCenter(center), px0 = c0.x, py0 = c0.y;
     // La yuta a pie no aparece adentro de la villa
     let x = 0, y = 0, ok = false;
     for (let i = 0; i < 20 && !ok; i++) {
@@ -152,6 +168,7 @@ class EntityManager {
       walk: 0,
       muzzle: 0,
       bustT: 0,
+      tgt: center && center.kind === 'player' ? center : null,
     };
   }
 
@@ -179,9 +196,8 @@ class EntityManager {
     };
   }
 
-  makeChaser() {
-    const px0 = (typeof G !== 'undefined' && G.player) ? G.player.x : WORLD / 2;
-    const py0 = (typeof G !== 'undefined' && G.player) ? G.player.y : WORLD / 2;
+  makeChaser(center) {
+    const c0 = spawnCenter(center), px0 = c0.x, py0 = c0.y;
     // Aparece sobre una calle de verdad: un punto al azar caía a veces en el río o la explanada
     let c = null;
     for (let i = 0; i < 20 && !c; i++) {
@@ -198,6 +214,7 @@ class EntityManager {
     }
     c.ai = false;
     c.chase = true;
+    c.tgt = center && center.kind === 'player' ? center : null;
     c.cruise = 150;
     return c;
   }
@@ -278,14 +295,22 @@ class EntityManager {
 
 const entities = new EntityManager();
 
+// Alrededor de quién se reparte lo que aparece (autos, peatones, yuta): el punto dado,
+// o el jugador local, o el centro del mapa si todavía no hay nadie jugando
+function spawnCenter(center) {
+  if (center) return center;
+  if (typeof G !== 'undefined' && G.me) return G.me;
+  return { x: WORLD / 2, y: WORLD / 2 };
+}
+
 // Exportación de funciones clásicas para compatibilidad
-const makePlayer = def => entities.makePlayer(def);
+const makePlayer = (def, id) => entities.makePlayer(def, id);
 const makePedAt = (x, y) => entities.makePedAt(x, y);
-const sidewalkSpot = (near, far) => entities.sidewalkSpot(near, far);
+const sidewalkSpot = (near, far, center) => entities.sidewalkSpot(near, far, center);
 const makePed = () => entities.makePed();
 const makeCar = (x, y, cop) => entities.makeCar(x, y, cop);
-const makeCop = () => entities.makeCop();
-const makeChaser = () => entities.makeChaser();
+const makeCop = center => entities.makeCop(center);
+const makeChaser = center => entities.makeChaser(center);
 const makeTranza = (v, spot, i) => entities.makeTranza(v, spot, i);
 const makePickup = () => entities.makePickup();
 const makeGuard = (building, i, n) => entities.makeGuard(building, i, n);

@@ -1294,9 +1294,8 @@ class World {
     return { x: ROAD / 2, y: ROAD / 2 };
   }
 
-  ringSpot(near, far, needRoad) {
-    const px0 = (typeof G !== 'undefined' && G.player) ? G.player.x : WORLD / 2;
-    const py0 = (typeof G !== 'undefined' && G.player) ? G.player.y : WORLD / 2;
+  ringSpot(near, far, needRoad, center) {
+    const c0 = spawnCenter(center), px0 = c0.x, py0 = c0.y;
     for (let i = 0; i < 120; i++) {
       const a = rnd(0, TAU), d = rnd(near, far);
       const x = clamp(px0 + Math.cos(a) * d, 12, WORLD - 12);
@@ -1415,7 +1414,7 @@ const hitBuilding = (x, y, r) => world.hitBuilding(x, y, r);
 const hitCarBlock = (x, y, r) => world.hitCarBlock(x, y, r);
 const villaAt = (x, y) => world.villaAt(x, y);
 const freeRoadSpot = () => world.freeRoadSpot();
-const ringSpot = (near, far, needRoad) => world.ringSpot(near, far, needRoad);
+const ringSpot = (near, far, needRoad, center) => world.ringSpot(near, far, needRoad, center);
 const inPark = (x, y) => world.inPark(x, y);
 const pedBlocked = (x, y, r) => world.pedBlocked(x, y, r);
 const onSidewalk = (x, y) => world.onSidewalk(x, y);

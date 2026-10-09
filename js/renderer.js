@@ -945,8 +945,8 @@ class Renderer {
       }
     }
 
-    const P = G.player;
-    if (P && P.muzzle > 0) {
+    for (const P of G.players) {
+      if (P.muzzle <= 0) continue;
       const gsz = 108;
       ECTX.globalAlpha = P.muzzle;
       ECTX.drawImage(this.glow(255, 228, 158, gsz), P.x - G.cam.x - gsz / 2, P.y - G.cam.y - gsz / 2);
@@ -1007,7 +1007,7 @@ class Renderer {
     if (!MINI) return;
     const ctx = this.ctx;
     const S = 58, ox = 7, oy = RH - S - 7, MS = 320, k = MS / WORLD;
-    const P = G.player, half = S / 2;
+    const P = G.me, half = S / 2;
     ctx.fillStyle = '#000';
     ctx.fillRect(ox - 2, oy - 2, S + 4, S + 4);
     ctx.drawImage(MINI, clamp(P.x * k - half, 0, MS - S), clamp(P.y * k - half, 0, MS - S), S, S, ox, oy, S, S);
@@ -1025,6 +1025,7 @@ class Renderer {
     for (const c of G.cops) dot(c, '#4aa3ff');
     for (const t of G.tranzas) if (t.hp > 0) dot(t, t.villa.angry > 0 ? '#ff3a3a' : '#c070ff');
     for (const c of G.cars) if (c.chase && c.hp > 0) dot(c, '#2a6aff', 3);
+    for (const q of G.players) if (q !== P && !q.dead) dot(q, q.def.shirt, 3);
     // Armerías: siempre visibles, pegadas al borde si quedan lejos
     for (const b of shops) {
       const x = clamp(ox + ((b.door.x + b.door.ox) * k - sx), ox + 1, ox + S - 4);
@@ -1046,7 +1047,7 @@ class Renderer {
   drawMap() {
     if (!GROUND) return;
     const ctx = this.ctx;
-    const P = G.player;
+    const P = G.me;
     const viewW = clamp(WORLD / G.mapZoom, 40, WORLD);
     const viewH = viewW * (RH / RW);
     const sx = clamp(P.x - viewW / 2, 0, WORLD - viewW);
@@ -1069,6 +1070,12 @@ class Renderer {
     if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#e8f070', 4);
     for (const c of G.cops) dot(c, '#4aa3ff');
     for (const c of G.cars) if (c.chase && c.hp > 0) dot(c, '#2a6aff', 3);
+    // Los otros jugadores, con el color de su remera
+    for (const q of G.players) {
+      if (q === P || q.dead) continue;
+      dot({ x: q.x - 2.5 / k, y: q.y - 2.5 / k }, '#000', 6);
+      dot({ x: q.x - 1.5 / k, y: q.y - 1.5 / k }, q.def.shirt, 4);
+    }
 
     // Marcador del jugador: bien resaltado, con anillo pulsante y flecha de rumbo
     const cx = (P.x - sx) * k, cy = (P.y - sy) * k;
@@ -1115,15 +1122,16 @@ class Renderer {
     ctx.fillText(t, x, y);
   }
 
+  // El HUD es del jugador local (G.me): su guita, su búsqueda, su arresto
   drawHUD() {
     const ctx = this.ctx;
-    const P = G.player;
+    const P = G.me;
     ctx.fillStyle = 'rgba(0,0,0,.42)';
     ctx.fillRect(0, 0, 118, 46);
     ctx.fillRect(RW - 96, 0, 96, P.armor > 0 ? 51 : 45);
-    this.text('$' + G.money, RW - 7, 13, '#7de07d', 9, 'right');
+    this.text('$' + P.money, RW - 7, 13, '#7de07d', 9, 'right');
     for (let i = 0; i < 5; i++) {
-      this.text('*', RW - 9 - i * 11, 28, i < G.wanted ? '#ffd34a' : '#35383d', 11, 'right');
+      this.text('*', RW - 9 - i * 11, 28, i < P.wanted ? '#ffd34a' : '#35383d', 11, 'right');
     }
     ctx.fillStyle = 'rgba(0,0,0,.75)';
     ctx.fillRect(RW - 79, 34, 72, 7);
@@ -1147,24 +1155,24 @@ class Renderer {
     const h = Math.floor(dayT() * 24), mm = Math.floor(((dayT() * 24) % 1) * 60);
     this.text(String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0'), 7, 26, '#cfcfcf', 7);
 
-    if ((G.nearShop || G.nearTranza) && !G.shopOpen && !P.dead && !G.busted) {
+    if ((P.nearShop || P.nearTranza) && !G.shopOpen && !P.dead && !P.busted) {
       const bl = Math.floor(G.t * 3) % 2;
       const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
-      const what = G.nearShop ? 'ENTRAR A LA ARMERIA' : 'HABLAR CON EL TRANZA';
+      const what = P.nearShop ? 'ENTRAR A LA ARMERIA' : 'HABLAR CON EL TRANZA';
       this.text(key + ': ' + what, RW / 2, RH - 34, bl ? '#ffb04a' : '#ffd34a', 7, 'center');
     }
 
     // Porros en el bolsillo y tiempo de cámara lenta
-    if (P.porros > 0 || G.slowmo > 0) {
+    if (P.porros > 0 || P.slowmo > 0) {
       ctx.fillStyle = 'rgba(0,0,0,.42)';
       ctx.fillRect(0, 46, 64, 14);
       weaponIcon(ctx, 'porro', 14, 53);
       this.text('x' + P.porros, 28, 57, '#9ae29a', 6);
-      if (G.slowmo > 0) {
+      if (P.slowmo > 0) {
         ctx.fillStyle = 'rgba(0,0,0,.75)';
         ctx.fillRect(46, 50, 14, 5);
         ctx.fillStyle = '#5ad266';
-        ctx.fillRect(47, 51, 12 * G.slowmo / PORRO_TIME, 3);
+        ctx.fillRect(47, 51, 12 * P.slowmo / PORRO_TIME, 3);
       }
     }
 
@@ -1174,8 +1182,8 @@ class Renderer {
       ctx.globalAlpha = 1;
     }
 
-    if (G.busted) {
-      const k = clamp(0.45 + G.bustT / 0.35, 0, 1);
+    if (P.busted) {
+      const k = clamp(0.45 + P.bustT / 0.35, 0, 1);
       const bl = Math.floor(G.t * 6) % 2;
       ctx.fillStyle = bl ? 'rgba(18,34,105,.5)' : 'rgba(105,18,26,.5)';
       ctx.fillRect(0, 0, RW, RH);
@@ -1186,15 +1194,15 @@ class Renderer {
       ctx.fillRect(0, RH / 2 + 42, RW, 2);
       ctx.globalAlpha = k;
       this.text('TE AGARRARON', RW / 2, RH / 2 - 8, '#ff8a7a', 16, 'center');
-      this.text('MULTA: $' + G.bustFine, RW / 2, RH / 2 + 14, '#ffd34a', 9, 'center');
-      if (G.bustT > 1.4) {
+      this.text('MULTA: $' + P.bustFine, RW / 2, RH / 2 + 14, '#ffd34a', 9, 'center');
+      if (P.bustT > 1.4) {
         this.text('TE LLEVAN A LA COMISARIA', RW / 2, RH / 2 + 34, '#e8e8e8', 8, 'center');
       }
       ctx.globalAlpha = 1;
     }
 
-    if (G.healing) {
-      const k = clamp(0.45 + G.healT / 0.35, 0, 1);
+    if (P.healing) {
+      const k = clamp(0.45 + P.healT / 0.35, 0, 1);
       ctx.fillStyle = 'rgba(18,60,30,.5)';
       ctx.fillRect(0, 0, RW, RH);
       ctx.fillStyle = 'rgba(0,0,0,.93)';
@@ -1204,12 +1212,12 @@ class Renderer {
       ctx.fillRect(0, RH / 2 + 30, RW, 2);
       ctx.globalAlpha = k;
       this.text('CURANDOTE...', RW / 2, RH / 2 - 4, '#8ef08e', 14, 'center');
-      const pct = Math.min(100, Math.round(G.healT / HOSPITAL_TIME * 100));
+      const pct = Math.min(100, Math.round(P.healT / HOSPITAL_TIME * 100));
       this.text(pct + '%', RW / 2, RH / 2 + 16, '#ffd34a', 9, 'center');
       ctx.globalAlpha = 1;
     }
 
-    if (!G.busted && !P.dead && P.car) {
+    if (!P.busted && !P.dead && P.car) {
       const near = G.cars.some(c => c.chase && c.hp > 0 && dist(c, P) < 30);
       if (near && Math.floor(G.t * 5) % 2) {
         this.text('FRENA Y TE AGARRAN - ACELERA!', RW / 2, 52, '#ff8a4a', 8, 'center');
@@ -1220,7 +1228,7 @@ class Renderer {
       ctx.fillStyle = 'rgba(70,0,0,.55)';
       ctx.fillRect(0, 0, RW, RH);
       this.text('TE MATARON', RW / 2, RH / 2 - 10, '#ff4a4a', 16, 'center');
-      this.text('GUITA: $' + G.money, RW / 2, RH / 2 + 12, '#ffd34a', 9, 'center');
+      this.text('GUITA: $' + P.money, RW / 2, RH / 2 + 12, '#ffd34a', 9, 'center');
       this.text('ENTER PARA VOLVER AL BARRIO', RW / 2, RH / 2 + 32, '#fff', 8, 'center');
     }
 
@@ -1233,7 +1241,7 @@ class Renderer {
 
   render() {
     const ctx = this.ctx;
-    const night = darkness(), P = G.player;
+    const night = darkness();
     litWindows.length = 0;
     ctx.save();
     if (G.shake > 0.1) {
@@ -1257,7 +1265,7 @@ class Renderer {
     }
 
     for (const c of G.cars) {
-      if (c !== (P && P.car)) this.drawCar(c, night);
+      if (!driverOf(c)) this.drawCar(c, night);
     }
     for (const p of G.peds) {
       if (p.hp <= 0 || p.inside) continue;
@@ -1297,13 +1305,14 @@ class Renderer {
     for (const l of lamps) this.drawLamp(l, night);
     for (const L of lights) if (L) this.drawTrafficLight(L);
 
-    if (P) {
+    // Los jugadores van arriba de todo; el local al final, para que nunca lo tape otro
+    for (const P of G.players.filter(q => q !== G.me).concat(G.me ? [G.me] : [])) {
       if (P.car) this.drawCar(P.car, night);
-      else if (!P.dead && !G.healing) this.drawGuy(P, P.def.id, P.def.shirt, P.def.pants, P.hp < 35);
+      else if (!P.dead && !P.healing) this.drawGuy(P, P.def.id, P.def.shirt, P.def.pants, P.hp < 35);
     }
 
     for (const b of G.bullets) {
-      ctx.strokeStyle = b.mine ? 'rgba(255,235,160,.95)' : 'rgba(255,150,110,.95)';
+      ctx.strokeStyle = b.owner ? 'rgba(255,235,160,.95)' : 'rgba(255,150,110,.95)';
       ctx.lineWidth = 1.6;
       ctx.beginPath();
       ctx.moveTo(b.x - G.cam.x, b.y - G.cam.y);
@@ -1342,7 +1351,7 @@ class Renderer {
     ctx.restore();
 
     // Porro: gradiente verde que respira mientras dura la cámara lenta
-    const high = clamp((1 - G.ts) / (1 - SLOWMO), 0, 1);
+    const high = G.me ? G.me.high : 0;
     if (high > 0.01) {
       const wob = Math.sin(G.t * 9) * 0.04;
       const gr = ctx.createRadialGradient(RW / 2, RH / 2, RH * (0.2 + wob), RW / 2, RH / 2, RH);
