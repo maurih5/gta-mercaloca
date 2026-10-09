@@ -319,8 +319,10 @@ class SoundManager {
       set(L.engine.o2.frequency, 19 + s * 48);
       set(L.engine.flt.frequency, 300 + s * 1300);
       set(L.engine.g.gain, 0.09 + s * 0.09, 0.08);
-      const skidding = Math.abs(car.spd) > 120 && Math.abs(car.steer) > 0.55;
-      set(L.skid.g.gain, skidding ? 0.12 : 0, 0.04);
+      // Derrape en curva fuerte, o frenada yendo rápido
+      const drift = Math.abs(car.spd) > 120 && Math.abs(car.steer) > 0.55;
+      const brake = car.spd > 60 && P.ctl && P.ctl.y > 0.1;
+      set(L.skid.g.gain, drift || brake ? 0.12 : 0, 0.04);
     } else {
       set(L.engine.g.gain, 0, 0.1);
       set(L.skid.g.gain, 0, 0.04);
