@@ -204,6 +204,18 @@ python3 -m http.server 8000
 ```
 Luego entra a `http://localhost:8000`.
 
+### Atajos para probar
+
+Agregados a la dirección (por ejemplo `http://localhost:8000/?famoso=messi`):
+
+| Parámetro | Qué hace |
+| :--- | :--- |
+| `?play` | Arranca directo a jugar, sin menú |
+| `?famoso=messi` | Arranca con ese famoso al lado (`listorti`, `messi`) |
+| `&h=22` | Hora del día (0-24) |
+| `&x=1200&y=800` | Arranca parado en ese punto del mapa |
+| `&w=3` | Arranca con ese nivel de búsqueda |
+
 ### Tests
 
 ```bash

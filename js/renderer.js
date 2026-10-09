@@ -1863,7 +1863,7 @@ class Renderer {
       ctx.fillStyle = col;
       ctx.fillRect(px(x), px(y), sz, sz);
     };
-    for (const pk of G.pickups) dot(pk, { cash: '#5ad25a', hp: '#ff5a5a', weapon: '#ffc84a' }[pk.kind]);
+    for (const pk of G.pickups) dot(pk, { cash: '#5ad25a', gold: '#ffd34a', hp: '#ff5a5a', weapon: '#ffc84a' }[pk.kind] || '#ffffff');
     for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
     for (const cr of casaRosada) dot({ x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }, '#ff8fc0', 3);
     if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#e8f070', 3);
@@ -1880,6 +1880,13 @@ class Renderer {
       ctx.fillStyle = '#ff9a2a';
       ctx.fillRect(px(x), px(y), 3, 3);
     }
+    // Famosos: estrella siempre visible, pegada al borde si está lejos, para ir a buscarlo
+    for (const f of G.peds) {
+      if (!f.famous || f.hp <= 0) continue;
+      const x = clamp(ox + (f.x * k - sx), ox + 2, ox + S - 3);
+      const y = clamp(oy + (f.y * k - sy), oy + 2, oy + S - 3);
+      this.star(px(x), px(y), (G.t * 4) % 2 < 1.4);
+    }
     ctx.fillStyle = '#fff';
     ctx.fillRect(px(ox + (P.x * k - sx)) - 1, px(oy + (P.y * k - sy)) - 1, 3, 3);
     ctx.strokeStyle = '#d8d8d8';
@@ -1887,6 +1894,18 @@ class Renderer {
     ctx.strokeRect(ox - 1.5, oy - 1.5, S + 3, S + 3);
     ctx.strokeStyle = '#000';
     ctx.strokeRect(ox - 2.5, oy - 2.5, S + 5, S + 5);
+  }
+
+  // Estrellita de los famosos en el radar y el mapa (lit: titila)
+  star(x, y, lit = true) {
+    const ctx = this.ctx;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x - 3, y - 1, 7, 3);
+    ctx.fillRect(x - 1, y - 3, 3, 7);
+    ctx.fillStyle = lit ? '#ffd34a' : '#c8952a';
+    ctx.fillRect(x - 2, y, 5, 1);
+    ctx.fillRect(x, y - 2, 1, 5);
+    ctx.fillRect(x - 1, y - 1, 3, 3);
   }
 
   drawMap() {
@@ -1909,12 +1928,17 @@ class Renderer {
       ctx.fillStyle = col;
       ctx.fillRect(px(x), px(y), sz, sz);
     };
-    for (const pk of G.pickups) dot(pk, pk.kind === 'cash' ? '#5ad25a' : '#ff5a5a');
+    for (const pk of G.pickups) dot(pk, pk.kind === 'cash' ? '#5ad25a' : pk.kind === 'gold' ? '#ffd34a' : '#ff5a5a');
     for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
     for (const cr of casaRosada) dot({ x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }, '#ff8fc0', 3);
     if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#e8f070', 4);
     for (const c of G.cops) dot(c, '#4aa3ff');
     for (const c of G.cars) if (c.chase && c.hp > 0) dot(c, '#2a6aff', 3);
+    for (const f of G.peds) {
+      if (!f.famous || f.hp <= 0) continue;
+      const x = (f.x - sx) * k, y = (f.y - sy) * k;
+      if (x >= 0 && y >= 0 && x <= RW && y <= RH) this.star(px(x), px(y));
+    }
     // Los otros jugadores, con el color de su remera
     for (const q of G.players) {
       if (q === P || q.dead) continue;
