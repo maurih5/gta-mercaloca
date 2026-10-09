@@ -26,8 +26,9 @@ El juego toca las notas con su sintetizador (estilo 8 bits). Pesan casi nada.
    Eso regenera `js/songs.js` con todos los `.mid` de esta carpeta.
 4. Sumalo a una emisora en `STATIONS` con el nombre sin extensión: `'rock-barrial'`.
 
-Del MIDI se usa el instrumento de cada canal para elegir la onda (bajos → triangular,
-guitarras y cuerdas → diente de sierra, el resto → cuadrada) y el canal 10 como batería.
+Del MIDI se usa el instrumento de cada canal para elegir uno del juego (piano, acordeón,
+guitarra criolla o eléctrica, bajo, violín, sintes; ver `tools/midi2songs.js`) y el canal 10
+como batería.
 El tempo es el primero del archivo: si el tema cambia de tempo, va a sonar parejo.
 
 ## Temas escritos a mano

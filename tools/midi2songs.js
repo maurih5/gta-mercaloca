@@ -84,13 +84,29 @@ function parseMidi(buf) {
 }
 
 // Batería General MIDI -> los golpes que sintetiza el juego
-const drum = n => (n === 35 || n === 36 ? 'k' : n === 38 || n === 40 || n === 39 ? 's' : n === 69 || n === 73 || n === 74 ? 'g' : 'h');
-// Instrumento General MIDI -> onda
+const drum = n =>
+  n === 35 || n === 36 ? 'k'
+  : n === 38 || n === 40 || n === 39 ? 's'
+  : n === 37 ? 'r'
+  : n === 41 || n === 43 || n === 45 ? 'b'
+  : n === 46 ? 'o'
+  : n === 49 || n === 57 ? 'c'
+  : n === 69 || n === 73 || n === 74 ? 'g'
+  : 'h';
+// Instrumento General MIDI -> instrumento del juego (js/instruments.js)
 const inst = prog =>
-  prog >= 32 && prog <= 39 ? 'triangle' // bajos
-  : prog >= 40 && prog <= 55 ? 'sawtooth' // cuerdas y coros
-  : prog >= 24 && prog <= 31 ? 'sawtooth' // guitarras
-  : 'square';
+  prog <= 7 ? 'piano'
+  : prog >= 21 && prog <= 23 ? 'accordion'
+  : prog >= 24 && prog <= 28 ? 'guitar'
+  : prog === 29 || prog === 30 ? 'egtr'
+  : prog === 31 ? 'leadgtr'
+  : prog === 38 || prog === 39 ? 'synthbass'
+  : prog >= 32 && prog <= 37 ? 'bass'
+  : prog === 40 || prog === 41 ? 'violin'
+  : prog >= 42 && prog <= 55 ? 'pad'
+  : prog >= 88 && prog <= 95 ? 'pad'
+  : prog >= 80 && prog <= 87 ? 'lead'
+  : 'arp';
 
 function toSong(m) {
   const r = x => Math.round(x * 1000) / 1000;
