@@ -7,11 +7,12 @@
 const VERSION = 'local';
 
 const CREW = [
-  {id:'p1', name:'EL SMOKE',  img:'img/p1.jpeg', crop:[0.42,0.11,0.25,0.29], shirt:'#3f9a4a', pants:'#232323'},
-  {id:'p2', name:'ACADEMIA',  img:'img/p2.jpeg', crop:[0.40,0.08,0.19,0.14], shirt:'#1d1d22', pants:'#2a2a33'},
-  {id:'p3', name:'PALMERA',   img:'img/p3.jpeg', crop:[0.37,0.03,0.20,0.14], shirt:'#26262c', pants:'#3a3f4a'},
-  {id:'p4', name:'EL JEFE',   img:'img/p4.jpeg', crop:[0.42,0.17,0.25,0.24], shirt:'#4a4238', pants:'#1c1c1c'},
-  {id:'p5', name:'LA PIEDRA', img:'img/p5.jpeg', crop:[0.56,0.16,0.22,0.20], shirt:'#e8e8e0', pants:'#242424'},
+  {id:'p1', name:'EL MORO',          img:'img/p1.jpeg',   crop:[0.42,0.11,0.25,0.29],   shirt:'#3f9a4a', pants:'#232323'},
+  {id:'p2', name:'EL IVO',           img:'img/p2.jpeg',   crop:[0.40,0.08,0.19,0.14],   shirt:'#1d1d22', pants:'#2a2a33'},
+  {id:'p3', name:'EL CIEGO AUGUSTO', img:'img/p3.jpeg',   crop:[0.37,0.03,0.20,0.14],   shirt:'#26262c', pants:'#3a3f4a'},
+  {id:'p4', name:'EL KEVIN',         img:'img/p4.jpeg',   crop:[0.42,0.17,0.25,0.24],   shirt:'#4a4238', pants:'#1c1c1c'},
+  {id:'p5', name:'EL ALEXIS',        img:'img/p5.jpeg',   crop:[0.56,0.16,0.22,0.20],   shirt:'#e8e8e0', pants:'#242424'},
+  {id:'p6', name:'EL GER',           img:'img/crew.jpeg', crop:[0.405,0.12,0.27,0.30], shirt:'#3a7d3c', pants:'#2a2a2a'},
 ];
 
 const TIPS = [

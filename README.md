@@ -28,11 +28,12 @@ Juego estilo GTA top-down retro 2D desarrollado en HTML5 Canvas y JavaScript van
 
 ## 👥 Personajes actuales
 
-* **El Smoke**
-* **Academia**
-* **Palmera**
-* **El Jefe**
-* **La Piedra**
+* **El Moro**
+* **El Ivo**
+* **El Ciego Augusto**
+* **El Kevin**
+* **El Alexis**
+* **El Ger**
 
 ---
 
@@ -104,7 +105,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 - [x] Música de fondo / radio de los vehículos estilo GTA retro (#71)
 
 ### 🎭 Personajes & Lore
-- [ ] Cambiar y pulir los nombres de los personajes (#72)
+- [x] Cambiar y pulir los nombres de los personajes (#72)
 - [ ] Incorporar nuevos personajes seleccionables (#73)
 - [x] **Arma / Ítem especial:** Incorporar el **bastón verde del Ciego Augusto** (arma de combate cuerpo a cuerpo)
 - [ ] Sistema base de NPCs con nombre y parodias de famosos: spawn, diálogo, comportamiento único, recompensas y despawn (#9)
