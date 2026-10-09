@@ -20,7 +20,7 @@ Juego estilo GTA top-down retro 2D desarrollado en HTML5 Canvas y JavaScript van
 | <kbd>Shift</kbd> | Correr (a pie) |
 | <kbd>M</kbd> | Mapa global |
 | <kbd>+</kbd> <kbd>-</kbd> | Zoom del mapa (con el mapa abierto) |
-| <kbd>P</kbd> | Pausa |
+| <kbd>P</kbd> | Pausa (solo jugando solo) |
 
 ---
 
@@ -78,6 +78,17 @@ Los autos manejan con volante y frenos de verdad (`js/traffic.js`):
 
 ---
 
+## 🌊 Riachuelo y playas
+
+El Riachuelo cruza el mapa con meandros y desemboca en la playa grande.
+
+* **Agua con profundidad**: orilla barrosa y verdosa, centro hondo, espuma que corre por la orilla y destellos que siguen la corriente (también de noche).
+* **Embarcaciones**: lanchas, botes, remolcadores y barcazas con estela, y camalotes, basura y patos a la deriva.
+* **Puentes con estilo propio**: atirantado blanco en la 9 de Julio, reticulados verde, celeste y rojo, puentes de hormigón con miradores y el **Transbordador** cerca de la desembocadura. Tienen veredas, faroles y pilas con espuma, y aparecen en el minimapa.
+* **Playas con vida**: arena mojada y seca con médanos, sombrillas, reposeras, toallas con gente tomando sol, puestos de choripán, torres de guardavidas, cancha de vóley, fogones, carpas, kayaks y muelles con pescadores.
+
+---
+
 ## 🗺️ Roadmap de pendientes
 
 Lista de características planificadas y mejoras en desarrollo. Cada ítem linkea al issue correspondiente:
@@ -115,6 +126,9 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 ### 🗺️ Mundo & Ubicaciones
 - [x] Ampliar el mapa a 24x24 (#38)
 - [x] Riachuelo que cruza el mapa y desemboca en la playa (#39)
+  - [x] Agua con profundidad, espuma, corriente y embarcaciones
+  - [x] Puentes con estilo propio, veredas, faroles y Transbordador
+  - [x] Playas con gente, puestos, guardavidas, vóley y muelles
 - [x] Obelisco como landmark navegable (#33)
 - [x] Casa Rosada como landmark, con actividad de NPCs (#34)
 - [ ] Supermercado Coto (con carne) (#30)
@@ -157,7 +171,9 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
   - [x] Optimización de viewport, prevención de scroll/zoom no deseado y layout adaptable a pantallas móviles
 
 ### 🌐 Multijugador (Multiplayer)
+- [x] Base multijugador: el juego simula varios jugadores en la misma partida (guita, búsqueda, armas y arresto por jugador; IA, yuta y spawns que reparten entre todos; daño con autor y PvP)
 - [ ] Modo multijugador online en tiempo real:
+  - [ ] Red P2P con WebRTC (el host simula, los demás mandan controles)
   - [ ] Soporte para salas / lobbies compartidos
   - [ ] Sincronización de jugadores en el mapa (movimiento, autos y disparos)
   - [ ] Cooperativo y PvP barrial
@@ -180,7 +196,7 @@ Luego entra a `http://localhost:8000`.
 ### Tests
 
 ```bash
-node selfcheck.js
+node --test selfcheck.js
 ```
 
 Corre el juego headless (mundo, semáforos, 60 s de simulación, arresto, hospital...).
