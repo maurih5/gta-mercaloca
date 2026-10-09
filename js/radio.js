@@ -291,7 +291,7 @@ Object.assign(SONGS, {
       'A4:6',
     ].join(' ');
     return arrange(300, {
-      bombo: { inst: 'drums', vol: 1.1, rev: 0.15 },
+      bombo: { inst: 'drums', vol: 0.6, rev: 0.15 },
       gtr: { inst: 'guitar', vol: 0.9, pan: -0.3, rev: 0.18 },
       bass: { inst: 'guitar', vol: 1, pan: -0.1 },
       violin: { inst: 'violin', vol: 0.75, pan: 0.3, rev: 0.3 },
@@ -412,7 +412,7 @@ function buildMix(c, dest, song) {
 function playNote(inputs, n, t) {
   const d = inputs[n.tr];
   if (n.inst === 'drums') {
-    (DRUMS[n.n] || DRUMS.h)(d, t + Math.random() * 0.004, n.v * (0.92 + Math.random() * 0.1), n.d);
+    (DRUMS[n.n] || DRUMS.h)(d, t + Math.random() * 0.004, DRUM_GAIN * n.v * (0.92 + Math.random() * 0.1), n.d);
     return;
   }
   const v = n.v * (0.9 + Math.random() * 0.12), tt = t + Math.random() * 0.012;
@@ -423,6 +423,9 @@ function playNote(inputs, n, t) {
 
 const isFile = id => /\.(ogg|mp3|m4a|wav)$/i.test(id);
 const RADIO_VOL = 0.5;
+// La batería se sintetiza con golpes cortos: para que se escuche a la par de los
+// instrumentos sostenidos va unos 10 dB arriba (medido con radio.render)
+const DRUM_GAIN = 3.2;
 
 class Radio {
   constructor() {
@@ -562,9 +565,15 @@ class Radio {
   // Renderiza los primeros secs segundos de un tema sin sonar (para medir niveles o exportarlo)
   async render(id, secs = 30, sr = 44100) {
     const c = new OfflineAudioContext(2, Math.floor(sr * secs), sr);
-    const out = c.createGain();
+    // La misma cadena que en el juego: volumen de la radio, volumen general y compresor
+    const out = c.createGain(), master = c.createGain(), comp = c.createDynamicsCompressor();
     out.gain.value = RADIO_VOL;
-    out.connect(c.destination);
+    master.gain.value = 0.55;
+    comp.threshold.value = -14;
+    comp.ratio.value = 6;
+    out.connect(master);
+    master.connect(comp);
+    comp.connect(c.destination);
     const song = this.song(id), inputs = buildMix(c, out, song);
     for (const n of song.notes) if (n.t < secs - 0.5) playNote(inputs, n, n.t + 0.01);
     return c.startRendering();

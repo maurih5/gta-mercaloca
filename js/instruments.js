@@ -258,15 +258,18 @@ const INSTRUMENTS = {
 
 // Batería y percusión. Letras: k bombo, s redoblante, h platillo cerrado, o abierto,
 // c crash, g güiro, b bombo legüero, r aro (el golpe en el borde del bombo)
+// El bombo lleva, además del grave, la pegada del parche (100-200 Hz) y el chasquido del
+// pedal (3-4 kHz): en el parlante de un celular el grave solo no se escucha.
 const DRUMS = {
   k(d, t, v) {
     sound.tone(d, t, { dur: 0.32, f0: 155, f1: 42, vol: v });
-    sound.burst(d, t, { dur: 0.012, type: 'highpass', f0: 2500, vol: v * 0.3 });
+    sound.tone(d, t, { dur: 0.08, f0: 210, f1: 95, wave: 'triangle', vol: v * 0.6 });
+    sound.burst(d, t, { dur: 0.018, type: 'bandpass', f0: 3200, q: 1.2, vol: v * 0.45 });
   },
   s(d, t, v) {
-    sound.burst(d, t, { dur: 0.17, type: 'highpass', f0: 1400, vol: v * 0.55 });
-    sound.burst(d, t, { dur: 0.08, type: 'bandpass', f0: 3500, q: 0.8, vol: v * 0.3 });
-    sound.tone(d, t, { dur: 0.09, f0: 200, f1: 165, wave: 'triangle', vol: v * 0.55 });
+    sound.burst(d, t, { dur: 0.19, type: 'highpass', f0: 1400, vol: v * 0.65 });
+    sound.burst(d, t, { dur: 0.1, type: 'bandpass', f0: 3500, q: 0.8, vol: v * 0.4 });
+    sound.tone(d, t, { dur: 0.11, f0: 220, f1: 170, wave: 'triangle', vol: v * 0.75 });
   },
   h(d, t, v) {
     sound.burst(d, t, { dur: 0.045, type: 'highpass', f0: 8500, vol: v * 0.35 });
@@ -286,7 +289,8 @@ const DRUMS = {
   },
   b(d, t, v) {
     sound.tone(d, t, { dur: 0.5, f0: 100, f1: 58, vol: v });
-    sound.burst(d, t, { dur: 0.09, f0: 380, vol: v * 0.5 });
+    sound.tone(d, t, { dur: 0.12, f0: 190, f1: 120, wave: 'triangle', vol: v * 0.5 });
+    sound.burst(d, t, { dur: 0.09, f0: 380, vol: v * 0.6 });
   },
   r(d, t, v) {
     sound.burst(d, t, { dur: 0.035, type: 'bandpass', f0: 1700, q: 5, vol: v * 0.7 });
