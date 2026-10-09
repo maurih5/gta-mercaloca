@@ -418,84 +418,183 @@ class Renderer {
     ctx.fill();
   }
 
-  // Puente: lo que le faltaba era altura. El tablero va horneado en el piso, pero
-  // las barandas, las torres y los tirantes se extruyen como cualquier cosa alta,
-  // asi que el puente se despega del agua en vez de ser una franja gris.
+  // Puente: el tablero va horneado en el piso (world.bakeGround); aca va lo que se mueve
+  // o tiene altura: la espuma en las pilas, las barandas y la estructura propia de cada
+  // estilo (reticulado, mastil atirantado, Transbordador). Todo se arma en coordenadas
+  // del puente: u a lo largo de la calle, v a lo ancho, h altura.
   drawPuente(p) {
-    const ctx = this.ctx;
-    const a = (p.horiz ? p.a : p.a) - (p.horiz ? G.cam.x : G.cam.y);
-    const b = (p.horiz ? p.b : p.b) - (p.horiz ? G.cam.x : G.cam.y);
-    const base = p.base - (p.horiz ? G.cam.y : G.cam.x);
-    if (b < -40 || a > (p.horiz ? RW : RH) + 40) return;
-    if (base < -160 || base > (p.horiz ? RH : RW) + 60) return;
+    const br = p.br;
+    if (!br) return;
+    const ctx = this.ctx, S = BRIDGE_STYLES[p.style] || BRIDGE_STYLES.hormigon;
+    const tall = S.k === 'atirantado' || S.k === 'transbordador';
+    const M = tall ? 110 : 50;
+    const cu = p.horiz ? G.cam.x : G.cam.y, cvv = p.horiz ? G.cam.y : G.cam.x;
+    if (p.b - cu < -M || p.a - cu > (p.horiz ? RW : RH) + M) return;
+    if (p.base + p.w - cvv < -M || p.base - cvv > (p.horiz ? RH : RW) + M) return;
 
-    // Extrusion de un punto del piso hacia "arriba" segun su altura
-    const up = (x, y, H) => [x + (x - RW / 2) * H / FOCAL, y + (y - RH / 2) * H / FOCAL];
-    const W = p.w, HR = 9, HT = 30; // alto de baranda y de las torres
-
-    // Barandas: cinta continua a cada lado, con su cara lateral sombreada
-    for (const s of [0, 1]) {
-      const off = s ? W : 0;
-      const p0 = p.horiz ? [a, base + off] : [base + off, a];
-      const p1 = p.horiz ? [b, base + off] : [base + off, b];
-      const t0 = up(p0[0], p0[1], HR), t1 = up(p1[0], p1[1], HR);
-      this.quad(p0[0], p0[1], p1[0], p1[1], t1[0], t1[1], t0[0], t0[1], '#6e6a60');
-      ctx.strokeStyle = '#d8d3c4';
-      ctx.lineWidth = 1.6;
+    const L = p.base, W = p.w, mid = L + W / 2, da = br.da, db = br.db;
+    const E = 4, v0 = L - E, v1 = L + W + E, NOSE = 10;
+    const vA = L - 2, vB = L + W + 2; // donde se paran las barandas: sobre la viga de borde
+    // Extrusion comun (barandas, reticulado)
+    const P = (u, v, h) => {
+      const x = (p.horiz ? u : v) - G.cam.x, y = (p.horiz ? v : u) - G.cam.y;
+      return [x + (x - RW / 2) * h / FOCAL, y + (y - RH / 2) * h / FOCAL];
+    };
+    // Lo muy alto (mastil, torres): como el obelisco, solo una parte del alto va por
+    // extrusion y el resto es un empujon fijo hacia arriba, asi no gira como aguja de
+    // reloj cuando la camara pasa al lado.
+    const T = (u, v, h) => {
+      const x = (p.horiz ? u : v) - G.cam.x, y = (p.horiz ? v : u) - G.cam.y, k = h * 0.45 / FOCAL;
+      return [x + (x - RW / 2) * k, y + (y - RH / 2) * k - h * 0.55];
+    };
+    // Tanda de segmentos con un solo stroke
+    const segs = (list, col, lw) => {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = lw;
       ctx.beginPath();
-      ctx.moveTo(t0[0], t0[1]);
-      ctx.lineTo(t1[0], t1[1]);
+      for (const [q0, q1] of list) { ctx.moveTo(q0[0], q0[1]); ctx.lineTo(q1[0], q1[1]); }
       ctx.stroke();
-      // Postes cada tanto
-      ctx.strokeStyle = '#4c483f';
-      ctx.lineWidth = 1.4;
-      for (let u = p.a + 12; u < p.b - 6; u += 22) {
-        const q = p.horiz ? [u - G.cam.x, base + off] : [base + off, u - G.cam.y];
-        const tq = up(q[0], q[1], HR);
-        ctx.beginPath();
-        ctx.moveTo(q[0], q[1]);
-        ctx.lineTo(tq[0], tq[1]);
-        ctx.stroke();
+    };
+    const poly = (pts, col, lw) => {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      pts.forEach((q, i) => i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]));
+      ctx.stroke();
+    };
+
+    // --- Espuma: ola en la punta de cada pila aguas arriba y estela aguas abajo ---
+    const f = br.flow;
+    for (const pr of br.piers) {
+      if (!pr.wet) continue;
+      const vu = f > 0 ? v0 - NOSE : v1 + NOSE, vd = f > 0 ? v1 + NOSE : v0 - NOSE;
+      for (let k = 0; k < 2; k++) {
+        const ph = (G.t * 0.8 + k * 0.5 + pr.u * 0.013) % 1;
+        const s = 3 + ph * 7;
+        poly([P(pr.u - s, vu + f * (s * 0.9 + 2), 0), P(pr.u, vu - f * (1.5 - ph), 0), P(pr.u + s, vu + f * (s * 0.9 + 2), 0)],
+          'rgba(240,248,252,' + (0.9 * (1 - ph)).toFixed(2) + ')', 1.3);
+      }
+      for (let k = 0; k < 4; k++) {
+        const ph = (G.t * 0.55 + k * 0.25 + pr.u * 0.007) % 1;
+        const q = P(pr.u + (k % 2 ? 1 : -1) * (2 + ph * 4), vd + f * (1 + ph * 22), 0);
+        ctx.fillStyle = 'rgba(236,246,250,' + (0.6 * (1 - ph)).toFixed(2) + ')';
+        ctx.fillRect(q[0] - 1, q[1] - 0.5, 2.5, 1.2);
       }
     }
 
-    // Torres y tirantes en los tercios del tramo: es lo que lo hace leer "puente"
-    for (const f of [0.34, 0.66]) {
-      const u = p.a + (p.b - p.a) * f;
-      const foot = [];
-      for (const s of [0, 1]) {
-        const off = s ? W : 0;
-        const q = p.horiz ? [u - G.cam.x, base + off] : [base + off, u - G.cam.y];
-        const tq = up(q[0], q[1], HT);
-        // Pilon
-        this.quad(q[0] - 2, q[1] - 2, q[0] + 2, q[1] + 2, tq[0] + 1.4, tq[1] + 1.4, tq[0] - 1.4, tq[1] - 1.4, '#9a9488');
-        ctx.strokeStyle = '#cfc9ba';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(q[0], q[1]);
-        ctx.lineTo(tq[0], tq[1]);
-        ctx.stroke();
-        foot.push([q, tq]);
-      }
-      // Travesano que une las dos torres
-      ctx.strokeStyle = '#b3ada0';
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.moveTo(foot[0][1][0], foot[0][1][1]);
-      ctx.lineTo(foot[1][1][0], foot[1][1][1]);
-      ctx.stroke();
-      // Tirantes hacia el tablero
-      ctx.strokeStyle = 'rgba(220,215,200,.55)';
-      ctx.lineWidth = 1;
-      for (const [q, tq] of foot) {
-        for (const d of [-34, 34]) {
-          const e = p.horiz ? [q[0] + d, q[1]] : [q[0], q[1] + d];
-          ctx.beginPath();
-          ctx.moveTo(tq[0], tq[1]);
-          ctx.lineTo(e[0], e[1]);
-          ctx.stroke();
+    // --- Barandas a los dos lados, sobre la viga de borde ---
+    const railing = (v, h, gap, post, top, panel) => {
+      const A = P(da, v, 0), B = P(db, v, 0), At = P(da, v, h), Bt = P(db, v, h);
+      if (panel) this.quad(A[0], A[1], B[0], B[1], Bt[0], Bt[1], At[0], At[1], panel);
+      const posts = [];
+      for (let u = da + 2; u <= db - 1; u += gap) posts.push([P(u, v, 0), P(u, v, h)]);
+      segs(posts, post, 1);
+      segs([[At, Bt]], top, 1.5);
+    };
+    if (S.k === 'hormigon') {
+      // Balaustrada de hormigon y miradores redondos sobre las pilas
+      for (const v of [vA, vB]) railing(v, 6, 4, 'rgba(90,84,72,.8)', '#e2dccd', 'rgba(201,194,178,.88)');
+      for (const pr of br.piers) {
+        for (const side of [-1, 1]) {
+          const vc = side < 0 ? v0 : v1, arc = [];
+          for (let i = 0; i <= 8; i++) {
+            const a = Math.PI * i / 8;
+            arc.push(P(pr.u - Math.cos(a) * 10, vc + side * Math.sin(a) * 10, 6));
+          }
+          poly(arc, '#e2dccd', 1.5);
         }
       }
+    } else if (S.k === 'atirantado') {
+      for (const v of [vA, vB]) railing(v, 5, 6, '#c9ccc6', '#f6f7f2', 'rgba(205,225,235,.22)');
+    } else {
+      for (const v of [vA, vB]) railing(v, 4, 8, S.dark, S.steel, null);
+    }
+
+    // --- Estructura de cada estilo ---
+    if (S.k === 'reticulado') {
+      // Dos vigas reticuladas a los costados (cordon arriba, montantes y cruces en X)
+      // con portales arriba en las puntas. Van con la proyeccion de lo alto: con la
+      // extrusion sola, vistas desde arriba quedaban de canto y no se leian las X.
+      const HT = S.HT, n = Math.max(3, Math.round((db - da) / (HT * 1.7))), pl = (db - da) / n;
+      const chords = [], webs = [], tops = [[], []];
+      [vA, vB].forEach((v, si) => {
+        const Bn = [], Tn = [];
+        for (let i = 0; i <= n; i++) { Bn.push(T(da + i * pl, v, 0)); Tn.push(T(da + i * pl, v, HT)); }
+        tops[si] = Tn;
+        for (let i = 1; i < n - 1; i++) chords.push([Tn[i], Tn[i + 1]]);
+        chords.push([Bn[0], Tn[1]], [Bn[n], Tn[n - 1]]); // montantes de punta, inclinados
+        for (let i = 1; i < n; i++) webs.push([Bn[i], Tn[i]]);
+        for (let i = 1; i < n - 1; i++) webs.push([Bn[i], Tn[i + 1]], [Tn[i], Bn[i + 1]]);      });
+      // Arriostramiento superior: solo portales en las puntas y uno al medio, finitos,
+      // para no tapar lo que pasa abajo
+      const braces = [];
+      for (const i of [1, n - 1, Math.round(n / 2)]) braces.push([tops[0][i], tops[1][i]]);
+      segs(braces, S.dark, 1.6);
+      segs(webs, S.dark, 1.6);
+      segs(webs, S.steel, 0.9);
+      segs(chords, S.dark, 2.4);
+      segs(chords, S.steel, 1.4);
+    } else if (S.k === 'atirantado') {
+      // Mastil blanco inclinado, onda Puente de la Mujer: se para en la punta de una
+      // pila, al costado del tablero, se inclina hacia afuera y hacia atras, y los
+      // tirantes bajan en abanico hasta el borde del tablero. Si fuera sobre el eje,
+      // visto desde arriba quedaria de canto y seria una raya.
+      const mu = br.mast, H = 62, vf = v0 - 7;
+      const tipU = mu - 24, tipV = vf - 34;
+      const F = T(mu, vf, 0), Hd = T(tipU, tipV, H);
+      // El grosor va de costado a la direccion en pantalla, asi no se afina de canto
+      const dl = Math.hypot(Hd[0] - F[0], Hd[1] - F[1]) || 1, nx = -(Hd[1] - F[1]) / dl, ny = (Hd[0] - F[0]) / dl;
+      const cables = [];
+      const nC = 11, reach = Math.max(40, db - 14 - (mu + 10));
+      for (let j = 0; j < nC; j++) {
+        const k = 0.4 + 0.6 * j / (nC - 1);
+        const m = T(mu + (tipU - mu) * k, vf + (tipV - vf) * k, H * k);
+        cables.push([m, T(mu + 10 + reach * j / (nC - 1), vA, 0)]);
+      }
+      segs(cables, 'rgba(250,250,246,.8)', 0.8);
+      const w0 = 5, w1 = 1.8;
+      this.quad(F[0] - nx * w0, F[1] - ny * w0, F[0] + nx * w0, F[1] + ny * w0,
+        Hd[0] + nx * w1, Hd[1] + ny * w1, Hd[0] - nx * w1, Hd[1] - ny * w1, S.steel);
+      this.quad(F[0], F[1], F[0] + nx * w0, F[1] + ny * w0, Hd[0] + nx * w1, Hd[1] + ny * w1, Hd[0], Hd[1], S.dark);
+      const tip = [Hd[0] + (Hd[0] - F[0]) * 0.05, Hd[1] + (Hd[1] - F[1]) * 0.05];
+      this.quad(Hd[0] - nx * w1, Hd[1] - ny * w1, Hd[0] + nx * w1, Hd[1] + ny * w1, tip[0], tip[1], tip[0], tip[1], S.steel);
+    } else if (S.k === 'transbordador') {
+      // Transbordador: dos torres de hierro en las costas unidas arriba por una viga
+      // reticulada, con la barquilla colgando que va y viene. Fino, para no tapar.
+      const HB = 80, HG = 70, ua = da - 4, ub = db + 4, vl = v0 - 9, vr = v1 + 9;
+      const legs = [], lattice = [];
+      for (const u of [ua, ub]) {
+        for (const v of [vl, vr]) {
+          const b0 = T(u - 3, v, 0), b1 = T(u + 3, v, 0), t0 = T(u - 1.5, v, HB), t1 = T(u + 1.5, v, HB);
+          legs.push([b0, t0], [b1, t1]);
+          for (let h = 0; h < HB; h += 10) {
+            const w0 = 3 - 1.5 * h / HB, w1 = 3 - 1.5 * (h + 10) / HB;
+            lattice.push([T(u - w0, v, h), T(u + w1, v, h + 10)], [T(u + w0, v, h), T(u - w1, v, h + 10)]);
+          }
+        }
+        // Travesanos arriba, de pata a pata
+        legs.push([T(u, vl, HB), T(u, vr, HB)], [T(u, vl, HG), T(u, vr, HG)]);
+        lattice.push([T(u, vl, HB), T(u, vr, HG)], [T(u, vl, HG), T(u, vr, HB)]);
+      }
+      // Vigas altas de costa a costa
+      for (const v of [vl, vr]) {
+        legs.push([T(ua, v, HB), T(ub, v, HB)], [T(ua, v, HG), T(ub, v, HG)]);
+        const n = Math.max(4, Math.round((ub - ua) / 14));
+        for (let i = 0; i < n; i++) {
+          const u0 = ua + (ub - ua) * i / n, u1 = ua + (ub - ua) * (i + 1) / n;
+          lattice.push(i % 2 ? [T(u0, v, HB), T(u1, v, HG)] : [T(u0, v, HG), T(u1, v, HB)]);
+        }
+      }
+      segs(lattice, 'rgba(70,82,94,.75)', 0.8);
+      segs(legs, S.dark, 2);
+      segs(legs, S.steel, 1.1);
+      // Barquilla: carro arriba, cables y plataforma, que cruza despacio de costa a costa
+      const ug = da + 14 + (db - da - 28) * (0.5 - 0.5 * Math.cos(G.t * 0.11)), HP = 34;
+      const c = [T(ug - 8, L, HP), T(ug + 8, L, HP), T(ug + 8, L + W, HP), T(ug - 8, L + W, HP)];
+      segs([[T(ug, vl, HG), c[0]], [T(ug, vl, HG), c[1]], [T(ug, vr, HG), c[2]], [T(ug, vr, HG), c[3]]],
+        'rgba(40,46,52,.8)', 0.7);
+      this.quad(c[0][0], c[0][1], c[1][0], c[1][1], c[2][0], c[2][1], c[3][0], c[3][1], 'rgba(60,70,80,.55)');
+      poly([c[0], c[1], c[2], c[3], c[0]], 'rgba(200,90,50,.85)', 1);
     }
   }
 

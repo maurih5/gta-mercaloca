@@ -352,6 +352,69 @@ describe('riachuelo y monumentos', () => {
     }
     assert.ok(sawBand, 'la diagonal tiene longitud positiva');
   });
+
+  test('cada puente tiene su estilo, se cruza entero y sus faroles no flotan', () => {
+    const ESTILOS = ['mujer', 'pueyrredon', 'boca', 'celeste', 'hormigon', 'transbordador'];
+    const puentes = props.filter(p => p.t === 'puente');
+    assert.ok(puentes.length >= 4, 'tiene que haber varios puentes: ' + puentes.length);
+    for (const pu of puentes) {
+      const br = pu.br, id = pu.style + ' ' + (pu.horiz ? 'h' : 'v') + pu.base;
+      assert.ok(ESTILOS.includes(pu.style), 'estilo de puente desconocido: ' + pu.style);
+      assert.ok(br.da >= pu.a && br.db <= pu.b && br.db - br.da > 40, 'el tablero queda adentro del tramo: ' + id);
+      assert.ok(br.piers.length >= 1 && br.piers.some(p => p.wet), 'el puente se apoya en pilas en el agua: ' + id);
+      assert.ok(br.piers.every(p => p.u > br.da && p.u < br.db), 'las pilas van entre los estribos: ' + id);
+      const at = (u, v) => pu.horiz ? [u, v] : [v, u];
+      // De punta a punta: por el eje maneja un auto y por las dos veredas camina un peaton
+      for (let u = pu.a + 2; u < pu.b - 2; u += 3) {
+        const [x, y] = at(u, pu.base + pu.w / 2);
+        assert.ok(onRoad(x, y) && !hitBuilding(x, y, 4), 'el eje del puente tiene que ser calle libre: ' + id + ' ' + JSON.stringify({ x, y }));
+        assert.ok(!inWater(x, y), 'el puente no puede tener agua encima: ' + id);
+        for (const v of [pu.base + SIDEWALK / 2, pu.base + pu.w - SIDEWALK / 2]) {
+          const [sx, sy] = at(u, v);
+          assert.ok(!hitBuilding(sx, sy, 3), 'la vereda del puente tiene que estar libre: ' + id + ' ' + JSON.stringify({ x: sx, y: sy }));
+          if (u > br.da && u < br.db && !br.cross.some(([c0, c1]) => u > c0 && u < c1)) {
+            assert.ok(onSidewalk(sx, sy), 'sobre el tablero la vereda sigue siendo vereda: ' + id);
+          }
+        }
+      }
+    }
+    // Personalidad: las dos avenidas con lo suyo y las calles con estilos distintos
+    const est = puentes.map(p => p.style);
+    assert.ok(est.includes('mujer') && est.includes('pueyrredon'), 'las avenidas cruzan por el atirantado y el reticulado');
+    assert.ok(new Set(est).size >= Math.min(puentes.length, 5), 'cada puente con su personalidad: ' + est.join(','));
+    // Faroles del puente: sobre la vereda, nunca en el agua
+    const lp = lamps.filter(l => l.puente);
+    assert.ok(lp.length >= puentes.length * 2, 'los puentes tienen faroles: ' + lp.length);
+    for (const l of lp) {
+      assert.ok(!inWater(l.x, l.y) && onSidewalk(l.x, l.y) && !hitBuilding(l.x, l.y, 2), 'farol de puente fuera de la vereda: ' + JSON.stringify(l));
+    }
+    // Y en la vereda del puente no se planta ninguna palmera
+    for (const p of props.filter(q => q.t === 'palm')) {
+      const enPuente = puentes.some(pu => {
+        const u = pu.horiz ? p.x : p.y, v = pu.horiz ? p.y : p.x;
+        return u > pu.br.da && u < pu.br.db && v >= pu.base - 4 && v <= pu.base + pu.w + 4;
+      });
+      assert.ok(!enPuente, 'palmera plantada en un puente: ' + JSON.stringify({ x: p.x, y: p.y }));
+    }
+  });
+
+  test('los puentes se dibujan de dia y de noche con dos jugadores', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    const puentes = props.filter(p => p.t === 'puente');
+    for (const pu of puentes) {
+      const u = (pu.br.da + pu.br.db) / 2, v = pu.base + pu.w / 2;
+      G.me.x = pu.horiz ? u : v; G.me.y = pu.horiz ? v : u;
+      P2.x = G.me.x + 60; P2.y = G.me.y + 40; // el otro, al costado: la camara sigue a G.me
+      for (const h of [0, DAY * 0.5]) {
+        G.t = h;
+        update(1 / 60);
+        render();
+        assert.ok(Number.isFinite(G.cam.x) && Number.isFinite(G.cam.y), 'camara rota sobre el puente ' + pu.style);
+      }
+    }
+    removePlayer(P2);
+  });
 });
 
 describe('dia y noche', () => {

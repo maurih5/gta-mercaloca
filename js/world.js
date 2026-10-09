@@ -194,6 +194,54 @@ function planBridges(skip) {
     if (bridges.some(o => Math.abs(o.t - c.t) * RIVER_LEN < CELL * 2.4)) continue;
     take(c);
   }
+  // Estilo de cada puente (determinista): las avenidas el suyo, y en las calles el
+  // Transbordador va en la horizontal mas cercana a la desembocadura (de costado su
+  // estructura alta se lee; en una vertical quedaria de canto) y el resto rota a lo
+  // largo del rio.
+  const calles = bridges.filter(b => !b.avenue).sort((p, q) => p.t - q.t);
+  for (const b of bridges) if (b.avenue) b.style = b.horiz ? 'pueyrredon' : 'mujer';
+  const trans = calles.filter(b => b.horiz).pop() || calles[calles.length - 1];
+  let i = 0;
+  for (const b of calles) b.style = b === trans ? 'transbordador' : BRIDGE_STREET_STYLES[i++ % BRIDGE_STREET_STYLES.length];
+}
+// Disposicion de un puente, una vez horneado el cauce: donde empieza y termina el
+// tablero (la parte sobre agua o arena; antes y despues van los estribos en tierra),
+// donde van las pilas (y cuales pisan agua, para la espuma) y hacia donde corre el rio.
+function layoutBridge(br, w) {
+  const at = (u, v) => br.horiz ? [u, v] : [v, u];
+  const vs = [br.line, br.line + br.w / 2, br.line + br.w];
+  let da = -1, db = -1;
+  for (let u = br.a; u <= br.b; u += 2) {
+    if (vs.some(v => overBridge(...at(u, v)))) { if (da < 0) da = u; db = u; }
+  }
+  if (da < 0 || db - da < 20) { da = br.a + 12; db = br.b - 12; }
+  // Bocacalles: si una calle viva cruza adentro del tramo (pasa cuando la arena llega
+  // hasta la esquina), ahi no van veredas ni barandas: se cruza como cualquier esquina,
+  // y el tablero con su estructura termina antes.
+  br.cross = [];
+  for (let k = Math.max(0, Math.floor(br.a / CELL)); k * CELL < br.b; k++) {
+    const c0 = k * CELL, c1 = c0 + (br.horiz ? roadWidthCol(k) : roadWidthRow(k)), cm = (c0 + c1) / 2;
+    if (c1 <= br.a || c0 >= br.b) continue;
+    if (!w.onRoadCardinal(...at(cm, br.line - 14)) && !w.onRoadCardinal(...at(cm, br.line + br.w + 14))) continue;
+    br.cross.push([c0, c1]);
+    if (c1 > da && c0 < db) {
+      if (cm < (da + db) / 2) da = Math.max(da, c1 + 4); else db = Math.min(db, c0 - 4);
+    }
+  }
+  br.da = da; br.db = db;
+  const len = db - da, n = Math.max(2, Math.round(len / BRIDGE_PIER_GAP));
+  br.piers = [];
+  for (let i = 1; i < n; i++) {
+    const u = da + len * i / n;
+    const wet = shoreDist(...at(u, br.line - 12)) < 0 || shoreDist(...at(u, br.line + br.w + 12)) < 0;
+    br.piers.push({ u, wet });
+  }
+  const nr = riverNearest(...at((da + db) / 2, br.line + br.w / 2));
+  br.flow = (br.horiz ? nr.ty : nr.tx) >= 0 ? 1 : -1; // +1: el agua corre hacia +v
+  // Atirantado: el mastil se para sobre la pila mas cercana al primer tercio del tramo
+  // (se inclina hacia da y los tirantes bajan hacia db)
+  const target = da + len * 0.32;
+  br.mast = br.piers.reduce((m, p) => Math.abs(p.u - target) < Math.abs(m - target) ? p.u : m, target);
 }
 
 // Mascara de agua: hitBuilding() se llama muchisimo por frame y no puede recorrer
@@ -506,7 +554,22 @@ class World {
     }
     this.bridges = bridges;
     for (const br of bridges) {
-      this.props.push({ t: 'puente', horiz: br.horiz, a: br.a, b: br.b, base: br.line, w: br.w, avenue: br.avenue });
+      layoutBridge(br, this);
+      this.props.push({ t: 'puente', horiz: br.horiz, a: br.a, b: br.b, base: br.line, w: br.w, avenue: br.avenue,
+        style: br.style, br });
+      // Faroles sobre las veredas del puente, del lado de afuera. El de hormigon los
+      // lleva de a pares en cada pila (en los miradores); el resto, alternados.
+      const at = (u, v) => br.horiz ? { x: u, y: v, puente: true } : { x: v, y: u, puente: true };
+      const vIn = br.line + 4, vOut = br.line + br.w - 4;
+      if (BRIDGE_STYLES[br.style].k === 'hormigon') {
+        for (const p of br.piers) { this.lamps.push(at(p.u, vIn)); this.lamps.push(at(p.u, vOut)); }
+      } else {
+        const len = br.db - br.da, n = Math.max(1, Math.round(len / BRIDGE_LAMP_GAP));
+        for (let i = 0; i <= n; i++) {
+          const u = br.da + 10 + (len - 20) * i / n;
+          this.lamps.push(at(u, i % 2 ? vOut : vIn));
+        }
+      }
     }
     this.shops.length = 0;
 
@@ -605,7 +668,7 @@ class World {
         for (let i = 0; i < 2; i++) {
           const tx = bx + rnd(4, inner - 4);
           const ty2 = by + (Math.random() < 0.5 ? -SIDEWALK / 2 : inner + SIDEWALK / 2);
-          if (inWater(tx, ty2)) continue; // no hay palmeras plantadas en el rio
+          if (inWater(tx, ty2) || bridgeAt(tx, ty2)) continue; // ni en el rio ni en la vereda de un puente
           this.props.push({
             t: 'palm',
             x: tx,
@@ -1046,59 +1109,200 @@ class World {
       g.fillRect(x, y, rnd(6, 16), 2);
     }
 
-    // Puentes: donde la calle cruza el cauce va deck de asfalto con baranda, de costa a
-    // costa (cada tramo ya viene calculado en this.bridges, con cabeceras en tierra firme).
+    // Puentes: el tablero va horneado en el piso (sombra sobre el agua, pilas, estribos,
+    // veredas, calzada pintada y juntas) y lo que tiene altura (barandas, reticulado,
+    // mastil y tirantes, la espuma de las pilas) lo dibuja el renderer por frame con el
+    // prop 'puente' (drawPuente). Todo en coordenadas del puente: u a lo largo de la
+    // calle, v a lo ancho. Cada tramo viene de this.bridges, con da..db ya calculado.
     {
-      const deck = (horiz, a, b, base, W) => {
-        const len = b - a;
-        // Sombra del tablero sobre el agua, para que se lea "por encima"
-        g.fillStyle = 'rgba(0,0,0,.30)';
-        if (horiz) g.fillRect(a, base + 7, len, W);
-        else g.fillRect(base + 7, a, W, len);
-        // Vigas transversales
-        g.fillStyle = '#4a4740';
-        if (horiz) g.fillRect(a, base, len, W); else g.fillRect(base, a, W, len);
-        g.fillStyle = '#5f5a50';
-        for (let u = a + 6; u < b; u += 13) {
-          if (horiz) g.fillRect(u, base + 2, 5, W - 4);
-          else g.fillRect(base + 2, u, W - 4, 5);
-        }
-        // Calzada
-        g.fillStyle = '#57534a';
-        if (horiz) g.fillRect(a, base + 9, len, W - 18);
-        else g.fillRect(base + 9, a, W - 18, len);
-        // Linea divisoria
-        g.fillStyle = '#c9a227';
-        for (let u = a + 4; u < b - 8; u += 18) {
-          if (horiz) g.fillRect(u, base + W / 2 - 1, 10, 2);
-          else g.fillRect(base + W / 2 - 1, u, 2, 10);
-        }
-        // Barandas: cordon claro + pasamanos oscuro a cada lado
-        for (const s of [0, 1]) {
-          const off = s ? W - 9 : 0;
-          g.fillStyle = '#9a958a';
-          if (horiz) g.fillRect(a, base + off, len, 9); else g.fillRect(base + off, a, 9, len);
-          g.fillStyle = '#2f2d29';
-          if (horiz) g.fillRect(a, base + off + (s ? 6 : 0), len, 3);
-          else g.fillRect(base + off + (s ? 6 : 0), a, 3, len);
-          // Postes
-          g.fillStyle = '#6d685e';
-          for (let u = a + 5; u < b; u += 15) {
-            if (horiz) g.fillRect(u, base + off, 3, 9); else g.fillRect(base + off, u, 9, 3);
+      const deck = (br) => {
+        const S = BRIDGE_STYLES[br.style] || BRIDGE_STYLES.hormigon;
+        const L = br.line, W = br.w, a = br.a, b = br.b, da = br.da, db = br.db;
+        const SW = SIDEWALK, mid = L + W / 2;
+        const E = 4;                       // viga de borde: va afuera de la franja, dentro del corredor
+        const v0 = L - E, v1 = L + W + E;
+        const su = br.horiz ? 6 : 10, sv = br.horiz ? 10 : 6; // sombra: el sol viene de arriba-izq
+        const R = (u0, u1, w0, w1) => br.horiz ? g.fillRect(u0, w0, u1 - u0, w1 - w0) : g.fillRect(w0, u0, w1 - w0, u1 - u0);
+        const XY = (u, v) => br.horiz ? [u, v] : [v, u];
+        const poly = (pts) => {
+          g.beginPath();
+          pts.forEach(([u, v], i) => { const [x, y] = XY(u, v); if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+          g.closePath();
+          g.fill();
+        };
+
+        // Sombra del tablero sobre el agua y la arena
+        g.fillStyle = 'rgba(8,18,28,.42)';
+        R(da + su, db + su, v0 + sv, v1 + sv);
+
+        // Pilas: tabique de hormigon a lo largo de la corriente, con tajamar en punta,
+        // que asoma a los dos lados del tablero (la espuma la agrega el renderer)
+        const NOSE = 10;
+        for (const p of br.piers) {
+          const pu = p.u;
+          const shape = (du, dv) => [
+            [pu - 4 + du, v0 - NOSE + 4 + dv], [pu + du, v0 - NOSE + dv], [pu + 4 + du, v0 - NOSE + 4 + dv],
+            [pu + 4 + du, v1 + NOSE - 4 + dv], [pu + du, v1 + NOSE + dv], [pu - 4 + du, v1 + NOSE - 4 + dv],
+          ];
+          g.fillStyle = 'rgba(8,18,28,.30)';
+          poly(shape(su * 0.6, sv * 0.6));
+          g.fillStyle = '#7d776b';
+          poly(shape(0, 0));
+          g.fillStyle = '#a19b8e'; // cara al sol
+          R(pu - 4, pu - 1, v0 - NOSE + 4, v1 + NOSE - 4);
+          if (p.wet) {
+            g.fillStyle = 'rgba(46,74,58,.55)'; // verdin en la linea de agua
+            R(pu - 4, pu + 4, v0 - NOSE + 4, v0 - NOSE + 6);
+            R(pu - 4, pu + 4, v1 + NOSE - 6, v1 + NOSE - 4);
           }
         }
-        // Cabeceras de hormigon en las dos puntas
-        g.fillStyle = '#8b8477';
-        if (horiz) { g.fillRect(a, base - 3, 9, W + 6); g.fillRect(b - 9, base - 3, 9, W + 6); }
-        else { g.fillRect(base - 3, a, W + 6, 9); g.fillRect(base - 3, b - 9, W + 6, 9); }
-      };
 
-      // El tablero se hornea, pero la estructura que sobresale (torres, tirantes,
-      // barandas con altura) la dibuja el renderer por frame con el prop 'puente'
-      // (buildCity): horneada en el piso no se leia como puente, quedaba una franja gris.
-      for (const br of this.bridges) {
-        deck(br.horiz, br.a, br.b, br.line, br.w);
-      }
+        // Estribos: muro de hormigon donde el tablero apoya en tierra, con aleros a los
+        // costados y talud de piedra
+        for (const [u, s] of [[da, -1], [db, 1]]) {
+          // Hacia tierra el alero no se mete en una bocacalle; hacia el agua apenas asoma
+          let lim = 16;
+          for (const [c0, c1] of br.cross) {
+            if (s < 0 && c1 <= u) lim = Math.min(lim, u - c1 - 1);
+            if (s > 0 && c0 >= u) lim = Math.min(lim, c0 - u - 1);
+          }
+          const uL = u + s * Math.max(3, lim), uW = u - s * 3;
+          const lo = Math.min(uW, uL), hi = Math.max(uW, uL);
+          g.fillStyle = '#9a9080';
+          poly([[uW, v0 - 5], [uL, v0 - 5], [uL, v0 - 5 - Math.max(3, lim) * 0.6]]);
+          poly([[uW, v1 + 5], [uL, v1 + 5], [uL, v1 + 5 + Math.max(3, lim) * 0.6]]);
+          g.fillStyle = 'rgba(0,0,0,.14)';
+          for (let k = 3; k < Math.max(3, lim); k += 4) {
+            const p0 = Math.min(u + s * k, u + s * (k + 1));
+            R(p0, p0 + 1, v0 - 5 - k * 0.6, v0 - 5);
+            R(p0, p0 + 1, v1 + 5, v1 + 5 + k * 0.6);
+          }
+          g.fillStyle = '#8b8477';
+          R(lo, hi, v0 - 5, v0);
+          R(lo, hi, v1, v1 + 5);
+          R(Math.min(uW, u + s * 2), Math.max(uW, u + s * 2), v0 - 5, v1 + 5);
+          g.fillStyle = '#aaa395';
+          R(lo, hi, v0 - 5, v0 - 4);
+        }
+
+        // Vigas de borde: donde se paran las barandas (el color depende del estilo)
+        const beam = S.k === 'reticulado' ? S.dark : S.k === 'atirantado' ? '#d6d8d2'
+          : S.k === 'transbordador' ? '#5d646b' : '#9a9486';
+        g.fillStyle = beam;
+        R(da, db, v0, L);
+        R(da, db, L + W, v1);
+        g.fillStyle = 'rgba(255,255,255,.18)';
+        R(da, db, v0, v0 + 1);
+        R(da, db, L + W, L + W + 1);
+
+        // Miradores del puente de hormigon: balconcitos redondos sobre cada pila
+        if (S.k === 'hormigon') {
+          for (const p of br.piers) {
+            for (const side of [-1, 1]) {
+              const [cx, cy] = XY(p.u, side < 0 ? v0 : v1);
+              const ang = br.horiz ? (side < 0 ? -Math.PI / 2 : Math.PI / 2) : (side < 0 ? Math.PI : 0);
+              g.fillStyle = beam;
+              g.beginPath(); g.arc(cx, cy, 11, ang - Math.PI / 2, ang + Math.PI / 2); g.fill();
+              g.fillStyle = S.walk;
+              g.beginPath(); g.arc(cx, cy, 9, ang - Math.PI / 2, ang + Math.PI / 2); g.fill();
+            }
+          }
+        }
+
+        // Lo que va a lo largo de la calle se corta en las bocacalles (br.cross)
+        const RL = (u0, u1, w0, w1) => {
+          let s0 = u0;
+          for (const [c0, c1] of br.cross) {
+            if (c1 <= s0 || c0 >= u1) continue;
+            if (c0 > s0) R(s0, c0, w0, w1);
+            s0 = Math.max(s0, c1);
+          }
+          if (s0 < u1) R(s0, u1, w0, w1);
+        };
+        const inCross = (u) => br.cross.some(([c0, c1]) => u > c0 && u < c1);
+
+        // Calzada (de punta a punta, tambien en la bocacalle)
+        g.fillStyle = '#383b41';
+        R(a, b, L, L + W);
+
+        // Veredas peatonales con baldosas y cordon
+        g.fillStyle = S.walk;
+        RL(a, b, L, L + SW);
+        RL(a, b, L + W - SW, L + W);
+        g.fillStyle = 'rgba(0,0,0,.12)';
+        for (let u = a + 3; u < b; u += 7) {
+          if (inCross(u)) continue;
+          R(u, u + 1, L, L + SW);
+          R(u, u + 1, L + W - SW, L + W);
+        }
+        RL(a, b, L + SW / 2, L + SW / 2 + 1);
+        RL(a, b, L + W - SW / 2 - 1, L + W - SW / 2);
+        g.fillStyle = '#d4d0c4';
+        RL(a, b, L + SW - 1, L + SW);
+        RL(a, b, L + W - SW, L + W - SW + 1);
+        g.fillStyle = 'rgba(0,0,0,.10)'; // huellas de las ruedas
+        for (const o of br.avenue ? [-45, -24, 24, 45] : [-13, 13]) {
+          RL(a, b, mid + o - 4, mid + o - 2);
+          RL(a, b, mid + o + 2, mid + o + 4);
+        }
+        g.fillStyle = 'rgba(230,230,220,.55)'; // lineas de borde
+        RL(a, b, L + SW + 2, L + SW + 3);
+        RL(a, b, L + W - SW - 3, L + W - SW - 2);
+        if (br.avenue) {
+          // Dos carriles por sentido y separador de hormigon (new jersey) al medio
+          g.fillStyle = 'rgba(232,232,224,.8)';
+          for (let u = a + 4; u < b - 9; u += 16) {
+            if (inCross(u) || inCross(u + 9)) continue;
+            R(u, u + 9, mid - AVENUE_LANE * 1.4 - 1, mid - AVENUE_LANE * 1.4 + 1);
+            R(u, u + 9, mid + AVENUE_LANE * 1.4 - 1, mid + AVENUE_LANE * 1.4 + 1);
+          }
+          const hw = S.k === 'atirantado' ? 5 : 3;
+          g.fillStyle = 'rgba(0,0,0,.35)';
+          RL(a, b, mid + hw, mid + hw + 2);
+          g.fillStyle = '#bdb8ac';
+          RL(a, b, mid - hw, mid + hw);
+          g.fillStyle = '#d8d4c8';
+          RL(a, b, mid - hw, mid - hw + 1);
+          g.fillStyle = 'rgba(0,0,0,.18)';
+          RL(a, b, mid - 0.5, mid + 0.5);
+          if (S.k === 'atirantado') { // base del mastil, al costado del tablero sobre la pila
+            g.fillStyle = 'rgba(8,18,28,.35)';
+            R(br.mast - 7 + su, br.mast + 7 + su, v0 - 14 + sv, v0 + sv);
+            g.fillStyle = '#e6e8e2';
+            R(br.mast - 7, br.mast + 7, v0 - 14, v0);
+            g.fillStyle = '#b7bab4';
+            R(br.mast + 3, br.mast + 7, v0 - 14, v0);
+          }
+        } else {
+          // Doble mano: doble linea amarilla continua (en el puente no se pasa)
+          g.fillStyle = '#c9a227';
+          RL(a + 2, b - 2, mid - 2.5, mid - 1);
+          RL(a + 2, b - 2, mid + 1, mid + 2.5);
+        }
+
+        // Juntas de dilatacion: en los estribos y sobre cada pila
+        for (const u of [da, db, ...br.piers.map(p => p.u)]) {
+          g.fillStyle = 'rgba(0,0,0,.35)';
+          R(u - 1, u, L, L + W);
+          g.fillStyle = 'rgba(170,174,180,.35)';
+          R(u, u + 1, L + SW, L + W - SW);
+        }
+
+        // Transbordador: los dados de hormigon donde apoyan las patas de las torres
+        if (S.k === 'transbordador') {
+          for (const u of [da - 4, db + 4]) {
+            for (const v of [v0 - 9, v1 + 9]) {
+              g.fillStyle = 'rgba(0,0,0,.25)';
+              R(u - 5 + su * 0.5, u + 5 + su * 0.5, v - 5 + sv * 0.5, v + 5 + sv * 0.5);
+              g.fillStyle = '#8b8477';
+              R(u - 5, u + 5, v - 5, v + 5);
+              g.fillStyle = '#a8a193';
+              R(u - 5, u + 5, v - 5, v - 4);
+            }
+          }
+        }
+      };
+      for (const br of this.bridges) deck(br);
     }
 
     // Líneas divisoras y cebras
@@ -1285,6 +1489,15 @@ class World {
       m.arc(w2.x * k, w2.y * k, Math.max(1, w2.r * k), 0, TAU);
       m.fill();
     }
+    // Puentes en el minimapa: la calle (oscura, como todas) cruzando el agua entre dos
+    // barandas claras, asi se ve por donde se pasa
+    for (const br of this.bridges) {
+      const u0 = br.a * k, len = (br.b - br.a) * k, v0 = (br.line - 4) * k, wd = (br.w + 8) * k;
+      m.fillStyle = '#d8d3c4';
+      if (br.horiz) m.fillRect(u0, v0, len, wd); else m.fillRect(v0, u0, wd, len);
+      m.fillStyle = '#2c2f35';
+      if (br.horiz) m.fillRect(u0, v0 + 1, len, wd - 2); else m.fillRect(v0 + 1, u0, wd - 2, len);
+    }
     m.fillStyle = '#dfc98a';
 
     // Lightmap y viñeta
@@ -1429,6 +1642,15 @@ class World {
   onSidewalk(x, y) {
     if (this.inPark(x, y)) return true;
     if (this.villaAt(x, y) && !this.onRoad(x, y)) return true; // en la villa se camina por los pasillos
+    // Sobre un puente las veredas siguen de punta a punta, aunque abajo el rio se haya
+    // comido una bocacalle (salvo en una bocacalle viva, donde manda la regla de siempre)
+    const br = bridgeAt(x, y);
+    if (br) {
+      const u = br.horiz ? x : y, v = (br.horiz ? y : x) - br.line;
+      if (v >= 0 && v < br.w && !(br.cross || []).some(([c0, c1]) => u > c0 && u < c1)) {
+        return v < SIDEWALK || v >= br.w - SIDEWALK;
+      }
+    }
     // Como se dibuja (bakeGround): la vereda va sobre los dos bordes de la franja de cada
     // calle (los primeros y los últimos SIDEWALK px), el asfalto queda en el medio y el
     // interior de la manzana empieza donde termina la franja. En la bocacalle solo son

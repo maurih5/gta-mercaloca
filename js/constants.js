@@ -52,6 +52,24 @@ const BEACH_BAND = 30;
 
 // Puentes: cuantos hay en total (las dos avenidas y el resto en calles comunes)
 const BRIDGE_COUNT = 7;
+// Estilos de puente, cada uno con su personalidad. k: tipo de estructura; steel: color
+// del hierro (o del hormigon); dark: la cara en sombra; HT: alto del reticulado.
+const BRIDGE_STYLES = {
+  // 9 de Julio (columna): atirantado blanco de un mastil inclinado, onda Puente de la Mujer
+  mujer:         { k: 'atirantado',    steel: '#eceee8', dark: '#b7bab4', walk: '#b4b1a8' },
+  // Avenida de la plaza (fila): reticulado verde con vigas en X, onda Puente Pueyrredon
+  pueyrredon:    { k: 'reticulado',    steel: '#4a8a5a', dark: '#2f5c3c', walk: '#a39f95', HT: 20 },
+  // Calles comunes: reticulados bajos pintados, de hormigon con faroles, y el Transbordador
+  boca:          { k: 'reticulado',    steel: '#d0582e', dark: '#8a3820', walk: '#a39f95', HT: 13 },
+  celeste:       { k: 'reticulado',    steel: '#78b4d4', dark: '#4a7f9c', walk: '#a8a59b', HT: 13 },
+  hormigon:      { k: 'hormigon',      steel: '#c9c2b2', dark: '#8f887a', walk: '#b3ad9f' },
+  transbordador: { k: 'transbordador', steel: '#46525e', dark: '#2c343c', walk: '#a39f95' },
+};
+// Las calles comunes van rotando estos estilos a lo largo del rio; el Transbordador va
+// en la calle horizontal mas cercana a la desembocadura (donde esta La Boca).
+const BRIDGE_STREET_STYLES = ['celeste', 'hormigon', 'boca'];
+const BRIDGE_PIER_GAP = 58;   // separacion de las pilas en el agua
+const BRIDGE_LAMP_GAP = 64;   // separacion de los faroles sobre el puente
 
 // Plaza de Mayo: explanada maciza de 2x2 celdas, sin calles cruzandola
 const PLAZA_MAYO_CELLS = 2;
