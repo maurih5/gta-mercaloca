@@ -144,7 +144,7 @@ describe('edificios', () => {
 
 describe('riachuelo y monumentos', () => {
   test('el riachuelo cruza el mapa entre dos bordes', () => {
-    const p0 = riverCurve[0], p2 = riverCurve[2], eps = 4;
+    const p0 = riverCurve[0], p2 = riverCurve[riverCurve.length - 1], eps = 4;
     const onBorder = p => (Math.abs(p.x) < eps ? 'w' : Math.abs(p.x - WORLD) < eps ? 'e'
       : Math.abs(p.y) < eps ? 'n' : Math.abs(p.y - WORLD) < eps ? 's' : null);
     const b0 = onBorder(p0), b2 = onBorder(p2);
@@ -154,7 +154,22 @@ describe('riachuelo y monumentos', () => {
   });
 
   test('hay playa en la desembocadura', () => {
-    assert.ok(props.some(p => p.t === 'beach'), 'tiene que existir una playa en la desembocadura del riachuelo');
+    // El cauce se abre al final y la arena se hace un playon: cerca de la desembocadura
+    // la franja de playa es mucho mas ancha que en el resto del rio
+    const fin = riverCurve[riverCurve.length - 1];
+    const playaCerca = (cx, cy, R) => {
+      let n = 0;
+      for (let i = 0; i < 4000; i++) {
+        const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * R;
+        if (onBeach(cx + Math.cos(a) * d, cy + Math.sin(a) * d)) n++;
+      }
+      return n / 4000;
+    };
+    const boca = playaCerca(fin.x - CELL * 1.2, fin.y, CELL * 1.5);
+    const medio = water[Math.floor(water.length / 2)];
+    const mitad = playaCerca(medio.x, medio.y, CELL * 1.5);
+    assert.ok(boca > 0.2, 'tiene que existir un playon en la desembocadura del riachuelo: ' + boca.toFixed(2));
+    assert.ok(boca > mitad * 1.4, 'la playa de la desembocadura es mas ancha que la del medio: ' + boca.toFixed(2) + ' vs ' + mitad.toFixed(2));
   });
 
   test('el cauce bloquea el paso como un edificio', () => {

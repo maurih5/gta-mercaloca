@@ -41,17 +41,17 @@ const AVENUE_LANE = AVENUE_ROAD * 0.24;
 const ROTONDA_R = 58;
 const ROTONDA_ISLAND_R = 26;
 
-// Riachuelo: ancho base del cauce y radio de la playa en la desembocadura.
-// El ancho real varia a lo largo de la curva (RIVER_WOBBLE) para que la orilla
-// muerda las manzanas en vez de cortarlas en cuadrados de grilla.
-const RIVER_HALF = CELL * 0.55;
-const RIVER_WOBBLE = 0.42;
-const BEACH_RADIUS = CELL * 1.8;
-// Ancho de la franja de arena que rodea todo el cauce, no solo la desembocadura
-const BEACH_BAND = 26;
+// Riachuelo: ancho base del cauce. El ancho real varia a lo largo de la curva
+// (RIVER_WOBBLE) para que la orilla muerda las manzanas en vez de cortarlas en
+// cuadrados de grilla, y se abre en la desembocadura.
+const RIVER_HALF = CELL * 0.5;
+const RIVER_WOBBLE = 0.24;
+// Ancho base de la franja de arena que rodea todo el cauce (varia por tramo y se
+// hace un playon en la desembocadura)
+const BEACH_BAND = 30;
 
-// Puentes: medio ancho del corredor sobre la avenida donde el agua no existe
-const BRIDGE_HALF = AVENUE_ROAD * 0.62;
+// Puentes: cuantos hay en total (las dos avenidas y el resto en calles comunes)
+const BRIDGE_COUNT = 7;
 
 // Plaza de Mayo: explanada maciza de 2x2 celdas, sin calles cruzandola
 const PLAZA_MAYO_CELLS = 2;

@@ -64,61 +64,157 @@ function rectHitsDiagonalBand(x, y, w, h) {
     || inDiagonalBand(x + w / 2, y + h / 2);
 }
 
-// Curva del riachuelo: entra por el borde norte, cruza el centro y sale por el este
+// Curva del riachuelo: entra por el borde norte, serpentea por el centro (sin tocar
+// el obelisco, la Plaza de Mayo ni las villas) y desemboca ancho por el borde este.
+// Los puntos de control van en celdas de grilla; la curva es un Catmull-Rom que pasa
+// por todos, asi los meandros quedan redondos y no en zigzag.
 const riverCurve = [
-  { x: WORLD * 0.30, y: 0 },
-  { x: WORLD * 0.55, y: WORLD * 0.55 },
-  { x: WORLD, y: WORLD * 0.68 },
-];
+  [7.3, 0], [6.6, 2.4], [7.6, 4.6], [10.0, 6.3], [12.8, 7.4],
+  [14.6, 9.0], [15.0, 11.2], [16.4, 13.0], [18.9, 13.7], [21.0, 15.4], [24, 16.6],
+].map(([cx, cy]) => ({ x: cx * CELL, y: cy * CELL }));
+// Muestreo denso de la curva. Cada punto lleva t (fraccion del largo recorrido, no del
+// parametro de la spline: asi el ancho cambia parejo) y la tangente del cauce, que es
+// hacia donde corre el agua.
 const riverPts = (() => {
-  const [a, b, c] = riverCurve, pts = [];
-  for (let i = 0; i <= 100; i++) {
-    const t = i / 100, mt = 1 - t;
-    pts.push({
-      x: mt * mt * a.x + 2 * mt * t * b.x + t * t * c.x,
-      y: mt * mt * a.y + 2 * mt * t * b.y + t * t * c.y,
-      t,
-    });
+  const P = riverCurve, raw = [];
+  const at = (i) => P[Math.max(0, Math.min(P.length - 1, i))];
+  for (let s = 0; s < P.length - 1; s++) {
+    const p0 = at(s - 1), p1 = at(s), p2 = at(s + 1), p3 = at(s + 2);
+    const N = 26;
+    for (let k = 0; k < N || (s === P.length - 2 && k === N); k++) {
+      const u = k / N, u2 = u * u, u3 = u2 * u;
+      const cr = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * u + (2 * a - 5 * b + 4 * c - d) * u2 + (-a + 3 * b - 3 * c + d) * u3);
+      raw.push({ x: cr(p0.x, p1.x, p2.x, p3.x), y: cr(p0.y, p1.y, p2.y, p3.y) });
+    }
   }
-  return pts;
+  let L = 0;
+  raw[0].s = 0;
+  for (let i = 1; i < raw.length; i++) { L += Math.hypot(raw[i].x - raw[i - 1].x, raw[i].y - raw[i - 1].y); raw[i].s = L; }
+  return raw.map((p, i) => {
+    const a = raw[Math.max(0, i - 1)], b = raw[Math.min(raw.length - 1, i + 1)];
+    const dl = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    return { x: p.x, y: p.y, t: p.s / L, tx: (b.x - a.x) / dl, ty: (b.y - a.y) / dl };
+  });
 })();
-// Ancho del cauce segun el parametro t de la curva: dos senos desfasados dan
-// tramos anchos y angostos sin que se note el patron
+const RIVER_LEN = (() => {
+  let L = 0;
+  for (let i = 1; i < riverPts.length; i++) L += Math.hypot(riverPts[i].x - riverPts[i - 1].x, riverPts[i].y - riverPts[i - 1].y);
+  return L;
+})();
+const smoothstep = (a, b, v) => { const k = Math.max(0, Math.min(1, (v - a) / (b - a))); return k * k * (3 - 2 * k); };
+// Ancho del cauce segun t: dos senos desfasados dan tramos anchos y angostos sin que
+// se note el patron (pero sin estrangularse), y al final se abre en la desembocadura.
 function riverWidthAt(t) {
-  return RIVER_HALF * (0.80 + RIVER_WOBBLE * Math.sin(t * 7.3) + 0.20 * Math.sin(t * 17.1 + 1.7));
+  return RIVER_HALF * (1 + RIVER_WOBBLE * Math.sin(t * 7.3 + 0.4) + 0.12 * Math.sin(t * 17.1 + 1.7)
+    + 0.75 * smoothstep(0.86, 1, t));
+}
+// Ancho de la playa segun t: angosta en algunos tramos, ancha en otros, y un playon
+// grande en la desembocadura.
+function beachBandAt(t) {
+  return BEACH_BAND * (0.75 + 0.6 * (0.5 + 0.5 * Math.sin(t * 9.1 + 0.8)) + 3.2 * smoothstep(0.8, 1, t));
 }
 // Punto mas cercano de la curva junto con su t, para saber que ancho toca ahi
 function riverNearest(x, y) {
-  let best = Infinity, bt = 0;
-  for (const p of riverPts) {
-    const d = Math.hypot(x - p.x, y - p.y);
-    if (d < best) { best = d; bt = p.t; }
+  let best = Infinity, bi = 0;
+  for (let i = 0; i < riverPts.length; i++) {
+    const p = riverPts[i], d = (x - p.x) * (x - p.x) + (y - p.y) * (y - p.y);
+    if (d < best) { best = d; bi = i; }
   }
-  return { d: best, t: bt };
+  const p = riverPts[bi];
+  return { d: Math.sqrt(best), t: p.t, i: bi, tx: p.tx, ty: p.ty };
 }
 function distToRiver(x, y) {
   return riverNearest(x, y).d;
 }
-// Corredor del puente: sobre el eje de la avenida el agua se interrumpe
+
+// Puentes: cada uno es un tramo de calle (o de avenida) que cruza el cauce de costa a
+// costa. Adentro de su corredor el agua y la arena no existen, asi la calle sigue viva
+// y los autos, los peatones y la yuta lo cruzan como cualquier otra cuadra.
+// { horiz, line: borde izq/sup de la franja de calle, w: ancho de la franja,
+//   half: medio ancho del corredor, a..b: extension a lo largo de la calle, avenue }
+const bridges = [];
 function inBridgeCorridor(x, y) {
-  return Math.abs(x - (PLAZA_CX * CELL + AVENUE_ROAD / 2)) < BRIDGE_HALF
-    || Math.abs(y - (PLAZA_CY * CELL + AVENUE_ROAD / 2)) < BRIDGE_HALF;
+  for (const b of bridges) {
+    const u = b.horiz ? x : y, v = b.horiz ? y : x;
+    if (u > b.a && u < b.b && Math.abs(v - (b.line + b.w / 2)) < b.half) return true;
+  }
+  return false;
+}
+function bridgeAt(x, y) {
+  for (const b of bridges) {
+    const u = b.horiz ? x : y, v = b.horiz ? y : x;
+    if (u > b.a && u < b.b && Math.abs(v - (b.line + b.w / 2)) < b.half) return b;
+  }
+  return null;
+}
+// Donde una calle cruzaria el cauce (agua + playa), sin contar los puentes: tramos [a, b].
+// Se mira todo el ancho del corredor, no solo el eje: el rio cruza en diagonal, asi
+// que de un costado de la calle la costa llega mas lejos que del otro.
+function wetSpans(horiz, line, w) {
+  const out = [];
+  const wet = (u) => {
+    for (const v of [line - 6, line + w / 2, line + w + 6]) {
+      const n = riverNearest(horiz ? u : v, horiz ? v : u);
+      if (n.d < riverWidthAt(n.t) + beachBandAt(n.t) + 4) return true;
+    }
+    return false;
+  };
+  let a = -1;
+  for (let u = 0; u <= WORLD; u += 4) {
+    const w2 = wet(u);
+    if (w2 && a < 0) a = u;
+    else if (!w2 && a >= 0) { out.push([Math.max(0, a - 12), u + 12]); a = -1; }
+  }
+  if (a >= 0) out.push([Math.max(0, a - 12), WORLD]);
+  return out;
+}
+// Las dos avenidas siempre cruzan. Ademas, algunas calles comunes: las que cruzan mas
+// derecho (tramo corto), repartidas a lo largo del rio para que no queden dos pegados.
+function planBridges(skip) {
+  bridges.length = 0;
+  const cand = [];
+  const add = (horiz, i) => {
+    const w = horiz ? roadWidthRow(i) : roadWidthCol(i), line = i * CELL;
+    const avenue = horiz ? i === PLAZA_CY : i === PLAZA_CX;
+    for (const [a, b] of wetSpans(horiz, line, w)) {
+      if (a <= 0 || b >= WORLD) continue; // el rio entra o sale por este borde: no hay costa enfrente
+      const mid = (a + b) / 2, n = riverNearest(horiz ? mid : line + w / 2, horiz ? line + w / 2 : mid);
+      cand.push({ horiz, line, w, half: w / 2 + 6, a, b, avenue, t: n.t, key: (horiz ? 'h' : 'v') + i });
+    }
+  };
+  for (let i = 1; i < GRID; i++) { add(false, i); add(true, i); }
+  const take = (c) => bridges.push(c);
+  cand.filter(c => c.avenue).forEach(take);
+  const comunes = cand.filter(c => !c.avenue && !skip.has(c.key) && c.b - c.a < CELL * 2.5
+    && !villas.some(v => (c.horiz ? c.line >= v.y0 && c.line < v.y1 && c.b > v.x0 && c.a < v.x1
+      : c.line >= v.x0 && c.line < v.x1 && c.b > v.y0 && c.a < v.y1)))
+    .sort((p, q) => (p.b - p.a) - (q.b - q.a));
+  for (const c of comunes) {
+    if (bridges.length >= BRIDGE_COUNT) break;
+    if (bridges.some(o => Math.abs(o.t - c.t) * RIVER_LEN < CELL * 2.4)) continue;
+    take(c);
+  }
 }
 
 // Mascara de agua: hitBuilding() se llama muchisimo por frame y no puede recorrer
-// los 100 puntos de la curva, asi que el cauce se rasteriza una sola vez a una
-// grilla gruesa y las consultas quedan O(1).
+// los puntos de la curva, asi que el cauce se rasteriza una sola vez a una grilla
+// gruesa y las consultas quedan O(1). De paso se hornea la distancia a la orilla
+// (negativa adentro del agua) y el t de la curva mas cercana: con eso la playa, el
+// renderer y lo que haga falta preguntan por la costa sin volver a recorrer la curva.
 const WATER_CELL = 12;
-const WMW = Math.ceil(WORLD / WATER_CELL);
-let WATER_MASK = null;
+const WMW = Math.ceil(WORLD / WATER_CELL) + 1;
+let WATER_MASK = null, SHORE_D = null, SHORE_T = null;
 function bakeWaterMask() {
   WATER_MASK = new Uint8Array(WMW * WMW);
+  SHORE_D = new Float32Array(WMW * WMW);
+  SHORE_T = new Float32Array(WMW * WMW);
   for (let j = 0; j < WMW; j++) {
     for (let i = 0; i < WMW; i++) {
       const x = i * WATER_CELL + WATER_CELL / 2, y = j * WATER_CELL + WATER_CELL / 2;
-      if (inBridgeCorridor(x, y)) continue;
-      const n = riverNearest(x, y);
-      if (n.d < riverWidthAt(n.t)) WATER_MASK[j * WMW + i] = 1;
+      const n = riverNearest(x, y), k = j * WMW + i;
+      SHORE_D[k] = n.d - riverWidthAt(n.t);
+      SHORE_T[k] = n.t;
+      if (SHORE_D[k] < 0 && !inBridgeCorridor(x, y)) WATER_MASK[k] = 1;
     }
   }
 }
@@ -128,12 +224,38 @@ function inWater(x, y) {
   if (i < 0 || j < 0 || i >= WMW || j >= WMW) return false;
   return WATER_MASK[j * WMW + i] === 1;
 }
+// Distancia a la orilla (interpolada): < 0 es agua (sin contar puentes), 0 la linea
+// de costa, y crece tierra adentro. Lejos del rio da un numero grande.
+function shoreDist(x, y) {
+  if (!SHORE_D) { const n = riverNearest(x, y); return n.d - riverWidthAt(n.t); }
+  const fx = x / WATER_CELL - 0.5, fy = y / WATER_CELL - 0.5;
+  const i = Math.max(0, Math.min(WMW - 2, Math.floor(fx))), j = Math.max(0, Math.min(WMW - 2, Math.floor(fy)));
+  const u = Math.max(0, Math.min(1, fx - i)), v = Math.max(0, Math.min(1, fy - j)), k = j * WMW + i;
+  const top = SHORE_D[k] * (1 - u) + SHORE_D[k + 1] * u;
+  const bot = SHORE_D[k + WMW] * (1 - u) + SHORE_D[k + WMW + 1] * u;
+  return top * (1 - v) + bot * v;
+}
+// t de la curva mas cercana (para el ancho de playa y el sentido de la corriente)
+function shoreT(x, y) {
+  if (!SHORE_T) return riverNearest(x, y).t;
+  const i = Math.max(0, Math.min(WMW - 1, (x / WATER_CELL) | 0)), j = Math.max(0, Math.min(WMW - 1, (y / WATER_CELL) | 0));
+  return SHORE_T[j * WMW + i];
+}
 // Arena: la franja que rodea el cauce. Es transitable (no bloquea), pero ahi no
 // se plantan edificios ni se pintan calles.
 function onBeach(x, y) {
   if (inWater(x, y) || inBridgeCorridor(x, y)) return false;
-  const n = riverNearest(x, y);
-  return n.d < riverWidthAt(n.t) + BEACH_BAND;
+  const d = shoreDist(x, y);
+  return d >= 0 && d < beachBandAt(shoreT(x, y));
+}
+// Un puente sirve si toda su calzada quedo como calle viva: si la poda de callejones
+// se comio una punta, el puente quedaria colgado sobre el agua.
+function bridgeConnected(b, w) {
+  const mid = b.line + b.w / 2;
+  for (let u = b.a; u <= b.b; u += 6) {
+    if (!w.onRoadCardinal(b.horiz ? u : mid, b.horiz ? mid : u)) return false;
+  }
+  return true;
 }
 // Tramos de calle: un tramo es el pedazo de calle entre dos bocacalles. Si el agua
 // o la playa lo cortan, el tramo ENTERO deja de existir, asi la calle termina en la
@@ -226,10 +348,17 @@ function sandZone(x, y) {
   return !inWater(x, y) && !inBridgeCorridor(x, y) && (onBeach(x, y) || onDeadRoad(x, y));
 }
 
+// Tablero del puente: la parte del corredor que pasa por arriba del agua o la arena
+// (las cabeceras en tierra firme son calle comun).
+function overBridge(x, y) {
+  return !!bridgeAt(x, y) && shoreDist(x, y) < beachBandAt(shoreT(x, y)) + 4;
+}
+
 // Donde no se pinta nada de calle: la calle muere en la costa, asi que ni lineas
-// ni cebras siguen sobre el agua ni sobre la arena.
+// ni cebras siguen sobre el agua ni sobre la arena. Sobre el puente tampoco: el
+// tablero trae su propia pintura y ahi no hay esquina, ni farol, ni semaforo.
 function noRoadPaint(x, y) {
-  return inWater(x, y) || onBeach(x, y) || onDeadRoad(x, y);
+  return inWater(x, y) || onBeach(x, y) || onDeadRoad(x, y) || overBridge(x, y);
 }
 function rectHitsBeach(x, y, w, h) {
   return onBeach(x, y) || onBeach(x + w, y) || onBeach(x, y + h) || onBeach(x + w, y + h)
@@ -268,6 +397,8 @@ class World {
     this.lights = lights;
     this.hospitals = hospitals;
     this.water = water;
+    this.river = [];
+    this.bridges = bridges;
     this.carBlock = carBlock;
     this.casaRosada = casaRosada;
     this.cabildo = cabildo;
@@ -351,17 +482,31 @@ class World {
     this.cabildo.length = 0;
     obelisco = null;
 
-    // El cauce se rasteriza primero: el resto de la generacion lo consulta con inWater()
-    bakeWaterMask();
-    // Y despues los tramos de calle, que dependen de donde quedo el agua y la arena
-    bakeRoadSegments();
-    pruneDeadEnds();
+    // Primero los puentes, despues el cauce (que los respeta) y despues los tramos de
+    // calle, que dependen de donde quedo el agua y la arena. Un puente que no termina
+    // conectado a calles vivas en las dos puntas se descarta y se vuelve a hornear.
+    const skip = new Set();
+    for (let intento = 0; intento < 6; intento++) {
+      planBridges(skip);
+      bakeWaterMask();
+      bakeRoadSegments();
+      pruneDeadEnds();
+      const malos = bridges.filter(b => !b.avenue && !bridgeConnected(b, this));
+      if (!malos.length) break;
+      for (const b of malos) skip.add(b.key);
+    }
     // Cadena de circulos solapados sobre la curva: es el cauce que se hornea y se
-    // muestra en el minimapa (la colision real va por WATER_MASK, no por esta lista)
-    for (let i = 0; i < riverPts.length; i++) {
-      const p = riverPts[i];
+    // muestra en el minimapa (la colision real va por WATER_MASK, no por esta lista).
+    // this.river lleva todos los puntos (tambien los de abajo de los puentes) para el
+    // renderer; this.water saltea los que quedan bajo un puente.
+    this.river = riverPts.map(p => ({ x: p.x, y: p.y, r: riverWidthAt(p.t), band: beachBandAt(p.t), t: p.t, tx: p.tx, ty: p.ty }));
+    for (const p of this.river) {
       if (inBridgeCorridor(p.x, p.y)) continue;
-      this.water.push({ x: p.x, y: p.y, r: riverWidthAt(p.t) });
+      this.water.push(p);
+    }
+    this.bridges = bridges;
+    for (const br of bridges) {
+      this.props.push({ t: 'puente', horiz: br.horiz, a: br.a, b: br.b, base: br.line, w: br.w, avenue: br.avenue });
     }
     this.shops.length = 0;
 
@@ -379,18 +524,9 @@ class World {
         const cxCenter = bx + innerW / 2, cyCenter = by + innerH / 2;
         const isPlaza = cx === PLAZA_CX && cy === PLAZA_CY;
         const isRosada = isPlazaMayoCell(cx, cy);
-        // El rio ya no saltea celdas enteras: la manzana se genera normal y despues
-        // cada lote que toca el agua se descarta, asi la orilla muerde la cuadra
-        // en vez de cortarla en un cuadrado de grilla.
-        const rn = riverNearest(cxCenter, cyCenter);
-        const d2River = rn.d - riverWidthAt(rn.t);
-
-        // Desembocadura: playon ancho. El resto de la costa ya lleva su franja de
-        // arena horneada a lo largo del cauce, no hace falta un rect por celda.
-        if (d2River < CELL * 0.4 && Math.hypot(cxCenter - WORLD, cyCenter - WORLD * 0.68) < BEACH_RADIUS) {
-          this.props.push({ t: 'beach', x: bx, y: by, w: innerW, h: innerH });
-          continue;
-        }
+        // El rio no saltea celdas enteras: la manzana se genera normal y despues
+        // cada lote que toca el agua o la arena se descarta, asi la orilla muerde la
+        // cuadra en vez de cortarla en un cuadrado de grilla.
 
         const villa = this.villaCell(cx, cy);
         const park = villa
@@ -850,15 +986,15 @@ class World {
     // Playa: franja de arena ancha a lo largo de TODO el cauce, no solo en la
     // desembocadura. Va en dos capas para que la orilla no corte de golpe.
     g.fillStyle = '#cdbb8a';
-    for (const w2 of this.water) {
+    for (const w2 of this.river) {
       g.beginPath();
-      g.arc(w2.x, w2.y, w2.r + BEACH_BAND, 0, TAU);
+      g.arc(w2.x, w2.y, w2.r + w2.band, 0, TAU);
       g.fill();
     }
     g.fillStyle = '#dfc98a';
-    for (const w2 of this.water) {
+    for (const w2 of this.river) {
       g.beginPath();
-      g.arc(w2.x, w2.y, w2.r + BEACH_BAND * 0.55, 0, TAU);
+      g.arc(w2.x, w2.y, w2.r + w2.band * 0.55, 0, TAU);
       g.fill();
     }
     // El asfalto de los tramos que se borraron pasa a ser playa: es el espacio que
@@ -892,13 +1028,13 @@ class World {
       }
     }
     g.fillStyle = '#8a7f60'; // barro humedo pegado al agua
-    for (const w2 of this.water) {
+    for (const w2 of this.river) {
       g.beginPath();
       g.arc(w2.x, w2.y, w2.r + 4, 0, TAU);
       g.fill();
     }
     g.fillStyle = '#3f7ea6';
-    for (const w2 of this.water) {
+    for (const w2 of this.river) {
       g.beginPath();
       g.arc(w2.x, w2.y, w2.r, 0, TAU);
       g.fill();
@@ -910,32 +1046,11 @@ class World {
       g.fillRect(x, y, rnd(6, 16), 2);
     }
 
-    // Puentes: donde el agua cruzaria el eje de la avenida va deck de asfalto con baranda.
-    // Se barre el corredor entero (no por celda) porque el cauce ancho lo cruza en tramos
-    // de varias celdas de largo.
+    // Puentes: donde la calle cruza el cauce va deck de asfalto con baranda, de costa a
+    // costa (cada tramo ya viene calculado en this.bridges, con cabeceras en tierra firme).
     {
-      const colX = PLAZA_CX * CELL, rowY = PLAZA_CY * CELL;
-      // Un puente por cada tramo de costa a costa, con cabeceras que apoyan en
-      // tierra firme (por eso el tramo se extiende mas alla del agua y la arena).
-      const spans = (horiz) => {
-        const fixed = (horiz ? rowY : colX) + AVENUE_ROAD / 2;
-        const wet = u => {
-          const x = horiz ? u : fixed, y = horiz ? fixed : u;
-          const n = riverNearest(x, y);
-          return n.d < riverWidthAt(n.t) + BEACH_BAND * 0.7;
-        };
-        const out = [];
-        let a = -1;
-        for (let u = 0; u <= WORLD; u++) {
-          if (wet(u) && a < 0) a = u;
-          else if (!wet(u) && a >= 0) { out.push([a - 14, u + 14]); a = -1; }
-        }
-        if (a >= 0) out.push([a - 14, WORLD]);
-        return out;
-      };
-
-      const deck = (horiz, a, b) => {
-        const W = AVENUE_ROAD, base = horiz ? rowY : colX, len = b - a;
+      const deck = (horiz, a, b, base, W) => {
+        const len = b - a;
         // Sombra del tablero sobre el agua, para que se lea "por encima"
         g.fillStyle = 'rgba(0,0,0,.30)';
         if (horiz) g.fillRect(a, base + 7, len, W);
@@ -979,15 +1094,10 @@ class World {
       };
 
       // El tablero se hornea, pero la estructura que sobresale (torres, tirantes,
-      // barandas con altura) la dibuja el renderer por frame: horneada en el piso
-      // no se leia como puente, quedaba una franja gris.
-      for (const [a, b] of spans(false)) {
-        deck(false, a, b);
-        this.props.push({ t: 'puente', horiz: false, a, b, base: colX, w: AVENUE_ROAD });
-      }
-      for (const [a, b] of spans(true)) {
-        deck(true, a, b);
-        this.props.push({ t: 'puente', horiz: true, a, b, base: rowY, w: AVENUE_ROAD });
+      // barandas con altura) la dibuja el renderer por frame con el prop 'puente'
+      // (buildCity): horneada en el piso no se leia como puente, quedaba una franja gris.
+      for (const br of this.bridges) {
+        deck(br.horiz, br.a, br.b, br.line, br.w);
       }
     }
 
@@ -1022,8 +1132,7 @@ class World {
       const midX = PLAZA_CX * CELL + AVENUE_ROAD / 2, midY = PLAZA_CY * CELL + AVENUE_ROAD / 2;
       const MW = AVENUE_LANE * 0.85;
       const medianOk = (x, y) => {
-        const n = riverNearest(x, y);
-        if (n.d < riverWidthAt(n.t) + 8) return false; // sobre el puente no hay cantero
+        if (bridgeAt(x, y)) return false; // sobre el puente no hay cantero
         if (obelisco) {
           const ox = obelisco.x + obelisco.w / 2, oy = obelisco.y + obelisco.h / 2;
           if (Math.hypot(x - ox, y - oy) < ROTONDA_R + 16) return false; // lo absorbe la rotonda
@@ -1074,7 +1183,7 @@ class World {
     // Sucio del asfalto: parches, tapas de cloaca, grietas
     for (let i = 0; i < 4200; i++) {
       const x = rnd(0, WORLD), y = rnd(0, WORLD);
-      if (!this.onRoad(x, y)) continue;
+      if (!this.onRoad(x, y) || overBridge(x, y)) continue;
       g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.14)' : 'rgba(255,255,255,.05)';
       g.fillRect(x, y, rnd(4, 22), rnd(3, 12));
     }
@@ -1102,7 +1211,7 @@ class World {
     }
     for (let i = 0; i < 420; i++) {
       const x = rnd(0, WORLD), y = rnd(0, WORLD);
-      if (!this.onRoad(x, y)) continue;
+      if (!this.onRoad(x, y) || overBridge(x, y)) continue;
       g.fillStyle = '#26282c';
       g.fillRect(x, y, 8, 8);
       g.fillStyle = '#1c1e21';
@@ -1177,9 +1286,6 @@ class World {
       m.fill();
     }
     m.fillStyle = '#dfc98a';
-    for (const p of this.props) {
-      if (p.t === 'beach') m.fillRect(p.x * k, p.y * k, Math.max(1, p.w * k), Math.max(1, p.h * k));
-    }
 
     // Lightmap y viñeta
     LIGHT = document.createElement('canvas');
