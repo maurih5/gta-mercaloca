@@ -48,6 +48,19 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
          inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS} = api;
 
+describe('personajes', () => {
+  test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
+    assert.ok(CREW.length >= 6, 'estan los seis');
+    assert.equal(new Set(CREW.map(c => c.id)).size, CREW.length, 'ids distintos');
+    assert.equal(new Set(CREW.map(c => c.name)).size, CREW.length, 'nombres distintos');
+    for (const c of CREW) {
+      assert.ok(fs.existsSync(__dirname + '/' + c.img), c.name + ': falta la foto ' + c.img);
+      const [x, y, w, h] = c.crop;
+      assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 1 && y + h <= 1, c.name + ': recorte fuera de la foto');
+    }
+  });
+});
+
 describe('helpers de color', () => {
   test('shade y mix componen colores validos', () => {
     assert.equal(shade('#808080', 1), 'rgb(128,128,128)');

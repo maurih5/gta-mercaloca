@@ -34,6 +34,8 @@
   #menu .hint{margin-top:28px;font-size:9px;color:#8e8e8e;line-height:2.2}
 
   #sel .grid{position:relative;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;max-width:94vw}
+  /* Si no entran los seis en una fila, dos filas de tres (y no cinco y uno suelto) */
+  @media (max-width:1080px){#sel .grid{max-width:min(94vw,500px)}}
   #sel .card{width:152px;border:3px solid #2a2a2a;background:#101010;cursor:pointer;transition:.13s;
              box-shadow:0 8px 20px rgba(0,0,0,.7)}
   #sel .card img{width:100%;height:176px;object-fit:cover;object-position:center top;display:block;filter:saturate(1.1)}
