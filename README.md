@@ -94,16 +94,16 @@ El Riachuelo cruza el mapa con meandros y desemboca en la playa grande.
 Lista de características planificadas y mejoras en desarrollo. Cada ítem linkea al issue correspondiente:
 
 ### 🔊 Audio & Efectos de sonido
-- [ ] Agregar efectos de sonido (SFX):
+- [ ] Agregar efectos de sonido (SFX) (#70):
   - [ ] Disparos e impactos de balas
   - [ ] Sirenas de la policía al subir el nivel de búsqueda
   - [ ] Sonido de motores, aceleración, frenadas y choques de autos
   - [ ] Sonido al levantar fajos de guita
-- [ ] Música de fondo / radio de los vehículos estilo GTA retro
+- [ ] Música de fondo / radio de los vehículos estilo GTA retro (#71)
 
 ### 🎭 Personajes & Lore
-- [ ] Cambiar y pulir los nombres de los personajes
-- [ ] Incorporar nuevos personajes seleccionables
+- [ ] Cambiar y pulir los nombres de los personajes (#72)
+- [ ] Incorporar nuevos personajes seleccionables (#73)
 - [x] **Arma / Ítem especial:** Incorporar el **bastón verde del Ciego Augusto** (arma de combate cuerpo a cuerpo)
 - [ ] Sistema base de NPCs con nombre y parodias de famosos: spawn, diálogo, comportamiento único, recompensas y despawn (#9)
   - [ ] Parodia de crack del fútbol (Messi): diálogo propio, suelta "balones de oro" (guita) al caer (#10)
@@ -122,6 +122,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
   - [x] Efecto visual de gradiente/filtro verde en pantalla
 - [ ] Necesidades de hambre y sed: comida, bebida, efectos de estado e inventario (#41)
 - [ ] Mecánica de asado: combinar carbón + carne + parrilla, tiempo de cocción y resultado consumible (#40)
+- [ ] Respeto por jugador: robarle el trapo a una barra da respeto y la pone en tu contra (#81)
 
 ### 🗺️ Mundo & Ubicaciones
 - [x] Ampliar el mapa a 24x24 (#38)
@@ -143,12 +144,18 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 
 ### 🎮 Modos de juego
 - [ ] Invasión zombie por oleadas, con dificultad creciente (#7)
+  - [ ] Mejoras de barricadas y armas entre oleadas (#75)
 - [ ] Variante de invasión de carpinchos zombies (#8)
 - [ ] Toma y control de territorios (#4)
 - [ ] Ranking global con score (#5)
 
 ### 🎲 Eventos aleatorios
 - [ ] Sistema de eventos aleatorios en el mundo abierto: piquetes, cortes de luz, operativos policiales, festejos, corralito, guerra de bandas, etc. (#6)
+  - [ ] Rugbiers que te persiguen y te cagan a palos (#76)
+  - [ ] Tren que descarrila y corta calles (#77)
+  - [ ] Festejos del Mundial en el Obelisco (#78)
+  - [ ] Corralito que te saca la mitad de la guita (#79)
+  - [ ] Operativo policial en tu casa (#80)
 
 ### 📜 Misiones
 - [ ] Buscar a un personaje escondido en el mapa, vestido de "Wally" (#16)
@@ -172,7 +179,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 
 ### 🌐 Multijugador (Multiplayer)
 - [x] Base multijugador: el juego simula varios jugadores en la misma partida (guita, búsqueda, armas y arresto por jugador; IA, yuta y spawns que reparten entre todos; daño con autor y PvP)
-- [ ] Modo multijugador online en tiempo real:
+- [ ] Modo multijugador online en tiempo real (#74):
   - [ ] Red P2P con WebRTC (el host simula, los demás mandan controles)
   - [ ] Soporte para salas / lobbies compartidos
   - [ ] Sincronización de jugadores en el mapa (movimiento, autos y disparos)
