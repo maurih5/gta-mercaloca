@@ -41,17 +41,64 @@ const AVENUE_LANE = AVENUE_ROAD * 0.24;
 const ROTONDA_R = 58;
 const ROTONDA_ISLAND_R = 26;
 
-// Riachuelo: ancho base del cauce y radio de la playa en la desembocadura.
-// El ancho real varia a lo largo de la curva (RIVER_WOBBLE) para que la orilla
-// muerda las manzanas en vez de cortarlas en cuadrados de grilla.
-const RIVER_HALF = CELL * 0.55;
-const RIVER_WOBBLE = 0.42;
-const BEACH_RADIUS = CELL * 1.8;
-// Ancho de la franja de arena que rodea todo el cauce, no solo la desembocadura
-const BEACH_BAND = 26;
+// Riachuelo: ancho base del cauce. El ancho real varia a lo largo de la curva
+// (RIVER_WOBBLE) para que la orilla muerda las manzanas en vez de cortarlas en
+// cuadrados de grilla, y se abre en la desembocadura.
+const RIVER_HALF = CELL * 0.5;
+const RIVER_WOBBLE = 0.24;
+// Ancho base de la franja de arena que rodea todo el cauce (varia por tramo y se
+// hace un playon en la desembocadura)
+const BEACH_BAND = 30;
+// Agua del Riachuelo: paleta de la orilla (verdosa, baja) al centro (hondo), espuma
+// contra la costa, barro humedo y su ancho, y el color en el minimapa
+const WATER_PAL = ['#7ea68c', '#64947f', '#4f8079', '#426f72', '#385f68', '#2f505d'];
+const WATER_FOAM = '#c3d5c4';
+const WATER_MUD = '#6f6449';
+const WATER_MUD_W = 9;
+const WATER_MINI = '#3f6f73';
+// Lo que navega el rio: tipo, velocidad (px/s), sentido (1 = aguas abajo), fase
+// inicial (fraccion del largo) y carril (fraccion del medio ancho, a la derecha
+// de la marcha). La posicion es funcion de G.t: igual para todos los jugadores.
+const RIVER_BOATS = [
+  { k: 'barcaza', v: 9, dir: 1, ph: 0.08, lane: 0.22 },
+  { k: 'remolcador', v: 15, dir: -1, ph: 0.47, lane: 0.3 },
+  { k: 'lancha', v: 44, dir: 1, ph: 0.31, lane: 0.4 },
+  { k: 'lancha', v: 38, dir: -1, ph: 0.76, lane: 0.42 },
+  { k: 'bote', v: 6, dir: 1, ph: 0.62, lane: 0.5 },
+  { k: 'bote', v: 5, dir: -1, ph: 0.19, lane: 0.48 },
+  { k: 'remolcador', v: 13, dir: 1, ph: 0.88, lane: 0.18 },
+  { k: 'barcaza', v: 8, dir: -1, ph: 0.55, lane: 0.25 },
+];
+// Camalotes, basura y patos que van a la deriva con la corriente
+const RIVER_FLOATS = 70;
 
-// Puentes: medio ancho del corredor sobre la avenida donde el agua no existe
-const BRIDGE_HALF = AVENUE_ROAD * 0.62;
+// Puentes: cuantos hay en total (las dos avenidas y el resto en calles comunes)
+const BRIDGE_COUNT = 7;
+// Estilos de puente, cada uno con su personalidad. k: tipo de estructura; steel: color
+// del hierro (o del hormigon); dark: la cara en sombra; HT: alto del reticulado.
+const BRIDGE_STYLES = {
+  // 9 de Julio (columna): atirantado blanco de un mastil inclinado, onda Puente de la Mujer
+  mujer:         { k: 'atirantado',    steel: '#eceee8', dark: '#b7bab4', walk: '#b4b1a8' },
+  // Avenida de la plaza (fila): reticulado verde con vigas en X, onda Puente Pueyrredon
+  pueyrredon:    { k: 'reticulado',    steel: '#4a8a5a', dark: '#2f5c3c', walk: '#a39f95', HT: 20 },
+  // Calles comunes: reticulados bajos pintados, de hormigon con faroles, y el Transbordador
+  boca:          { k: 'reticulado',    steel: '#d0582e', dark: '#8a3820', walk: '#a39f95', HT: 13 },
+  celeste:       { k: 'reticulado',    steel: '#78b4d4', dark: '#4a7f9c', walk: '#a8a59b', HT: 13 },
+  hormigon:      { k: 'hormigon',      steel: '#c9c2b2', dark: '#8f887a', walk: '#b3ad9f' },
+  transbordador: { k: 'transbordador', steel: '#46525e', dark: '#2c343c', walk: '#a39f95' },
+};
+// Las calles comunes van rotando estos estilos a lo largo del rio; el Transbordador va
+// en la calle horizontal mas cercana a la desembocadura (donde esta La Boca).
+const BRIDGE_STREET_STYLES = ['celeste', 'hormigon', 'boca'];
+const BRIDGE_PIER_GAP = 58;   // separacion de las pilas en el agua
+const BRIDGE_LAMP_GAP = 64;   // separacion de los faroles sobre el puente
+
+// Playa: cada cuanto (en px de rio) se arma un grupito de cosas en la arena, y cuanto
+// lugar se deja libre alrededor del corredor de cada puente (las palmeras mas, porque
+// su copa se extruye lejos del tronco y tapaba el tablero)
+const BEACH_GROUP_STEP = 52;
+const BEACH_BRIDGE_CLEAR = 20;
+const BEACH_PALM_CLEAR = 34;
 
 // Plaza de Mayo: explanada maciza de 2x2 celdas, sin calles cruzandola
 const PLAZA_MAYO_CELLS = 2;

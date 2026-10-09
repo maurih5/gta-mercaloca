@@ -28,6 +28,7 @@ global.innerWidth = 1920; global.innerHeight = 1080;
 
 const api = new Function(js + `
 ;return {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
+         boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
          startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
          PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
          lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
@@ -37,6 +38,7 @@ const api = new Function(js + `
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
          inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
+       boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
        lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
@@ -144,7 +146,7 @@ describe('edificios', () => {
 
 describe('riachuelo y monumentos', () => {
   test('el riachuelo cruza el mapa entre dos bordes', () => {
-    const p0 = riverCurve[0], p2 = riverCurve[2], eps = 4;
+    const p0 = riverCurve[0], p2 = riverCurve[riverCurve.length - 1], eps = 4;
     const onBorder = p => (Math.abs(p.x) < eps ? 'w' : Math.abs(p.x - WORLD) < eps ? 'e'
       : Math.abs(p.y) < eps ? 'n' : Math.abs(p.y - WORLD) < eps ? 's' : null);
     const b0 = onBorder(p0), b2 = onBorder(p2);
@@ -154,7 +156,22 @@ describe('riachuelo y monumentos', () => {
   });
 
   test('hay playa en la desembocadura', () => {
-    assert.ok(props.some(p => p.t === 'beach'), 'tiene que existir una playa en la desembocadura del riachuelo');
+    // El cauce se abre al final y la arena se hace un playon: cerca de la desembocadura
+    // la franja de playa es mucho mas ancha que en el resto del rio
+    const fin = riverCurve[riverCurve.length - 1];
+    const playaCerca = (cx, cy, R) => {
+      let n = 0;
+      for (let i = 0; i < 4000; i++) {
+        const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * R;
+        if (onBeach(cx + Math.cos(a) * d, cy + Math.sin(a) * d)) n++;
+      }
+      return n / 4000;
+    };
+    const boca = playaCerca(fin.x - CELL * 1.2, fin.y, CELL * 1.5);
+    const medio = water[Math.floor(water.length / 2)];
+    const mitad = playaCerca(medio.x, medio.y, CELL * 1.5);
+    assert.ok(boca > 0.2, 'tiene que existir un playon en la desembocadura del riachuelo: ' + boca.toFixed(2));
+    assert.ok(boca > mitad * 1.4, 'la playa de la desembocadura es mas ancha que la del medio: ' + boca.toFixed(2) + ' vs ' + mitad.toFixed(2));
   });
 
   test('el cauce bloquea el paso como un edificio', () => {
@@ -309,6 +326,34 @@ describe('riachuelo y monumentos', () => {
     }
   });
 
+  test('los puentes unen las dos orillas: la red de calles es una sola', () => {
+    // Desde cualquier esquina se llega a cualquier otra por calles vivas: si el rio
+    // partiera la ciudad (o dejara un pedazo aislado), la yuta y los autos no cruzarian.
+    const N = GRID + 1, visto = new Uint8Array(N * N);
+    const vecinos = (x, y) => {
+      const r = [];
+      if (segAliveV(x, y)) r.push([x, y + 1]);
+      if (segAliveV(x, y - 1)) r.push([x, y - 1]);
+      if (segAliveH(x, y)) r.push([x + 1, y]);
+      if (segAliveH(x - 1, y)) r.push([x - 1, y]);
+      return r;
+    };
+    let componentes = 0;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      if (visto[y * N + x] || !vecinos(x, y).length) continue;
+      componentes++;
+      const pila = [[x, y]];
+      visto[y * N + x] = 1;
+      while (pila.length) {
+        const [a, b] = pila.pop();
+        for (const [c, d] of vecinos(a, b)) if (!visto[d * N + c]) { visto[d * N + c] = 1; pila.push([c, d]); }
+      }
+    }
+    assert.equal(componentes, 1, 'el rio no puede partir la red de calles: ' + componentes + ' pedazos');
+    const comunes = props.filter(p => p.t === 'puente' && !p.avenue);
+    assert.ok(comunes.length >= 3, 'ademas de las avenidas, el rio se cruza por calles comunes: ' + comunes.length);
+  });
+
   test('la avenida cruza el riachuelo por el puente', () => {
     // --- puentes: la avenida cruza el riachuelo sin bloquear ---
     for (let t = 0; t <= DIAG_LEN; t += 10) {
@@ -336,6 +381,176 @@ describe('riachuelo y monumentos', () => {
       sawBand = true;
     }
     assert.ok(sawBand, 'la diagonal tiene longitud positiva');
+  });
+
+  test('las lanchas y lo que flota van siempre por el agua', () => {
+    // A lo largo de un dia entero (y mas), el casco entero de cada embarcacion tiene que
+    // caer adentro del cauce: bajo un puente pasa por debajo (shoreDist sigue < 0 ahi),
+    // nunca por arriba de la arena ni de la costa.
+    let pasoBajoPuente = false;
+    for (let t = 0; t < DAY * 2; t += 0.5) {
+      for (const b of boatsAt(t)) {
+        const D = BOAT_DIM[b.k], c = Math.cos(b.ang), s = Math.sin(b.ang);
+        assert.ok(Number.isFinite(b.x) && Number.isFinite(b.y) && Number.isFinite(b.ang), 'lancha con posicion valida');
+        for (const [u, v] of [[D.L / 2, 0], [D.L / 2 - 4, -D.W / 2], [D.L / 2 - 4, D.W / 2], [-D.L / 2, -D.W / 2], [-D.L / 2, D.W / 2]]) {
+          const x = b.x + c * u - s * v, y = b.y + s * u + c * v;
+          if (x < 0 || y < 0 || x > WORLD || y > WORLD) continue; // entrando o saliendo del mapa
+          assert.ok(shoreDist(x, y) < -1, b.k + ' encallada en ' + JSON.stringify({ t, x, y, sd: shoreDist(x, y) }));
+        }
+        if (bridgeAt(b.x, b.y)) pasoBajoPuente = true;
+      }
+      if (t % 5 === 0) {
+        for (const f of floatsAt(t)) {
+          if (f.x < 0 || f.y < 0 || f.x > WORLD || f.y > WORLD) continue;
+          assert.ok(shoreDist(f.x, f.y) < -2, f.k + ' varado en la orilla ' + JSON.stringify({ t, x: f.x, y: f.y }));
+        }
+      }
+    }
+    assert.ok(pasoBajoPuente, 'en un dia alguna lancha tiene que pasar por debajo de un puente');
+    // Las posiciones dependen solo del tiempo: cualquier pantalla ve lo mismo
+    assert.deepStrictEqual(boatsAt(123.4), boatsAt(123.4));
+    assert.ok(RIVER_BOATS.every(b => BOAT_DIM[b.k]), 'cada embarcacion tiene sus medidas');
+    // El agua animada se dibuja (con stubs) parada arriba del rio, de dia y de noche
+    startGame(CREW[0]);
+    const w = water[(water.length / 2) | 0];
+    for (const t of [0, DAY * 0.5, DAY * 0.8]) {
+      G.t = t;
+      G.cam.x = w.x - 240; G.cam.y = w.y - 135;
+      render();
+    }
+  });
+
+  test('cada puente tiene su estilo, se cruza entero y sus faroles no flotan', () => {
+    const ESTILOS = ['mujer', 'pueyrredon', 'boca', 'celeste', 'hormigon', 'transbordador'];
+    const puentes = props.filter(p => p.t === 'puente');
+    assert.ok(puentes.length >= 4, 'tiene que haber varios puentes: ' + puentes.length);
+    for (const pu of puentes) {
+      const br = pu.br, id = pu.style + ' ' + (pu.horiz ? 'h' : 'v') + pu.base;
+      assert.ok(ESTILOS.includes(pu.style), 'estilo de puente desconocido: ' + pu.style);
+      assert.ok(br.da >= pu.a && br.db <= pu.b && br.db - br.da > 40, 'el tablero queda adentro del tramo: ' + id);
+      assert.ok(br.piers.length >= 1 && br.piers.some(p => p.wet), 'el puente se apoya en pilas en el agua: ' + id);
+      assert.ok(br.piers.every(p => p.u > br.da && p.u < br.db), 'las pilas van entre los estribos: ' + id);
+      const at = (u, v) => pu.horiz ? [u, v] : [v, u];
+      // De punta a punta: por el eje maneja un auto y por las dos veredas camina un peaton
+      for (let u = pu.a + 2; u < pu.b - 2; u += 3) {
+        const [x, y] = at(u, pu.base + pu.w / 2);
+        assert.ok(onRoad(x, y) && !hitBuilding(x, y, 4), 'el eje del puente tiene que ser calle libre: ' + id + ' ' + JSON.stringify({ x, y }));
+        assert.ok(!inWater(x, y), 'el puente no puede tener agua encima: ' + id);
+        for (const v of [pu.base + SIDEWALK / 2, pu.base + pu.w - SIDEWALK / 2]) {
+          const [sx, sy] = at(u, v);
+          assert.ok(!hitBuilding(sx, sy, 3), 'la vereda del puente tiene que estar libre: ' + id + ' ' + JSON.stringify({ x: sx, y: sy }));
+          if (u > br.da && u < br.db && !br.cross.some(([c0, c1]) => u > c0 && u < c1)) {
+            assert.ok(onSidewalk(sx, sy), 'sobre el tablero la vereda sigue siendo vereda: ' + id);
+          }
+        }
+      }
+    }
+    // Personalidad: las dos avenidas con lo suyo y las calles con estilos distintos
+    const est = puentes.map(p => p.style);
+    assert.ok(est.includes('mujer') && est.includes('pueyrredon'), 'las avenidas cruzan por el atirantado y el reticulado');
+    assert.ok(new Set(est).size >= Math.min(puentes.length, 5), 'cada puente con su personalidad: ' + est.join(','));
+    // Faroles del puente: sobre la vereda, nunca en el agua
+    const lp = lamps.filter(l => l.puente);
+    assert.ok(lp.length >= puentes.length * 2, 'los puentes tienen faroles: ' + lp.length);
+    for (const l of lp) {
+      assert.ok(!inWater(l.x, l.y) && onSidewalk(l.x, l.y) && !hitBuilding(l.x, l.y, 2), 'farol de puente fuera de la vereda: ' + JSON.stringify(l));
+    }
+    // Y en la vereda del puente no se planta ninguna palmera
+    for (const p of props.filter(q => q.t === 'palm')) {
+      const enPuente = puentes.some(pu => {
+        const u = pu.horiz ? p.x : p.y, v = pu.horiz ? p.y : p.x;
+        return u > pu.br.da && u < pu.br.db && v >= pu.base - 4 && v <= pu.base + pu.w + 4;
+      });
+      assert.ok(!enPuente, 'palmera plantada en un puente: ' + JSON.stringify({ x: p.x, y: p.y }));
+    }
+  });
+
+  test('los puentes se dibujan de dia y de noche con dos jugadores', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    const puentes = props.filter(p => p.t === 'puente');
+    for (const pu of puentes) {
+      const u = (pu.br.da + pu.br.db) / 2, v = pu.base + pu.w / 2;
+      G.me.x = pu.horiz ? u : v; G.me.y = pu.horiz ? v : u;
+      P2.x = G.me.x + 60; P2.y = G.me.y + 40; // el otro, al costado: la camara sigue a G.me
+      for (const h of [0, DAY * 0.5]) {
+        G.t = h;
+        update(1 / 60);
+        render();
+        assert.ok(Number.isFinite(G.cam.x) && Number.isFinite(G.cam.y), 'camara rota sobre el puente ' + pu.style);
+      }
+    }
+    removePlayer(P2);
+  });
+
+  test('la playa tiene sus cosas sobre la arena, sin pisarse ni tapar los puentes', () => {
+    const PLAYA = ['sombrilla', 'reposera', 'toalla', 'conservadora', 'kayak', 'carpa', 'fogata',
+      'chiringuito', 'guardavidas', 'voley', 'muelle'];
+    // Las palmeras de playa son las que tienen grupo (las de vereda no)
+    const cosas = props.filter(p => PLAYA.includes(p.t) || (p.t === 'palm' && p.g));
+    assert.ok(cosas.length > 150, 'la playa tiene que estar llena de cosas: ' + cosas.length);
+    for (const t of ['toalla', 'reposera', 'conservadora', 'chiringuito', 'guardavidas', 'fogata', 'muelle'])
+      assert.ok(cosas.some(p => p.t === t), 'en la playa tiene que haber ' + t);
+    assert.ok(cosas.some(p => p.t === 'palm'), 'y palmeras en la arena');
+    assert.ok(props.some(p => p.t === 'gaviotas'), 'y gaviotas volando');
+    assert.ok(props.filter(p => p.t === 'toalla' && p.gente).length > 20, 'gente tomando sol en las toallas');
+
+    for (const p of cosas) {
+      assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y) && p.r > 0 && p.g > 0, 'cosa de playa invalida: ' + JSON.stringify(p));
+      assert.ok(sandZone(p.x, p.y), p.t + ' fuera de la arena: ' + p.x.toFixed(0) + ',' + p.y.toFixed(0));
+      assert.ok(!inWater(p.x, p.y), p.t + ' en el agua: ' + p.x.toFixed(0) + ',' + p.y.toFixed(0));
+      const hb = hitBuilding(p.x, p.y, p.r);
+      assert.ok(!hb || hb.water, p.t + ' arriba de un edificio: ' + p.x.toFixed(0) + ',' + p.y.toFixed(0));
+    }
+
+    // Ninguna tapa un puente: se deja libre el corredor mas un margen (las palmeras,
+    // de vereda o de playa, mas lejos: su copa se extruye lejos del tronco)
+    const puentes = props.filter(p => p.t === 'puente');
+    const cerca = (x, y, b, m) => {
+      const u = b.horiz ? x : y, v = b.horiz ? y : x;
+      return u > b.a - m && u < b.b + m && Math.abs(v - (b.base + b.w / 2)) < b.w / 2 + 6 + m;
+    };
+    for (const b of puentes) {
+      for (const p of cosas) {
+        assert.ok(!cerca(p.x, p.y, b, p.r + 18), p.t + ' pegado al puente: ' + p.x.toFixed(0) + ',' + p.y.toFixed(0));
+      }
+      for (const p of props) {
+        if (p.t !== 'palm') continue;
+        assert.ok(!cerca(p.x, p.y, b, 30), 'palmera que tapa el puente: ' + p.x.toFixed(0) + ',' + p.y.toFixed(0));
+      }
+    }
+
+    // No se pisan: entre grupos distintos cada una respeta el lugar de la otra
+    let pisadas = 0;
+    for (let i = 0; i < cosas.length; i++) {
+      for (let j = i + 1; j < cosas.length; j++) {
+        const a = cosas[i], b = cosas[j];
+        if (a.g !== b.g && Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r) pisadas++;
+      }
+    }
+    assert.equal(pisadas, 0, 'cosas de playa encimadas: ' + pisadas);
+
+    // Los muelles arrancan en la arena y la punta cae al agua (sin cambiar la colision)
+    for (const m of cosas.filter(p => p.t === 'muelle')) {
+      const tx = m.x + m.dx * m.L, ty = m.y + m.dy * m.L;
+      assert.ok(inWater(tx, ty), 'la punta del muelle tiene que estar sobre el agua: ' + tx.toFixed(0) + ',' + ty.toFixed(0));
+      assert.ok(hitBuilding(tx, ty, 2), 'el muelle no se camina: el agua sigue frenando');
+    }
+
+    // Se dibuja todo, de dia y de noche, con la camara parada en cada cosa
+    startGame(CREW[0]);
+    let tNoche = 0;
+    for (let t = 0; t < DAY; t += DAY / 48) if (G.t = t, darkness() > 0.7) { tNoche = t; break; }
+    for (const t of [0, tNoche]) {
+      G.t = t;
+      for (const tipo of PLAYA.concat(['gaviotas'])) {
+        const p = props.find(q => q.t === tipo);
+        if (!p) continue;
+        G.cam.x = p.x - 240; G.cam.y = p.y - 135;
+        render();
+      }
+    }
+    G.t = 0;
   });
 });
 

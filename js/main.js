@@ -145,6 +145,12 @@ async function boot() {
       const q = new URLSearchParams(location.search);
       const h = parseFloat(q.get('h'));
       if (!isNaN(h)) G.t = (((h / 24 - 0.34 + 1) % 1) * DAY);
+      // ?x=..&y=..: arrancar parado en ese punto del mundo (para mirar un lugar puntual)
+      const px0 = parseFloat(q.get('x')), py0 = parseFloat(q.get('y'));
+      if (!isNaN(px0) && !isNaN(py0)) {
+        G.me.x = px0; G.me.y = py0;
+        G.cam.x = clamp(px0 - RW / 2, 0, WORLD - RW); G.cam.y = clamp(py0 - RH / 2, 0, WORLD - RH);
+      }
       const w = parseInt(q.get('w'));
       if (!isNaN(w)) G.me.wanted = clamp(w, 0, 5);
       if (q.get('bust')) {
