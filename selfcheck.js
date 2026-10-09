@@ -932,6 +932,7 @@ describe('radio', () => {
         assert.ok(SONGS[id], 'el tema existe: ' + id);
         const c = compileSong(SONGS[id]);
         assert.ok(c.notes.length > 20 && c.len > 4, id + ' tiene notas');
+        if (!SONGS[id].tracks.some(t => t.notes)) assert.ok(c.len > 45, id + ': los temas escritos a mano tienen partes y duran mas de 45s (' + c.len.toFixed(0) + 's)');
         for (const n of c.notes) {
           assert.ok(n.t >= 0 && n.d > 0 && n.t + n.d <= c.len + 1e-6 && n.v > 0, id + ': nota fuera del tema');
           assert.ok(n.inst === 'drums' ? 'ksgh'.includes(n.n) : n.n >= 24 && n.n <= 108, id + ': nota invalida ' + n.n);

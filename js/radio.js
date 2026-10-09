@@ -14,21 +14,54 @@
 // Instrumentos: square, triangle, sawtooth, sine, pad (colchón de sintes), y drums (k bombo, s redoblante,
 // h platillo, g güiro). "-:1" es un silencio de un tiempo.
 const bar = (s, n) => (s + ' ').repeat(n);
+const beatsOf = seq => seq.trim().split(/\s+/).reduce((s, k) => s + parseFloat(k.split(':')[1]), 0);
+
+// Arma un tema por partes (intro, estrofa, estribillo...). Cada parte dice qué toca cada
+// pista; la pista que no aparece en una parte calla. Las que tocan tienen que durar lo mismo.
+function arrange(bpm, tracks, parts, form) {
+  const seqs = Object.fromEntries(Object.keys(tracks).map(k => [k, []]));
+  for (const name of form) {
+    const part = parts[name];
+    const lens = Object.values(part).map(beatsOf);
+    if (lens.some(l => Math.abs(l - lens[0]) > 1e-9)) throw new Error(`parte "${name}": pistas de distinto largo (${lens})`);
+    for (const k in seqs) seqs[k].push(part[k] ? part[k].trim() : `-:${lens[0]}`);
+  }
+  return { bpm, tracks: Object.entries(tracks).map(([k, t]) => ({ ...t, seq: seqs[k].join(' ') })) };
+}
+
+// Acordes: una pista por voz del acorde (la 1ª, 2ª o 3ª nota de cada uno), un compás por acorde
+const CHORD = {
+  Am: ['A3', 'C4', 'E4'], F: ['F3', 'A3', 'C4'], C: ['C4', 'E4', 'G4'], G: ['G3', 'B3', 'D4'],
+  Em: ['G3', 'B3', 'E4'], Dm: ['D4', 'F4', 'A4'], E: ['E4', 'G#4', 'B4'],
+  D: ['D4', 'F#4', 'A4'], A: ['C#4', 'E4', 'A4'], Gd: ['D4', 'G4', 'B4'],
+};
+const voice = (chords, i, rhythm) => chords.map(c => rhythm(CHORD[c][i])).join(' ');
+const prog = s => s.trim().split(/\s+/);
+
 Object.assign(SONGS, {
-  'cumbia-del-riachuelo': {
-    bpm: 96,
-    tracks: [
-      { inst: 'drums', vol: 0.6, seq: bar('g:0.5 g:0.25 g:0.25', 32) },
-      { inst: 'drums', vol: 0.8, seq: bar('k:1 s:1 k:1 s:1', 8) },
-      {
-        inst: 'triangle', vol: 0.8,
-        seq: ['A2 E2', 'A2 E2', 'D2 A2', 'D2 A2', 'G2 D2', 'G2 D2', 'E2 B2', 'E2 B2']
-          .map(c => { const [r, f] = c.split(' '); return `${r}:1 -:0.5 ${f}:0.5 ${r}:1 ${f}:1`; })
-          .join(' '),
+  // Cumbia: güiro, bajo de raíz y quinta, teclado a contratiempo en el estribillo
+  'cumbia-del-riachuelo': (() => {
+    const bass = { Am: ['A2', 'E2'], Dm: ['D2', 'A2'], G: ['G2', 'D2'], E: ['E2', 'B2'], F: ['F2', 'C3'] };
+    const tum = cs => prog(cs).map(c => `${bass[c][0]}:1 -:0.5 ${bass[c][1]}:0.5 ${bass[c][0]}:1 ${bass[c][1]}:1`).join(' ');
+    const keys = (cs, i) => voice(prog(cs), i, n => bar(`-:0.5 ${n}:0.5`, 4));
+    const A = 'Am Am Dm Dm G G E E', B = 'F G Am Am F G E E';
+    return arrange(96, {
+      guiro: { inst: 'drums', vol: 0.6 },
+      perc: { inst: 'drums', vol: 0.8 },
+      bass: { inst: 'triangle', vol: 0.8 },
+      k1: { inst: 'square', vol: 0.08 }, k2: { inst: 'square', vol: 0.08 }, k3: { inst: 'square', vol: 0.08 },
+      lead: { inst: 'square', vol: 0.32 },
+    }, {
+      intro: {
+        guiro: bar('g:0.5 g:0.25 g:0.25', 16),
+        perc: bar('k:1 s:1 k:1 s:1', 4),
+        bass: '-:8 ' + tum('Am Am'),
       },
-      {
-        inst: 'square', vol: 0.32,
-        seq: [
+      estrofa: {
+        guiro: bar('g:0.5 g:0.25 g:0.25', 32),
+        perc: bar('k:1 s:1 k:1 s:1', 8),
+        bass: tum(A),
+        lead: [
           'A4:0.5 C5:0.5 E5:1 D5:0.5 C5:0.5 A4:1',
           'C5:0.5 B4:0.5 A4:0.5 B4:0.5 C5:1 -:1',
           'D5:0.5 F5:0.5 A5:1 G5:0.5 F5:0.5 D5:1',
@@ -39,16 +72,56 @@ Object.assign(SONGS, {
           'E5:1.5 D5:0.5 C5:0.5 B4:0.5 G#4:1',
         ].join(' '),
       },
-    ],
-  },
-  'rock-de-la-costanera': {
-    bpm: 140,
-    tracks: [
-      { inst: 'drums', vol: 0.7, seq: bar('k:0.5 h:0.5 s:0.5 h:0.5 k:0.5 k:0.5 s:0.5 h:0.5', 8) },
-      { inst: 'sawtooth', vol: 0.35, seq: ['E2', 'E2', 'G2', 'A2', 'E2', 'E2', 'C3', 'D3'].map(n => bar(n + ':0.5', 8)).join(' ') },
-      {
-        inst: 'square', vol: 0.3,
-        seq: [
+      estribillo: {
+        guiro: bar('g:0.5 g:0.25 g:0.25', 32),
+        perc: bar('k:1 s:1 k:1 s:1', 8),
+        bass: tum(B),
+        k1: keys(B, 0), k2: keys(B, 1), k3: keys(B, 2),
+        lead: [
+          'A5:1 G5:0.5 F5:0.5 E5:1 C5:1',
+          'D5:0.5 E5:0.5 F5:0.5 G5:0.5 B4:2',
+          'C5:1 E5:1 A5:1.5 G5:0.5',
+          'E5:4',
+          'F5:0.5 E5:0.5 D5:0.5 C5:0.5 A4:1 C5:1',
+          'B4:0.5 C5:0.5 D5:0.5 G5:0.5 F5:1 D5:1',
+          'E5:1 D5:0.5 C5:0.5 B4:1 G#4:1',
+          'B4:2 E5:2',
+        ].join(' '),
+      },
+      corte: {
+        guiro: bar('g:0.5 g:0.25 g:0.25', 16),
+        bass: tum('Am Dm E Am'),
+      },
+      final: {
+        guiro: bar('g:0.5 g:0.25 g:0.25', 4) + ' -:4',
+        perc: 'k:1 s:1 k:1 s:1 k:2 -:2',
+        bass: 'A2:1 -:0.5 E2:0.5 A2:2 A2:2 -:2',
+        lead: 'A4:0.5 C5:0.5 E5:1 A5:2 A5:2 -:2',
+      },
+    }, ['intro', 'estrofa', 'estribillo', 'corte', 'estrofa', 'estribillo', 'final']);
+  })(),
+
+  // Rock barrial: bajo en corcheas, guitarras en quintas, estribillo y solo
+  'rock-de-la-costanera': (() => {
+    const eighths = notes => prog(notes).map(n => bar(n + ':0.5', 8)).join(' ');
+    const beat = bar('k:0.5 h:0.5 s:0.5 h:0.5 k:0.5 k:0.5 s:0.5 h:0.5', 8);
+    const power = { E: ['E3', 'B3'], G: ['G3', 'D4'], A: ['A3', 'E4'], C: ['C4', 'G4'], D: ['D4', 'A4'] };
+    const gtr = (cs, i) => prog(cs).map(c => bar(power[c][i] + ':1', 4)).join(' ');
+    const V = 'E E G A E E C D', CH = 'A A C D E E C D';
+    return arrange(140, {
+      drums: { inst: 'drums', vol: 0.7 },
+      bass: { inst: 'sawtooth', vol: 0.35 },
+      g1: { inst: 'sawtooth', vol: 0.1 }, g2: { inst: 'sawtooth', vol: 0.1 },
+      lead: { inst: 'square', vol: 0.3 },
+    }, {
+      intro: {
+        drums: bar('k:1 s:1 k:1 s:1', 2) + ' ' + bar('k:0.5 h:0.5 s:0.5 h:0.5 k:0.5 k:0.5 s:0.5 h:0.5', 2),
+        bass: eighths('E2 E2 E2 E2'),
+      },
+      estrofa: {
+        drums: beat,
+        bass: eighths('E2 E2 G2 A2 E2 E2 C3 D3'),
+        lead: [
           'E4:0.5 G4:0.5 A4:0.5 B4:1 A4:0.5 G4:1',
           'E4:0.5 G4:0.5 A4:0.5 B4:0.5 D5:1 B4:1',
           'D5:1 B4:0.5 A4:0.5 G4:1 A4:1',
@@ -59,102 +132,186 @@ Object.assign(SONGS, {
           'D4:0.5 F#4:0.5 A4:1 F#4:0.5 A4:0.5 B4:1',
         ].join(' '),
       },
-    ],
-  },
-});
+      estribillo: {
+        drums: beat,
+        bass: eighths('A2 A2 C3 D3 E2 E2 C3 D3'),
+        g1: gtr(CH, 0), g2: gtr(CH, 1),
+        lead: [
+          'E5:1 E5:0.5 D5:0.5 C#5:1 A4:1',
+          'E5:1 F#5:1 E5:2',
+          'G5:1 E5:0.5 D5:0.5 C5:1 G4:1',
+          'A4:0.5 D5:0.5 F#5:1 A5:2',
+          'B5:1.5 A5:0.5 G5:1 E5:1',
+          'G5:1 F#5:1 E5:2',
+          'E5:1 G5:1 C5:1 E5:1',
+          'D5:1 F#5:1 A5:1 F#5:1',
+        ].join(' '),
+      },
+      solo: {
+        drums: beat,
+        bass: eighths('E2 E2 G2 A2 E2 E2 C3 D3'),
+        g1: gtr(V, 0), g2: gtr(V, 1),
+        lead: [
+          'E5:0.5 G5:0.5 A5:0.5 B5:0.5 A5:0.5 G5:0.5 E5:1',
+          'D5:0.5 E5:0.5 G5:0.5 E5:0.5 D5:0.5 B4:0.5 A4:1',
+          'G4:0.5 B4:0.5 D5:0.5 G5:0.5 F#5:0.5 D5:0.5 B4:1',
+          'A4:0.5 C#5:0.5 E5:0.5 A5:0.5 G5:1 E5:1',
+          'B5:1 A5:0.5 G5:0.5 A5:1 G5:0.5 E5:0.5',
+          'D5:0.5 E5:0.5 D5:0.5 B4:0.5 A4:1 G4:1',
+          'C5:0.5 E5:0.5 G5:0.5 C6:0.5 B5:1 G5:1',
+          'D5:0.5 F#5:0.5 A5:0.5 D6:0.5 C6:1 B5:1',
+        ].join(' '),
+      },
+      final: {
+        drums: 's:0.25 s:0.25 s:0.25 s:0.25 k:0.5 s:0.5 k:0.5 s:0.5 k:1 -:4',
+        bass: 'E2:4 -:4',
+        g1: 'E3:4 -:4', g2: 'B3:4 -:4',
+      },
+    }, ['intro', 'estrofa', 'estribillo', 'estrofa', 'estribillo', 'solo', 'estribillo', 'final']);
+  })(),
 
-// Acordes: una pista por voz del acorde (la 1ª, 2ª o 3ª nota de cada uno), un compás por acorde
-const CHORD = {
-  Am: ['A3', 'C4', 'E4'], F: ['F3', 'A3', 'C4'], C: ['C4', 'E4', 'G4'], G: ['G3', 'B3', 'D4'],
-  D: ['D4', 'F#4', 'A4'], A: ['C#4', 'E4', 'A4'], Gd: ['D4', 'G4', 'B4'],
-};
-const voice = (chords, i, rhythm) => chords.map(c => rhythm(CHORD[c][i])).join(' ');
-
-Object.assign(SONGS, {
-  // Synthpop: arpegio en semicorcheas, bajo en octavas, colchón de sintes y caja con reverb
+  // Synthpop: arpegio en semicorcheas, bajo en octavas, colchón de sintes y caja
   'noche-en-la-costanera': (() => {
-    const prog = bar('Am F C G', 4).trim().split(' ');
-    const root = { Am: 'A', F: 'F', C: 'C', G: 'G' };
-    const arp = { Am: 'A4 C5 E5 A5', F: 'F4 A4 C5 F5', C: 'C4 E4 G4 C5', G: 'G4 B4 D5 G5' };
-    return {
-      bpm: 118,
-      tracks: [
-        { inst: 'drums', vol: 0.8, seq: bar('k:1 s:1 k:0.5 k:0.5 s:1', 16) },
-        { inst: 'drums', vol: 0.5, seq: bar('h:0.5', 128) },
-        { inst: 'sawtooth', vol: 0.4, seq: prog.map(c => bar(`${root[c]}2:0.5 ${root[c]}3:0.5`, 4)).join(' ') },
-        { inst: 'square', vol: 0.16, seq: prog.map(c => bar(arp[c].split(' ').map(n => n + ':0.25').join(' '), 4)).join(' ') },
-        ...[0, 1, 2].map(i => ({ inst: 'pad', vol: 0.12, seq: voice(prog, i, n => n + ':4') })),
-        {
-          inst: 'square', vol: 0.3,
-          seq: '-:32 ' + [
-            'E5:1.5 D5:0.5 C5:1 A4:1',
-            'C5:1 A4:0.5 C5:0.5 F5:1 E5:1',
-            'E5:1.5 G5:0.5 E5:1 C5:1',
-            'D5:2 B4:1 -:1',
-            'E5:0.5 E5:0.5 D5:0.5 C5:0.5 D5:1 E5:1',
-            'F5:1.5 E5:0.5 C5:1 A4:1',
-            'G5:1 E5:1 C5:0.5 D5:0.5 E5:1',
-            'D5:1 B4:1 G4:2',
-          ].join(' '),
-        },
-      ],
-    };
+    const root = { Am: 'A', F: 'F', C: 'C', G: 'G', Em: 'E' };
+    const arps = { Am: 'A4 C5 E5 A5', F: 'F4 A4 C5 F5', C: 'C4 E4 G4 C5', G: 'G4 B4 D5 G5', Em: 'E4 G4 B4 E5' };
+    const arp = cs => prog(cs).map(c => bar(arps[c].split(' ').map(n => n + ':0.25').join(' '), 4)).join(' ');
+    const bass = cs => prog(cs).map(c => bar(`${root[c]}2:0.5 ${root[c]}3:0.5`, 4)).join(' ');
+    const pads = cs => Object.fromEntries([0, 1, 2].map(i => ['p' + i, voice(prog(cs), i, n => n + ':4')]));
+    const V = 'Am F C G Am F C G', CH = 'F G Em Am F G Am Am';
+    const drums = n => bar('k:1 s:1 k:0.5 k:0.5 s:1', n);
+    return arrange(118, {
+      drums: { inst: 'drums', vol: 0.8 },
+      hats: { inst: 'drums', vol: 0.5 },
+      bass: { inst: 'sawtooth', vol: 0.4 },
+      arp: { inst: 'square', vol: 0.16 },
+      p0: { inst: 'pad', vol: 0.12 }, p1: { inst: 'pad', vol: 0.12 }, p2: { inst: 'pad', vol: 0.12 },
+      lead: { inst: 'square', vol: 0.3 },
+    }, {
+      intro: { arp: arp('Am F C G'), ...pads('Am F C G') },
+      groove: { drums: drums(4), hats: bar('h:0.5', 32), bass: bass('Am F C G'), arp: arp('Am F C G'), ...pads('Am F C G') },
+      estrofa: {
+        drums: drums(8), hats: bar('h:0.5', 64), bass: bass(V), arp: arp(V), ...pads(V),
+        lead: [
+          'E5:1.5 D5:0.5 C5:1 A4:1',
+          'C5:1 A4:0.5 C5:0.5 F5:1 E5:1',
+          'E5:1.5 G5:0.5 E5:1 C5:1',
+          'D5:2 B4:1 -:1',
+          'E5:0.5 E5:0.5 D5:0.5 C5:0.5 D5:1 E5:1',
+          'F5:1.5 E5:0.5 C5:1 A4:1',
+          'G5:1 E5:1 C5:0.5 D5:0.5 E5:1',
+          'D5:1 B4:1 G4:2',
+        ].join(' '),
+      },
+      estribillo: {
+        drums: drums(8), hats: bar('h:0.5', 64), bass: bass(CH), arp: arp(CH), ...pads(CH),
+        lead: [
+          'A5:2 G5:1 F5:1',
+          'G5:1.5 F5:0.5 E5:1 D5:1',
+          'E5:1 G5:1 B5:2',
+          'A5:3 -:1',
+          'C6:1 A5:1 F5:1 A5:1',
+          'B5:1.5 A5:0.5 G5:1 D5:1',
+          'E5:1 A5:1 C6:1 B5:1',
+          'A5:4',
+        ].join(' '),
+      },
+      puente: { drums: bar('k:1 -:1 k:1 -:1', 4), hats: bar('h:0.5', 32), ...pads('Am G F G') },
+      final: { arp: arp('Am F C G'), ...pads('Am F C G') },
+    }, ['intro', 'groove', 'estrofa', 'estribillo', 'puente', 'estrofa', 'estribillo', 'final']);
   })(),
 
   // Cuarteto: el tunga-tunga (bajo en el tiempo, piano a contratiempo) y acordeón
   'el-baile-de-la-plaza': (() => {
-    const prog = 'D A A D D Gd A D'.split(' ');
-    const bass = { D: ['D2', 'A2'], A: ['A2', 'E2'], Gd: ['G2', 'D2'] };
-    return {
-      bpm: 124,
-      tracks: [
-        { inst: 'drums', vol: 0.7, seq: bar('k:1', 32) },
-        { inst: 'drums', vol: 0.45, seq: bar('-:0.5 s:0.5', 32) },
-        { inst: 'drums', vol: 0.4, seq: bar('g:0.5 g:0.25 g:0.25', 32) },
-        { inst: 'triangle', vol: 0.8, seq: prog.map(c => bar(`${bass[c][0]}:1 ${bass[c][1]}:1`, 2)).join(' ') },
-        ...[0, 1, 2].map(i => ({ inst: 'square', vol: 0.1, seq: voice(prog, i, n => bar(`-:0.5 ${n}:0.5`, 4)) })),
-        {
-          inst: 'sawtooth', vol: 0.22,
-          seq: [
-            'F#5:0.5 E5:0.5 D5:0.5 E5:0.5 F#5:1 A5:1',
-            'G5:0.5 F#5:0.5 E5:0.5 F#5:0.5 E5:1 C#5:1',
-            'E5:0.5 F#5:0.5 G5:0.5 E5:0.5 A5:1 G5:1',
-            'F#5:1 E5:0.5 D5:0.5 D5:2',
-            'A4:0.5 D5:0.5 F#5:0.5 D5:0.5 A5:1 F#5:1',
-            'B5:1 A5:0.5 G5:0.5 D5:1 G5:1',
-            'A5:0.5 G5:0.5 F#5:0.5 E5:0.5 C#5:1 E5:1',
-            'D5:1 A4:1 D5:2',
-          ].join(' '),
-        },
-      ],
-    };
+    const bassN = { D: ['D2', 'A2'], A: ['A2', 'E2'], Gd: ['G2', 'D2'] };
+    const bass = cs => prog(cs).map(c => bar(`${bassN[c][0]}:1 ${bassN[c][1]}:1`, 2)).join(' ');
+    const piano = cs => Object.fromEntries([0, 1, 2].map(i => ['k' + i, voice(prog(cs), i, n => bar(`-:0.5 ${n}:0.5`, 4))]));
+    const ritmo = n => ({ kick: bar('k:1', 4 * n), snare: bar('-:0.5 s:0.5', 4 * n), guiro: bar('g:0.5 g:0.25 g:0.25', 4 * n) });
+    const A = 'D A A D D Gd A D', B = 'Gd D A D Gd D A D';
+    return arrange(124, {
+      kick: { inst: 'drums', vol: 0.7 },
+      snare: { inst: 'drums', vol: 0.45 },
+      guiro: { inst: 'drums', vol: 0.4 },
+      bass: { inst: 'triangle', vol: 0.8 },
+      k0: { inst: 'square', vol: 0.1 }, k1: { inst: 'square', vol: 0.1 }, k2: { inst: 'square', vol: 0.1 },
+      acc: { inst: 'sawtooth', vol: 0.22 },
+    }, {
+      intro: { kick: bar('k:1', 8), guiro: bar('g:0.5 g:0.25 g:0.25', 8), ...piano('D D') },
+      a: {
+        ...ritmo(8), bass: bass(A), ...piano(A),
+        acc: [
+          'F#5:0.5 E5:0.5 D5:0.5 E5:0.5 F#5:1 A5:1',
+          'G5:0.5 F#5:0.5 E5:0.5 F#5:0.5 E5:1 C#5:1',
+          'E5:0.5 F#5:0.5 G5:0.5 E5:0.5 A5:1 G5:1',
+          'F#5:1 E5:0.5 D5:0.5 D5:2',
+          'A4:0.5 D5:0.5 F#5:0.5 D5:0.5 A5:1 F#5:1',
+          'B5:1 A5:0.5 G5:0.5 D5:1 G5:1',
+          'A5:0.5 G5:0.5 F#5:0.5 E5:0.5 C#5:1 E5:1',
+          'D5:1 A4:1 D5:2',
+        ].join(' '),
+      },
+      b: {
+        ...ritmo(8), bass: bass(B), ...piano(B),
+        acc: [
+          'B5:1 D6:1 B5:1 G5:1',
+          'A5:1 F#5:1 D5:2',
+          'E5:0.5 F#5:0.5 G5:0.5 A5:0.5 B5:1 A5:1',
+          'F#5:2 -:2',
+          'G5:0.5 A5:0.5 B5:0.5 G5:0.5 D6:2',
+          'D6:0.5 C#6:0.5 A5:1 F#5:2',
+          'E5:1 G5:1 C#6:1 E6:1',
+          'D6:4',
+        ].join(' '),
+      },
+      puente: { kick: bar('k:1', 16), guiro: bar('g:0.5 g:0.25 g:0.25', 16), bass: bass('D A D A') },
+      coda: {
+        kick: 'k:1 k:1 k:1 k:1 k:2 -:2',
+        bass: 'D2:1 A2:1 D2:1 A2:1 D2:2 -:2',
+        acc: 'F#5:0.5 E5:0.5 D5:0.5 E5:0.5 F#5:1 A5:1 D6:2 -:2',
+      },
+    }, ['intro', 'a', 'b', 'puente', 'a', 'b', 'b', 'coda']);
   })(),
 
   // Chacarera en 6/8: cada tiempo es una corchea. Bombo legüero, guitarra y violín
   'chacarera-del-puente': (() => {
-    const prog = 'Am Am E E Am Am E Am'.split(' ');
-    const strum = { Am: 'A3 C4 E4 A4 E4 C4', E: 'E3 G#3 B3 E4 B3 G#3' };
-    return {
-      bpm: 300,
-      tracks: [
-        { inst: 'drums', vol: 0.8, seq: bar('k:2 s:1 k:1 s:1 s:1', 8) },
-        { inst: 'triangle', vol: 0.5, seq: prog.map(c => strum[c].split(' ').map(n => n + ':1').join(' ')).join(' ') },
-        { inst: 'triangle', vol: 0.7, seq: prog.map(c => bar(`${c[0]}2:3`, 2)).join(' ') },
-        {
-          inst: 'sawtooth', vol: 0.2,
-          seq: [
-            'E5:2 D5:1 C5:2 B4:1',
-            'A4:3 C5:2 E5:1',
-            'D5:2 C5:1 B4:2 G#4:1',
-            'B4:3 E5:3',
-            'E5:2 F5:1 E5:2 D5:1',
-            'C5:2 D5:1 E5:3',
-            'B4:2 C5:1 D5:2 B4:1',
-            'A4:6',
-          ].join(' '),
-        },
-      ],
-    };
+    const strums = { Am: 'A3 C4 E4 A4 E4 C4', E: 'E3 G#3 B3 E4 B3 G#3', Dm: 'D3 F3 A3 D4 A3 F3' };
+    const strum = cs => prog(cs).map(c => strums[c].split(' ').map(n => n + ':1').join(' ')).join(' ');
+    const bass = cs => prog(cs).map(c => bar(`${c[0]}2:3`, 2)).join(' ');
+    const bombo = n => bar('k:2 s:1 k:1 s:1 s:1', n);
+    const A = 'Am Am E E Am Am E Am', B = 'Dm Am E Am Dm Am E Am';
+    const violinA = [
+      'E5:2 D5:1 C5:2 B4:1',
+      'A4:3 C5:2 E5:1',
+      'D5:2 C5:1 B4:2 G#4:1',
+      'B4:3 E5:3',
+      'E5:2 F5:1 E5:2 D5:1',
+      'C5:2 D5:1 E5:3',
+      'B4:2 C5:1 D5:2 B4:1',
+      'A4:6',
+    ].join(' ');
+    return arrange(300, {
+      bombo: { inst: 'drums', vol: 0.8 },
+      gtr: { inst: 'triangle', vol: 0.5 },
+      bass: { inst: 'triangle', vol: 0.7 },
+      violin: { inst: 'sawtooth', vol: 0.2 },
+    }, {
+      intro: { bombo: bombo(4), gtr: strum('Am E Am E') },
+      a: { bombo: bombo(8), gtr: strum(A), bass: bass(A), violin: violinA },
+      b: {
+        bombo: bombo(8), gtr: strum(B), bass: bass(B),
+        violin: [
+          'F5:2 E5:1 D5:2 F5:1',
+          'E5:3 C5:2 A4:1',
+          'B4:2 C5:1 D5:2 E5:1',
+          'C5:3 A4:3',
+          'D5:2 F5:1 A5:2 G5:1',
+          'E5:2 D5:1 C5:3',
+          'B4:2 G#4:1 B4:2 D5:1',
+          'A4:6',
+        ].join(' '),
+      },
+      interludio: { bombo: bombo(4), gtr: strum('Am E Am E') },
+      zapateo: { bombo: bar('k:1 k:1 s:1 k:1 k:1 s:1', 4), bass: bass('Am E Am E') },
+    }, ['intro', 'a', 'b', 'interludio', 'a', 'b', 'zapateo', 'a']);
   })(),
 });
 
