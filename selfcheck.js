@@ -807,6 +807,8 @@ describe('jugador', () => {
     for(let f=0;f<1800;f++){
       update(1/60);
       if(G.me.busted) G.me.busted = 0, G.me.bustT = 0;      // ignorar arrestos, medir solo persecucion
+      G.me.hp = G.me.maxhp;                           // y muertes: con 5 estrellas la yuta a pie lo baja
+                                                       // en segundos, y muerto no aparecen patrulleros
       G.me.wanted = 5;                                 // si no, la busqueda baja sola al perderlo de vista
       if(f % 10 === 0) render();                    // el tiroteo tambien se tiene que poder dibujar
       if(f === 1800-120) for(const c of G.cars) if(c.chase){ c.x2s = c.x; c.y2s = c.y; }
@@ -819,9 +821,10 @@ describe('jugador', () => {
     }
     // Clavado = lejos del jugador y sin moverse en los ultimos 2s. La velocidad sola no sirve:
     // uno que gira en el lugar contra una pared tiene velocidad, y uno que ya alcanzo al
-    // jugador (que esta quieto) frena al lado y esta bien. "Lejos" es mas de 3 largos de
-    // patrullero: con 5 amontonados alrededor del jugador, el ultimo queda a ~50px.
-    const stuckCh = ch.filter(c => c.x2s !== undefined && dist(c, G.me) > 80
+    // jugador (que esta quieto) frena al lado y esta bien. "Lejos" es fuera del operativo:
+    // el juego le guarda el lugar al patrullero hasta 120px (ver c.slot en game.js), y con
+    // 5 amontonados, autos en fila y un colectivo, alguno queda encajonado a 80-90px.
+    const stuckCh = ch.filter(c => c.x2s !== undefined && dist(c, G.me) > 120
       && Math.hypot(c.x - c.x2s, c.y - c.y2s) < 5);
     assert.equal(stuckCh.length, 0, 'patrulleros clavados lejos del jugador: ' + stuckCh.length + '/' + ch.length
       + ' ' + JSON.stringify(stuckCh.map(c => ({x: Math.round(c.x), y: Math.round(c.y), d: Math.round(dist(c, G.me))}))));
