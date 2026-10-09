@@ -107,6 +107,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 ### 🎭 Personajes & Lore
 - [x] Cambiar y pulir los nombres de los personajes (#72)
 - [ ] Incorporar nuevos personajes seleccionables (#73)
+  - [x] El Ger
 - [x] **Arma / Ítem especial:** Incorporar el **bastón verde del Ciego Augusto** (arma de combate cuerpo a cuerpo)
 - [ ] Sistema base de NPCs con nombre y parodias de famosos: spawn, diálogo, comportamiento único, recompensas y despawn (#9)
   - [ ] Parodia de crack del fútbol (Messi): diálogo propio, suelta "balones de oro" (guita) al caer (#10)
