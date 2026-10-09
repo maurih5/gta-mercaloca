@@ -63,37 +63,55 @@ function mix(c1, c2, t) {
 }
 
 /**
- * Recorta y reduce una foto de textura a un tamaño pequeño (ej. 14x14)
- * generando pixel art con contraste aumentado y contorno oscuro.
+ * Recorta la cara de una foto y la reduce a size x size con la mayor definición posible:
+ * achica de a mitades (cada paso promedia bien, sin el aliasing de un salto grande),
+ * enfoca los rasgos (ojos, cejas, barba) y sube contraste y color para que se lean chicos.
  */
 function pixelFace(img, crop, size) {
+  let w = Math.round(crop[2] * img.width), h = Math.round(crop[3] * img.height);
+  let src = document.createElement('canvas');
+  src.width = w;
+  src.height = h;
+  let sg = src.getContext('2d');
+  sg.drawImage(img, crop[0] * img.width, crop[1] * img.height, w, h, 0, 0, w, h);
+  while (w > size * 2 || h > size * 2) {
+    const nw = Math.max(size, Math.round(w / 2)), nh = Math.max(size, Math.round(h / 2));
+    const half = document.createElement('canvas');
+    half.width = nw;
+    half.height = nh;
+    const hg = half.getContext('2d');
+    hg.imageSmoothingEnabled = true;
+    hg.imageSmoothingQuality = 'high';
+    hg.drawImage(src, 0, 0, w, h, 0, 0, nw, nh);
+    src = half;
+    w = nw;
+    h = nh;
+  }
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const g = c.getContext('2d');
   g.imageSmoothingEnabled = true;
-  g.drawImage(
-    img,
-    crop[0] * img.width, crop[1] * img.height,
-    crop[2] * img.width, crop[3] * img.height,
-    0, 0, size, size
-  );
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(src, 0, 0, w, h, 0, 0, size, size);
 
   const d = g.getImageData(0, 0, size, size);
-  const p = d.data;
-  for (let i = 0; i < p.length; i += 4) {
-    for (let k = 0; k < 3; k++) {
-      p[i + k] = clamp((p[i + k] - 128) * 1.22 + 138, 0, 255);
+  const p = d.data, o = Uint8ClampedArray.from(p);
+  const at = (x, y, k) => o[(clamp(y, 0, size - 1) * size + clamp(x, 0, size - 1)) * 4 + k];
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      const rgb = [0, 1, 2].map(k => {
+        // Enfoque: el píxel menos el promedio de sus vecinos, sumado de nuevo
+        const blur = (at(x - 1, y, k) + at(x + 1, y, k) + at(x, y - 1, k) + at(x, y + 1, k)) / 4;
+        return o[i + k] + (o[i + k] - blur) * 0.9;
+      });
+      const lum = (rgb[0] + rgb[1] + rgb[2]) / 3;
+      for (let k = 0; k < 3; k++) {
+        const sat = lum + (rgb[k] - lum) * 1.2;
+        p[i + k] = clamp((sat - 128) * 1.2 + 134, 0, 255);
+      }
     }
   }
   g.putImageData(d, 0, 0);
-
-  // Contorno oscuro para despegar la cabeza del fondo
-  const o = document.createElement('canvas');
-  o.width = o.height = size;
-  const og = o.getContext('2d');
-  og.drawImage(c, 0, 0);
-  og.globalCompositeOperation = 'destination-over';
-  og.fillStyle = '#14100c';
-  og.fillRect(0, 0, size, size);
-  return o;
+  return c;
 }

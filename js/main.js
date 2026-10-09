@@ -86,7 +86,7 @@ async function boot() {
   // Generar sprites de caras para el crew
   for (const c of CREW) {
     if (IMGS[c.img] && IMGS[c.img].width) {
-      G.faces[c.id] = pixelFace(IMGS[c.img], c.crop, 14);
+      G.faces[c.id] = pixelFace(IMGS[c.img], c.crop, FACE_PX);
     }
   }
 

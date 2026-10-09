@@ -117,8 +117,8 @@ class Renderer {
     this.cv = (typeof document !== 'undefined') ? document.getElementById('cv') : null;
     this.ctx = this.cv ? this.cv.getContext('2d') : null;
     if (this.cv) {
-      this.cv.width = RW;
-      this.cv.height = RH;
+      this.cv.width = RW * RENDER_SCALE;
+      this.cv.height = RH * RENDER_SCALE;
     }
     if (this.ctx) {
       this.ctx.imageSmoothingEnabled = false;
@@ -1253,6 +1253,7 @@ class Renderer {
     ctx.fillStyle = 'rgba(0,0,0,.6)';
     ctx.fillRect(px(x - 6.5), px(hy - 0.5), 13, 13);
     if (f) {
+      // La foto de la cara tiene el doble de píxeles que la grilla del juego (FACE_PX)
       ctx.drawImage(f, px(x - 6), px(hy), 12, 12);
     } else {
       ctx.fillStyle = '#c9a07a';
@@ -2067,6 +2068,8 @@ class Renderer {
 
   render() {
     const ctx = this.ctx;
+    ctx.setTransform(RENDER_SCALE, 0, 0, RENDER_SCALE, 0, 0);
+    ctx.imageSmoothingEnabled = false;
     const night = darkness();
     litWindows.length = 0;
     ctx.save();
