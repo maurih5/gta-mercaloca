@@ -151,7 +151,8 @@ async function boot() {
   cg.fillRect(4, 2, 4, 1);
   G.faces.cop = cop;
 
-  const skip = typeof location !== 'undefined' && location.search.indexOf('play') >= 0;
+  // ?play arranca directo a jugar; ?famoso=<id> también, con ese famoso al lado (para probarlo)
+  const skip = typeof location !== 'undefined' && /[?&](play|famoso)/.test(location.search);
 
   setTimeout(() => {
     clearInterval(timer);
@@ -167,6 +168,11 @@ async function boot() {
       if (!isNaN(px0) && !isNaN(py0)) {
         G.me.x = px0; G.me.y = py0;
         G.cam.x = clamp(px0 - RW / 2, 0, WORLD - RW); G.cam.y = clamp(py0 - RH / 2, 0, WORLD - RH);
+      }
+      const fam = FAMOUS.find(f => f.id === q.get('famoso'));
+      if (fam) {
+        const sp = sidewalkSpot(30, 70, G.me);
+        if (sp) G.peds.push(makeFamous(fam, sp.x, sp.y));
       }
       const w = parseInt(q.get('w'));
       if (!isNaN(w)) G.me.wanted = clamp(w, 0, 5);
