@@ -386,18 +386,30 @@ describe('simulacion', () => {
   test('60s simulados y renderizados sin NaN ni salirse del mapa', () => {
     // El jugador espera en la vereda: parado en el medio de la calle 60s traba las dos manos
     // (los autos tocan bocina y esperan, como corresponde) y eso no es transito de la ciudad.
-    // Vereda de verdad, sin calle: toSidewalk a veces da un punto del borde del asfalto
-    // (en la bocacalle) que onSidewalk igual cuenta como vereda.
+    // Donde no molesta a nadie: a mitad de cuadra (en la esquina los que doblan pasan rozandolo),
+    // contra la cuadra (el carril va pegado al cordon y un auto ancho lo toca si esta del lado
+    // de la calle) y lejos del borde del mapa (en las esquinas del mapa todo el transito dobla
+    // en la misma bocacalle y se arma fila sin que el jugador tenga nada que ver).
+    // Con un spawn al azar en cualquiera de esos lugares este test fallaba de vez en cuando.
     {
-      const P = G.me;
+      const P = G.me, BORDE = 2 * CELL;
+      const ancho = (i, eje) => (i === eje ? AVENUE_ROAD : ROAD);
+      const ci = Math.floor(P.x / CELL), cj = Math.floor(P.y / CELL);
       let best = null, bd = Infinity;
-      for (let r = 0; r <= 400 && !best; r += 4) {
-        for (let k = 0; k < 16; k++) {
-          const x = P.x + Math.cos(k * Math.PI / 8) * r, y = P.y + Math.sin(k * Math.PI / 8) * r;
-          if (onSidewalk(x, y) && !onRoad(x, y) && !hitBuilding(x, y, 4) && r < bd) { bd = r; best = { x, y }; }
+      for (let i = ci - 4; i <= ci + 4; i++) for (let j = cj - 4; j <= cj + 4; j++) {
+        const rw = ancho(i, PLAZA_CX), rh = ancho(j, PLAZA_CY);
+        const midX = i * CELL + (rw + CELL) / 2, midY = j * CELL + (rh + CELL) / 2;
+        for (const c of [
+          { x: i * CELL + 2, y: midY }, { x: i * CELL + rw - 2, y: midY },     // veredas de la columna
+          { x: midX, y: j * CELL + 2 }, { x: midX, y: j * CELL + rh - 2 },     // veredas de la fila
+        ]) {
+          if (Math.min(c.x, c.y, WORLD - c.x, WORLD - c.y) < BORDE) continue;
+          if (!onSidewalk(c.x, c.y) || hitBuilding(c.x, c.y, 3) || inDiagonalBand(c.x, c.y)) continue;
+          const d = Math.hypot(c.x - P.x, c.y - P.y);
+          if (d < bd) { bd = d; best = c; }
         }
       }
-      best = best || toSidewalk(P.x, P.y);
+      assert.ok(best, 'no hay vereda tranquila cerca de ' + JSON.stringify({ x: P.x, y: P.y }));
       P.x = best.x; P.y = best.y;
     }
     for(let f=0; f<3600; f++){                      // 60s
