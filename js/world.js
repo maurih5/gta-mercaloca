@@ -283,11 +283,17 @@ function shoreDist(x, y) {
   const bot = SHORE_D[k + WMW] * (1 - u) + SHORE_D[k + WMW + 1] * u;
   return top * (1 - v) + bot * v;
 }
-// t de la curva mas cercana (para el ancho de playa y el sentido de la corriente)
+// t de la curva mas cercana (para el ancho de playa y el sentido de la corriente),
+// interpolado como shoreDist: con la celda mas cercana el ancho de la playa saltaba
+// de a 12px y el borde de la arena quedaba escalonado.
 function shoreT(x, y) {
   if (!SHORE_T) return riverNearest(x, y).t;
-  const i = Math.max(0, Math.min(WMW - 1, (x / WATER_CELL) | 0)), j = Math.max(0, Math.min(WMW - 1, (y / WATER_CELL) | 0));
-  return SHORE_T[j * WMW + i];
+  const fx = x / WATER_CELL - 0.5, fy = y / WATER_CELL - 0.5;
+  const i = Math.max(0, Math.min(WMW - 2, Math.floor(fx))), j = Math.max(0, Math.min(WMW - 2, Math.floor(fy)));
+  const u = Math.max(0, Math.min(1, fx - i)), v = Math.max(0, Math.min(1, fy - j)), k = j * WMW + i;
+  const top = SHORE_T[k] * (1 - u) + SHORE_T[k + 1] * u;
+  const bot = SHORE_T[k + WMW] * (1 - u) + SHORE_T[k + WMW + 1] * u;
+  return top * (1 - v) + bot * v;
 }
 // Arena: la franja que rodea el cauce. Es transitable (no bloquea), pero ahi no
 // se plantan edificios ni se pintan calles.
@@ -324,8 +330,8 @@ function bakeRoadSegments() {
     for (let cx = 0; cx <= GRID; cx++) {
       const w2 = roadWidthCol(cx);
       let ok = true;
-      for (let y = cy * CELL; y <= (cy + 1) * CELL && ok; y += 6) {
-        for (const f of [0.12, 0.5, 0.88]) if (cut(cx * CELL + w2 * f, y)) { ok = false; break; }
+      for (let y = cy * CELL; y <= (cy + 1) * CELL && ok; y += 3) {
+        for (const f of [0.005, 0.25, 0.5, 0.75, 0.995]) if (cut(cx * CELL + w2 * f, y)) { ok = false; break; }
       }
       if (ok) SEG_V[segIdx(cx, cy)] = 1;
     }
@@ -334,8 +340,8 @@ function bakeRoadSegments() {
     for (let cy = 0; cy <= GRID; cy++) {
       const h2 = roadWidthRow(cy);
       let ok = true;
-      for (let x = cx * CELL; x <= (cx + 1) * CELL && ok; x += 6) {
-        for (const f of [0.12, 0.5, 0.88]) if (cut(x, cy * CELL + h2 * f)) { ok = false; break; }
+      for (let x = cx * CELL; x <= (cx + 1) * CELL && ok; x += 3) {
+        for (const f of [0.005, 0.25, 0.5, 0.75, 0.995]) if (cut(x, cy * CELL + h2 * f)) { ok = false; break; }
       }
       if (ok) SEG_H[segIdx(cx, cy)] = 1;
     }
@@ -756,22 +762,313 @@ class World {
       }
     }
 
-    // Cosas de playa: sombrillas y palmeras repartidas por la arena (incluida la
-    // que gano el asfalto de los tramos que ya no son calle).
+    // Cosas de playa. No van tiradas al azar parejo sino en grupitos, como en una playa
+    // de verdad: sombrillas con sus reposeras, toallas con gente tomando sol, palmeras
+    // en bosquecito, kayaks varados en la orilla, carpas, fogones, puestos de choripan,
+    // torres de guardavidas, canchitas de voley y algun muelle de pescadores. El playon
+    // de la desembocadura es "la playa grande": ahi se amontona todo.
+    // Nada se pisa entre si, nada cae al agua ni arriba de un edificio, y nada se acerca
+    // a los puentes (la copa de una palmera o una sombrilla tapaba el tablero).
+    // Cada cosa lleva su radio r (lo que ocupa en el piso) y su grupo g: dentro de un
+    // grupo si se pueden tocar (la reposera va abajo de su sombrilla).
     {
       const SOMBRILLA = ['#e05a4a', '#3f8fd0', '#e0b83a', '#4faa62', '#e07fb0'];
-      let puestas = 0;
-      for (let i = 0; i < 20000 && puestas < 150; i++) {
-        const x = rnd(0, WORLD), y = rnd(0, WORLD);
-        if (!sandZone(x, y)) continue;
-        if (this.hitBuilding(x, y, 10)) continue;
-        puestas++;
-        if (Math.random() < 0.45) {
-          this.props.push({ t: 'palm', x, y, s: rnd(0.9, 1.35) });
-        } else {
-          this.props.push({ t: 'sombrilla', x, y, s: rnd(0.85, 1.2),
-            col: SOMBRILLA[(Math.random() * SOMBRILLA.length) | 0] });
+      const TELA = ['#d94f4f', '#4f7fd9', '#d9c44f', '#57b06a', '#d97fb5', '#e8e2d2', '#f08a3a'];
+      const MALLA = ['#d23c3c', '#2f5fb0', '#e0b83a', '#1d1d22', '#3fa060', '#d97fb5', '#f2f2ee'];
+      const PIEL = ['#e8bf98', '#d0a07a', '#a8764e', '#7a5236', '#f0cfb0'];
+      const KAYAK = ['#f08a3a', '#e0c03a', '#d94f4f', '#3fa0d0', '#57b06a'];
+      const gente = () => ({ malla: pick(MALLA), piel: pick(PIEL) });
+      const mundo = this;
+
+      // Ocupacion del piso en una grilla gruesa, para no comparar contra todo
+      const CEL = 64, celdas = new Map();
+      const ocupar = (x, y, r, g) => {
+        const k = ((x / CEL) | 0) * 4096 + ((y / CEL) | 0);
+        if (!celdas.has(k)) celdas.set(k, []);
+        celdas.get(k).push({ x, y, r, g });
+      };
+      const pisa = (x, y, r, g) => {
+        const i0 = (x / CEL) | 0, j0 = (y / CEL) | 0;
+        for (let i = i0 - 1; i <= i0 + 1; i++) for (let j = j0 - 1; j <= j0 + 1; j++) {
+          for (const o of celdas.get(i * 4096 + j) || []) {
+            if (o.g === g) continue;
+            const dx = o.x - x, dy = o.y - y, rr = o.r + r + 2;
+            if (dx * dx + dy * dy < rr * rr) return true;
+          }
         }
+        return false;
+      };
+      // Corredor del puente agrandado en m: ahi no va nada
+      const cercaDePuente = (x, y, m) => {
+        for (const b of bridges) {
+          const u = b.horiz ? x : y, v = b.horiz ? y : x;
+          if (u > b.a - m && u < b.b + m && Math.abs(v - (b.line + b.w / 2)) < b.half + m) return true;
+        }
+        return false;
+      };
+      // Bocacalle viva (con farol y semaforo): no se le planta nada encima del poste
+      const cercaDeEsquina = (x, y, r) => {
+        const cx = Math.round((x - ROAD / 2) / CELL), cy = Math.round((y - ROAD / 2) / CELL);
+        const hx = roadWidthCol(cx) / 2, hy = roadWidthRow(cy) / 2;
+        const ex = cx * CELL + hx, ey = cy * CELL + hy;
+        if (noRoadPaint(ex, ey)) return false;
+        return Math.abs(x - ex) < hx + 14 + r && Math.abs(y - ey) < hy + 14 + r;
+      };
+      // Arena que se ve: bakeGround le come hasta 8px al borde contra el pasto
+      const arena = (x, y) => x > 16 && y > 16 && x < WORLD - 16 && y < WORLD - 16 && sandZone(x, y)
+        && (onDeadRoad(x, y) || shoreDist(x, y) < beachBandAt(shoreT(x, y)) - 8);
+      const libre = (x, y, r, g, minD = 6, mp = BEACH_BRIDGE_CLEAR) => {
+        if (!arena(x, y) || shoreDist(x, y) < minD) return false;
+        for (let k = 0; k < 8; k++) {
+          const a = k / 8 * TAU;
+          if (!arena(x + Math.cos(a) * r, y + Math.sin(a) * r)) return false;
+        }
+        if (cercaDePuente(x, y, r + mp) || cercaDeEsquina(x, y, r)) return false;
+        const hb = this.hitBuilding(x, y, r + 4);
+        if (hb && !hb.water) return false;
+        return !pisa(x, y, r, g);
+      };
+      const poner = (p, r, g) => {
+        p.r = r; p.g = g;
+        this.props.push(p);
+        ocupar(p.x, p.y, r, g);
+        return p;
+      };
+      let grupo = 0;
+
+      // Grupitos. (ax, ay): donde arranca; (ux, uy): a lo largo de la costa;
+      // (nx, ny): tierra adentro (el agua queda para el lado de -n).
+      const alAgua = (nx, ny) => Math.atan2(-ny, -nx);
+      const conservadora = (x, y, g) => {
+        if (libre(x, y, 3, g)) poner({ t: 'conservadora', x, y, a: rnd(0, TAU), col: pick(['#3f8fd0', '#d94f4f', '#f2f2ee', '#e0b83a']) }, 3, g);
+      };
+      const G_ = {
+        balneario(ax, ay, ux, uy, nx, ny) {
+          const g = ++grupo, cant = 1 + ((Math.random() * 3) | 0);
+          let n = 0;
+          for (let k = 0; k < cant; k++) {
+            const off = (k - (cant - 1) / 2) * 25 + rnd(-3, 3);
+            const sx = ax + ux * off, sy = ay + uy * off;
+            if (!libre(sx, sy, 11, g)) continue;
+            poner({ t: 'sombrilla', x: sx, y: sy, s: rnd(0.9, 1.15), col: pick(SOMBRILLA) }, 11, g);
+            n++;
+            // Reposeras a la sombra, mirando al agua
+            const nr = Math.random() < 0.7 ? 2 : 1, l0 = Math.random() < 0.5 ? 1 : -1;
+            for (let q = 0; q < nr; q++) {
+              const lado = nr === 2 ? (q ? 1 : -1) : l0;
+              const rx = sx + ux * lado * 6 - nx * 2, ry = sy + uy * lado * 6 - ny * 2;
+              if (!libre(rx, ry, 7, g)) continue;
+              poner({ t: 'reposera', x: rx, y: ry, a: alAgua(nx, ny) + rnd(-0.15, 0.15), col: pick(TELA),
+                gente: Math.random() < 0.6 ? gente() : null }, 7, g);
+            }
+            if (Math.random() < 0.45) conservadora(sx + nx * 10 + ux * rnd(-5, 5), sy + ny * 10 + uy * rnd(-5, 5), g);
+          }
+          return n > 0;
+        },
+        toallas(ax, ay, ux, uy, nx, ny) {
+          const g = ++grupo, cant = 2 + ((Math.random() * 3) | 0);
+          let n = 0;
+          for (let k = 0; k < cant * 3 && n < cant; k++) {
+            const a = rnd(-18, 18), b = rnd(-8, 8);
+            const x = ax + ux * a + nx * b, y = ay + uy * a + ny * b;
+            if (!libre(x, y, 8, g) || pisaDelGrupo(g, x, y, 13)) continue;
+            poner({ t: 'toalla', x, y, a: alAgua(nx, ny) + rnd(-0.5, 0.5), col: pick(TELA),
+              gente: Math.random() < 0.75 ? gente() : null }, 8, g);
+            n++;
+          }
+          if (n && Math.random() < 0.35) conservadora(ax + nx * 12, ay + ny * 12, g);
+          if (n && Math.random() < 0.25 && libre(ax + nx * 4, ay + ny * 4, 11, g)) {
+            poner({ t: 'sombrilla', x: ax + nx * 4, y: ay + ny * 4, s: rnd(0.9, 1.1), col: pick(SOMBRILLA) }, 11, g);
+          }
+          return n > 0;
+        },
+        palmar(ax, ay, ux, uy, nx, ny) {
+          const g = ++grupo, cant = 2 + ((Math.random() * 2) | 0);
+          let n = 0;
+          for (let k = 0; k < cant; k++) {
+            const off = (k - (cant - 1) / 2) * 21 + rnd(-4, 4), b = rnd(-7, 7);
+            const x = ax + ux * off + nx * b, y = ay + uy * off + ny * b;
+            if (!libre(x, y, 9, g, 10, BEACH_PALM_CLEAR)) continue;
+            poner({ t: 'palm', x, y, s: rnd(0.95, 1.3) }, 9, g);
+            n++;
+          }
+          return n > 0;
+        },
+        kayaks(ax, ay, ux, uy, nx, ny) {
+          // (ax, ay) ya viene pegado a la orilla
+          const g = ++grupo, cant = 1 + ((Math.random() * 3) | 0), bote = Math.random() < 0.3;
+          let n = 0;
+          for (let k = 0; k < cant; k++) {
+            const off = (k - (cant - 1) / 2) * (bote ? 13 : 8);
+            const x = ax + ux * off, y = ay + uy * off;
+            if (!libre(x, y, bote ? 9 : 7, g, 8)) continue;
+            poner({ t: 'kayak', x, y, a: Math.atan2(ny, nx) + rnd(-0.25, 0.25), bote: bote && k === 0,
+              col: pick(KAYAK) }, bote ? 9 : 7, g);
+            n++;
+          }
+          return n > 0;
+        },
+        carpa(ax, ay) {
+          const g = ++grupo;
+          if (!libre(ax, ay, 11, g)) return false;
+          poner({ t: 'carpa', x: ax, y: ay, horiz: Math.random() < 0.5, col: pick(['#3f8f4a', '#e07a2a', '#3a6fc0', '#c23b3b', '#e0c03a']) }, 11, g);
+          return true;
+        },
+        fogata(ax, ay) {
+          const g = ++grupo;
+          if (!libre(ax, ay, 15, g, 10)) return false;
+          const n = 3 + ((Math.random() * 2) | 0), a0 = rnd(0, TAU);
+          const ronda = [];
+          for (let k = 0; k < n; k++) ronda.push({ a: a0 + k / n * TAU + rnd(-0.3, 0.3), ...gente() });
+          poner({ t: 'fogata', x: ax, y: ay, gente: ronda }, 15, g);
+          return true;
+        },
+        chiringuito(ax, ay, ux, uy, nx, ny) {
+          // Va con la espalda contra el borde de la arena (como los puestos de la
+          // costanera): del lado de tierra alcanza con que no sea calle ni edificio.
+          const g = ++grupo;
+          if (!arena(ax, ay) || shoreDist(ax, ay) < 22 || pisa(ax, ay, 15, g)) return false;
+          if (cercaDePuente(ax, ay, 15 + BEACH_BRIDGE_CLEAR) || cercaDeEsquina(ax, ay, 15)) return false;
+          const hb = mundo.hitBuilding(ax, ay, 18);
+          if (hb && !hb.water) return false;
+          for (let k = 0; k < 8; k++) {
+            const a = k / 8 * TAU, qx = ax + Math.cos(a) * 15, qy = ay + Math.sin(a) * 15;
+            const haciaTierra = Math.cos(a) * nx + Math.sin(a) * ny > 0.3;
+            if (haciaTierra ? (mundo.onRoad(qx, qy) || inWater(qx, qy) || inBridgeCorridor(qx, qy)) : !arena(qx, qy)) return false;
+          }
+          // El mostrador da al agua (al lado de la caja que mas mira para alla)
+          const fx = Math.abs(nx) > Math.abs(ny) ? -Math.sign(nx) : 0, fy = fx ? 0 : -Math.sign(ny);
+          const fila = [];
+          const cola = 2 + ((Math.random() * 3) | 0);
+          for (let k = 0; k < cola; k++) {
+            const o = (k - (cola - 1) / 2) * 7 + rnd(-1, 1);
+            fila.push({ dx: fx * rnd(13, 17) + (fx ? 0 : o), dy: fy * rnd(13, 17) + (fy ? 0 : o), ...gente() });
+          }
+          poner({ t: 'chiringuito', x: ax, y: ay, fx, fy, col: pick(['#d23c3c', '#2f6fc0', '#e0a020', '#3a9a52']),
+            cartel: pick(['CHORI', 'CHORI', 'BIRRA', 'PATY', 'PANCHO']), gente: fila }, 15, g);
+          // Sombrillas con mesitas al costado
+          for (const lado of [-1, 1]) {
+            if (Math.random() < 0.35) continue;
+            G_.balneario(ax + ux * lado * 38 - nx * 6, ay + uy * lado * 38 - ny * 6, ux, uy, nx, ny);
+          }
+          return true;
+        },
+        guardavidas(ax, ay, ux, uy, nx, ny) {
+          const g = ++grupo;
+          if (!libre(ax, ay, 9, g, 12)) return false;
+          poner({ t: 'guardavidas', x: ax, y: ay, a: alAgua(nx, ny) }, 9, g);
+          return true;
+        },
+        voley(ax, ay, ux, uy) {
+          const g = ++grupo;
+          if (!libre(ax, ay, 25, g, 10)) return false;
+          const jug = [];
+          for (const [u, v] of [[-14, -5], [-11, 6], [12, -6], [15, 5]]) jug.push({ u: u + rnd(-2, 2), v: v + rnd(-2, 2), ...gente() });
+          poner({ t: 'voley', x: ax, y: ay, a: Math.atan2(uy, ux), seed: rnd(0, 10), gente: jug }, 25, g);
+          return true;
+        },
+      };
+      // Para que las toallas de un mismo grupo no queden una encima de la otra
+      const pisaDelGrupo = (g, x, y, d) => {
+        for (const o of celdas.get(((x / CEL) | 0) * 4096 + ((y / CEL) | 0)) || []) {
+          if (o.g === g && Math.hypot(o.x - x, o.y - y) < d) return true;
+        }
+        return false;
+      };
+
+      // Recorrido por la costa, de los dos lados del cauce. s: metros de rio recorridos
+      const pts = this.river, ult = {};
+      const espera = { chiringuito: [560, 170], guardavidas: [720, 300], voley: [640, 230], fogata: [380, 260] };
+      const puede = (tipo, s, playon) => !(tipo in espera) || s - (ult[tipo] ?? -1e9) > espera[tipo][playon ? 1 : 0];
+      let acc = 0, s = 0, sGav = 0;
+      const gaviotas = [];
+      for (let i = 1; i < pts.length; i++) {
+        const p = pts[i], paso = Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y);
+        s += paso; acc += paso; sGav += paso;
+        if (acc < BEACH_GROUP_STEP || inBridgeCorridor(p.x, p.y)) continue;
+        acc = 0;
+        const playon = p.t > 0.86;
+        if (sGav > 380) {
+          sGav = 0;
+          const side = Math.random() < 0.5 ? 1 : -1, d = rnd(-p.r * 0.8, p.r + p.band * 0.6);
+          gaviotas.push({ t: 'gaviotas', x: p.x - p.ty * side * d, y: p.y + p.tx * side * d,
+            n: 2 + ((Math.random() * 3) | 0), seed: rnd(0, TAU) });
+        }
+        for (const side of [-1, 1]) {
+          const nx = -p.ty * side, ny = p.tx * side, ux = p.tx, uy = p.ty;
+          for (let c = 0; c < (playon ? 3 : 1); c++) {
+            if (!playon && Math.random() < 0.2) continue; // tramos de arena libre
+            const opciones = [['balneario', 3], ['toallas', playon ? 1.8 : 3], ['palmar', 1.5], ['kayaks', 1.1], ['carpa', 0.6]];
+            if (p.band > 38) {
+              opciones.push(['chiringuito', playon ? 2.5 : 1.4], ['guardavidas', 1.4], ['fogata', 0.9]);
+              if (p.band > 50) opciones.push(['voley', playon ? 2.5 : 1.6]);
+            }
+            const ok = opciones.filter(([tipo]) => puede(tipo, s, playon));
+            let tot = 0;
+            for (const o of ok) tot += o[1];
+            let r = Math.random() * tot, tipo = ok[0][0];
+            for (const o of ok) { r -= o[1]; if (r <= 0) { tipo = o[0]; break; } }
+            const prof = tipo === 'kayaks' ? rnd(11, 13)
+              : playon ? p.band * (0.2 + 0.28 * c) + rnd(-6, 6)
+              : tipo === 'guardavidas' ? p.band * rnd(0.3, 0.45)
+              : tipo === 'chiringuito' ? p.band - rnd(10, 13) : p.band * rnd(0.3, 0.62);
+            const al = rnd(-14, 14);
+            const ax = p.x + nx * (p.r + prof) + ux * al, ay = p.y + ny * (p.r + prof) + uy * al;
+            if (G_[tipo](ax, ay, ux, uy, nx, ny)) ult[tipo] = s;
+            else if (tipo !== 'toallas' && tipo !== 'kayaks') G_.toallas(ax, ay, ux, uy, nx, ny);
+          }
+        }
+      }
+      // Lo que el recorrido no llego a poner (las cosas grandes piden playa ancha) se
+      // busca al azar sobre la arena, sin amontonar dos del mismo tipo. El voley va
+      // en la playa grande de la desembocadura.
+      for (const [tipo, meta, tMin, sep] of [['voley', 3, 0.84, 130], ['chiringuito', 6, 0, 260],
+        ['fogata', 6, 0, 240], ['guardavidas', 5, 0, 400]]) {
+        const hay = this.props.filter(q => q.t === tipo);
+        for (let i = 0; i < 4000 && hay.length < meta; i++) {
+          const x = rnd(0, WORLD), y = rnd(0, WORLD);
+          if (!arena(x, y) || shoreT(x, y) < tMin) continue;
+          if (hay.some(q => Math.hypot(q.x - x, q.y - y) < sep)) continue;
+          const q = riverNearest(x, y), nx = (x - this.river[q.i].x) / (q.d || 1), ny = (y - this.river[q.i].y) / (q.d || 1);
+          if (G_[tipo](x, y, q.tx, q.ty, nx, ny)) hay.push({ x, y });
+        }
+      }
+      // La arena que gano el asfalto de los tramos muertos (lejos de la costa) tambien se usa
+      for (let i = 0, n = 0; i < 6000 && n < 40; i++) {
+        const x = rnd(0, WORLD), y = rnd(0, WORLD);
+        if (!onDeadRoad(x, y) || !arena(x, y)) continue;
+        const horiz = (y % CELL) < roadWidthRow(Math.floor(y / CELL));
+        const ux = horiz ? 1 : 0, uy = horiz ? 0 : 1;
+        const tipo = pick(['balneario', 'toallas', 'palmar']);
+        if (G_[tipo](x, y, ux, uy, uy, ux)) n++;
+      }
+      // Muelles de pescadores: tablones que salen de la arena y entran al agua. Se
+      // dibujan arriba del agua pero no cambian la colision (al agua no se camina).
+      for (const tObj of [0.2, 0.42, 0.62, 0.8, 0.94]) {
+        for (let k = 0; k < 40; k++) {
+          const p = pts[Math.min(pts.length - 1, Math.max(1, Math.round((tObj + rnd(-0.06, 0.06)) * (pts.length - 1))))];
+          if (inBridgeCorridor(p.x, p.y) || p.band < 26) continue;
+          const side = Math.random() < 0.5 ? 1 : -1, nx = -p.ty * side, ny = p.tx * side;
+          const bx = p.x + nx * (p.r + 12), by = p.y + ny * (p.r + 12);
+          const L = 12 + Math.min(p.r * 0.55, rnd(28, 40));
+          const tx = bx - nx * L, ty = by - ny * L;
+          if (!inWater(tx, ty) || !inWater(bx - nx * (L - 10), by - ny * (L - 10))) continue;
+          if (cercaDePuente(tx, ty, 50) || cercaDePuente(bx, by, 50)) continue;
+          const g = ++grupo;
+          if (!libre(bx, by, 7, g, 4)) continue;
+          const pesc = [{ f: 0.92, lado: 1, ...gente() }];
+          if (Math.random() < 0.6) pesc.push({ f: rnd(0.5, 0.7), lado: -1, ...gente() });
+          poner({ t: 'muelle', x: bx, y: by, dx: -nx, dy: -ny, L, gente: pesc }, 7, g);
+          break;
+        }
+      }
+      // Las gaviotas al final: vuelan por arriba de todo lo de la playa
+      this.props.push(...gaviotas);
+      // Las palmeras de vereda que quedaron pegadas a un puente tambien se van:
+      // con la extrusion su copa caia arriba del tablero.
+      for (let i = this.props.length - 1; i >= 0; i--) {
+        const p = this.props[i];
+        if (p.t === 'palm' && !p.g && cercaDePuente(p.x, p.y, BEACH_PALM_CLEAR)) this.props.splice(i, 1);
       }
     }
 
@@ -1044,50 +1341,257 @@ class World {
     }
     g.restore();
 
-    // Riachuelo: cadena de circulos solapados sobre la curva. Como cada uno tiene
-    // su propio radio, la orilla queda irregular en vez de escalonada por celda.
-    // Playa: franja de arena ancha a lo largo de TODO el cauce, no solo en la
-    // desembocadura. Va en dos capas para que la orilla no corte de golpe.
-    g.fillStyle = '#cdbb8a';
-    for (const w2 of this.river) {
-      g.beginPath();
-      g.arc(w2.x, w2.y, w2.r + w2.band, 0, TAU);
-      g.fill();
-    }
-    g.fillStyle = '#dfc98a';
-    for (const w2 of this.river) {
-      g.beginPath();
-      g.arc(w2.x, w2.y, w2.r + w2.band * 0.55, 0, TAU);
-      g.fill();
-    }
-    // El asfalto de los tramos que se borraron pasa a ser playa: es el espacio que
-    // dejo la calle al terminar en la esquina anterior en vez de meterse en el rio.
-    g.fillStyle = '#dfc98a';
-    for (let y = 0; y < WORLD; y += 3) {
-      for (let x = 0; x < WORLD; x += 3) {
-        if (onDeadRoad(x, y) && !inWater(x, y)) g.fillRect(x, y, 3, 3);
-      }
-    }
-    g.fillStyle = 'rgba(150,120,60,.16)'; // granito de la arena
-    for (let i = 0; i < 4200; i++) {
-      const x = rnd(0, WORLD), y = rnd(0, WORLD);
-      if (!sandZone(x, y)) continue;
-      g.fillRect(x, y, rnd(2, 5), rnd(2, 4));
-    }
-    // Sabanas y toallas tiradas en la arena (planas, van horneadas)
+    // Playa: la arena se pinta pixel a pixel segun la distancia a la orilla
+    // (shoreDist), no con circulos: compacta y oscura pegada al agua, la linea de
+    // marea con algas, ramitas y caracoles, y seca y clara tierra adentro, con medanos
+    // suaves y las ondas que deja el viento. El borde contra el pasto lo come el ruido,
+    // asi no queda un arco de compas. Tambien es arena el asfalto de los tramos de
+    // calle que se borraron (el espacio que dejo la calle al terminar en la esquina
+    // anterior en vez de meterse en el rio). Lo de shoreDist < 4 (barro y agua) se
+    // pinta despues, encima.
+    // Se trabaja por bloques de S x S en un canvas chico (createImageData) que despues
+    // se apoya sobre GROUND: leer el canvas gigante con getImageData lo saca de la GPU.
     {
-      const TOALLA = ['#d94f4f', '#4f7fd9', '#d9c44f', '#57b06a', '#d97fb5', '#e8e2d2'];
-      for (let i = 0; i < 520; i++) {
-        const x = rnd(0, WORLD), y = rnd(0, WORLD);
-        if (!sandZone(x, y)) continue;
-        const w2 = rnd(11, 19), h2 = rnd(8, 14);
-        if (!sandZone(x + w2, y + h2)) continue; // que entre entera en la arena
-        g.fillStyle = 'rgba(0,0,0,.13)';
-        g.fillRect(x + 1, y + 2, w2, h2);
-        g.fillStyle = TOALLA[(Math.random() * TOALLA.length) | 0];
-        g.fillRect(x, y, w2, h2);
-        g.fillStyle = 'rgba(255,255,255,.22)'; // rayas
-        for (let k = 2; k < h2 - 1; k += 4) g.fillRect(x, y + k, w2, 1);
+      const h2 = (x, y) => {
+        let n = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263)) | 0;
+        n = Math.imul(n ^ (n >>> 13), 1274126177);
+        return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+      };
+      // Ruido suave de escala s (value noise): medanos, borde y linea de marea
+      const vn = (x, y, s) => {
+        const fx = x / s, fy = y / s, ix = Math.floor(fx), iy = Math.floor(fy);
+        let u = fx - ix, v = fy - iy;
+        u = u * u * (3 - 2 * u); v = v * v * (3 - 2 * v);
+        const k = s * 7919;
+        const a = h2(ix + k, iy), b = h2(ix + 1 + k, iy), c = h2(ix + k, iy + 1), d = h2(ix + 1 + k, iy + 1);
+        return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+      };
+      // Bloques alineados con la grilla de la mascara (WATER_CELL): cada celda se
+      // clasifica una vez (agua, lejos, borde, muerta) y solo se recorre pixel a pixel
+      // lo que puede ser arena.
+      const S = WATER_CELL * 12, tc = document.createElement('canvas');
+      tc.width = tc.height = S;
+      const tg = tc.getContext('2d');
+      const img = tg.createImageData(S, S) || { data: new Uint8ClampedArray(S * S * 4) };
+      const D = img.data;
+      const ESQ = [0, 0, 11, 0, 0, 11, 11, 11, 6, 6]; // puntos de prueba de cada celda
+      const ALGA = [122, 124, 80], RAMITA = [138, 112, 78], CARACOL = [244, 238, 224], CARACOL_ROSA = [228, 176, 164];
+      const sd = (i, j) => SHORE_D[Math.max(0, Math.min(WMW - 1, j)) * WMW + Math.max(0, Math.min(WMW - 1, i))];
+      for (let y0 = 0; y0 < WORLD; y0 += S) {
+        for (let x0 = 0; x0 < WORLD; x0 += S) {
+          let algo = false, limpio = false;
+          for (let cj = 0; cj < S; cj += WATER_CELL) {
+            for (let ci = 0; ci < S; ci += WATER_CELL) {
+              const gi = (x0 + ci) / WATER_CELL, gj = (y0 + cj) / WATER_CELL;
+              // shoreDist adentro de la celda interpola entre los centros vecinos
+              let dmin = Infinity, dmax = -Infinity;
+              for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) {
+                const v = sd(gi + a, gj + b);
+                if (v < dmin) dmin = v;
+                if (v > dmax) dmax = v;
+              }
+              if (dmax < -3) continue; // todo agua
+              const costa = dmin < beachBandAt(shoreT(x0 + ci + 6, y0 + cj + 6)) + 24;
+              let muerta = false;
+              for (let q = 0; q < 10; q += 2) {
+                if (onDeadRoad(x0 + ci + ESQ[q], y0 + cj + ESQ[q + 1])) { muerta = true; break; }
+              }
+              if (!costa && !muerta) continue;
+              if (!limpio) { D.fill(0); limpio = true; }
+              // De a 2x2: la distancia, el color base, los medanos y la marea se sacan
+              // una vez por bloquecito; el grano, las ondas y el borde van por pixel.
+              for (let j = cj; j < cj + WATER_CELL; j += 2) {
+                const y = y0 + j;
+                for (let i = ci; i < ci + WATER_CELL; i += 2) {
+                  const x = x0 + i;
+                  let dd = 999, borde = 99;
+                  const d = costa ? shoreDist(x + 1, y + 1) : 999;
+                  if (d < -3) continue; // agua
+                  const band = costa ? beachBandAt(shoreT(x + 1, y + 1)) : 0;
+                  if (d < band - 9) dd = d;
+                  else if (d < band + 9) {
+                    const e = band + (vn(x, y, 26) - 0.5) * 12 + (vn(x, y, 7) - 0.5) * 4;
+                    if (d < e && (d < band || !this.onRoad(x + 1, y + 1))) { dd = d; borde = e - d; }
+                    else if (!muerta || !onDeadRoad(x + 1, y + 1)) continue;
+                  } else if (!muerta || !onDeadRoad(x + 1, y + 1)) continue;
+                  // Contra un tramo muerto no hay borde: abajo hay asfalto, no pasto
+                  if (borde < 5 && muerta && onDeadRoad(x + 1, y + 1)) borde = 99;
+                  const wet = 1 - smoothstep(3, 17, dd), dry = smoothstep(10, 36, dd);
+                  // media (204,183,131) -> seca (229,211,157), y mojada (150,132,94) en la orilla
+                  let R = 204 + 25 * dry, Gc = 183 + 28 * dry, B = 131 + 26 * dry;
+                  R += (150 - R) * wet; Gc += (132 - Gc) * wet; B += (94 - B) * wet;
+                  const med = vn(x, y, 40) - 0.5; // medanos
+                  let l0 = med * 22 * (0.4 + dry);
+                  if (borde < 5) l0 -= (5 - borde) * 2.2; // el borde, un poco mas tostado
+                  // Linea de marea: algas y ramitas que dejo la crecida
+                  const tl = dd > 7 && dd < 21 ? Math.abs(dd - 14 - (vn(x, y, 13) - 0.5) * 6) : 99;
+                  if (tl < 2.6) l0 -= 6;
+                  for (let b = 0; b < 2; b++) {
+                    for (let a = 0; a < 2; a++) {
+                      const xx = x + a, yy = y + b, r0 = h2(xx, yy);
+                      // Borde picado contra el pasto: pixeles sueltos, como arena volada
+                      if (borde < 3 && r0 < (3 - borde) / 3 * 0.85) continue;
+                      let l = l0 + (r0 - 0.5) * 11, col = null;
+                      if (dry > 0.2) { // ondas del viento en la arena seca, torcidas por los medanos
+                        const rp = Math.sin(xx * 0.55 + yy * 0.32 + med * 14);
+                        if (rp > 0.82) l -= 8 * dry; else if (rp < -0.9) l += 5 * dry;
+                      }
+                      if (tl < 1.1 && r0 < 0.3) col = h2(xx + 1, yy) < 0.6 ? ALGA : RAMITA;
+                      else if (dd > 6 && dd < 60 && r0 > 0.9965) col = h2(xx, yy + 1) < 0.6 ? CARACOL : CARACOL_ROSA;
+                      else if (r0 < 0.004) l -= 30; // piedritas
+                      const k = ((j + b) * S + i + a) * 4;
+                      if (col) { D[k] = col[0]; D[k + 1] = col[1]; D[k + 2] = col[2]; }
+                      else { D[k] = R + l; D[k + 1] = Gc + l; D[k + 2] = B + l; }
+                      D[k + 3] = 255;
+                      algo = true;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if (!algo) continue;
+          tg.putImageData(img, 0, 0);
+          g.drawImage(tc, x0, y0);
+        }
+      }
+      // Pisadas: hileras de huellitas que van y vienen del agua
+      g.fillStyle = 'rgba(110,88,52,.32)';
+      for (let i = 0, n = 0; i < 4000 && n < 140; i++) {
+        let x = rnd(0, WORLD), y = rnd(0, WORLD);
+        if (!sandZone(x, y) || shoreDist(x, y) < 8) continue;
+        n++;
+        let a = rnd(0, TAU);
+        for (let k = 0; k < 26; k++) {
+          a += rnd(-0.25, 0.25);
+          x += Math.cos(a) * 3.2; y += Math.sin(a) * 3.2;
+          if (!sandZone(x, y) || shoreDist(x, y) < 5) break;
+          const sg = k % 2 ? 1.3 : -1.3;
+          g.fillRect(px(x - Math.sin(a) * sg), px(y + Math.cos(a) * sg), 1, 1);
+        }
+      }
+      // Lo chato de la playa va horneado: toallas (con gente tomando sol), reposeras,
+      // conservadoras, kayaks varados, la cancha de voley y el circulo del fogon.
+      const acostado = (x, y, a, gt, largo) => {
+        g.save();
+        g.translate(x, y);
+        g.rotate(a);
+        g.fillStyle = 'rgba(0,0,0,.18)';
+        g.fillRect(-largo / 2 + 1, -1, largo, 3.5);
+        g.fillStyle = gt.piel;
+        g.fillRect(-largo / 2, -1.5, largo * 0.42, 3);           // piernas
+        g.fillRect(-largo / 2 + largo * 0.55, -2, largo * 0.3, 4); // torso
+        g.fillRect(-largo / 2 + largo * 0.5, -3, 3, 1);           // brazos
+        g.fillRect(-largo / 2 + largo * 0.5, 2, 3, 1);
+        g.fillStyle = gt.malla;
+        g.fillRect(-largo / 2 + largo * 0.4, -2, largo * 0.17, 4);
+        g.beginPath();
+        g.arc(largo / 2 - 1.5, 0, 1.9, 0, TAU);
+        g.fillStyle = gt.piel;
+        g.fill();
+        g.fillStyle = 'rgba(40,28,18,.8)'; // pelo
+        g.fillRect(largo / 2 - 1, -1.5, 1.5, 3);
+        g.restore();
+      };
+      for (const p of this.props) {
+        if (p.t === 'toalla') {
+          g.save();
+          g.translate(p.x, p.y);
+          g.rotate(p.a);
+          g.fillStyle = 'rgba(0,0,0,.14)';
+          g.fillRect(-7, -3.5, 16, 9);
+          g.fillStyle = p.col;
+          g.fillRect(-8, -4.5, 16, 9);
+          g.fillStyle = 'rgba(255,255,255,.3)'; // rayas y flecos
+          g.fillRect(-4, -4.5, 2, 9);
+          g.fillRect(3, -4.5, 2, 9);
+          g.fillRect(-9, -4, 1, 8);
+          g.fillRect(8, -4, 1, 8);
+          g.restore();
+          // tomando sol: la cabeza para el lado de tierra (a + PI)
+          if (p.gente) acostado(p.x, p.y, p.a + Math.PI, p.gente, 13);
+        } else if (p.t === 'reposera') {
+          g.save();
+          g.translate(p.x, p.y);
+          g.rotate(p.a);
+          g.fillStyle = 'rgba(0,0,0,.2)';
+          g.fillRect(-6, -1, 15, 6);
+          g.fillStyle = '#8a7a62'; // armazon
+          g.fillRect(-7, -3.5, 14, 7);
+          g.fillStyle = p.col;
+          g.fillRect(-6.5, -2.5, 13, 5);
+          g.fillStyle = 'rgba(255,255,255,.35)';
+          g.fillRect(-6.5, -0.5, 13, 1);
+          g.fillStyle = 'rgba(0,0,0,.22)'; // respaldo levantado
+          g.fillRect(-7, -3.5, 4, 7);
+          g.restore();
+          if (p.gente) acostado(p.x, p.y, p.a + Math.PI, p.gente, 12);
+        } else if (p.t === 'conservadora') {
+          g.save();
+          g.translate(p.x, p.y);
+          g.rotate(p.a);
+          g.fillStyle = 'rgba(0,0,0,.25)';
+          g.fillRect(-2, -1, 6, 5);
+          g.fillStyle = p.col;
+          g.fillRect(-3, -2.5, 6, 5);
+          g.fillStyle = '#f2f2ee';
+          g.fillRect(-3, -2.5, 6, 1.5);
+          g.restore();
+        } else if (p.t === 'kayak') {
+          g.save();
+          g.translate(p.x, p.y);
+          g.rotate(p.a);
+          const L = p.bote ? 20 : 17, W = p.bote ? 8 : 4.5;
+          g.fillStyle = 'rgba(0,0,0,.2)';
+          g.beginPath();
+          g.ellipse(1, 1.5, L / 2, W / 2, 0, 0, TAU);
+          g.fill();
+          g.fillStyle = p.bote ? '#7a5634' : p.col;
+          g.beginPath();
+          g.ellipse(0, 0, L / 2, W / 2, 0, 0, TAU);
+          g.fill();
+          if (p.bote) {
+            g.fillStyle = '#a07a4e'; // adentro del bote y sus bancos
+            g.beginPath();
+            g.ellipse(0, 0, L / 2 - 1.5, W / 2 - 1.2, 0, 0, TAU);
+            g.fill();
+            g.fillStyle = '#5e4128';
+            g.fillRect(-3, -W / 2 + 1, 1.5, W - 2);
+            g.fillRect(3, -W / 2 + 1, 1.5, W - 2);
+          } else {
+            g.fillStyle = '#1d1d22'; // la cabina
+            g.fillRect(-1.5, -1, 4, 2);
+            g.fillStyle = 'rgba(255,255,255,.3)';
+            g.fillRect(-L / 2 + 2, -0.5, L - 4, 0.8);
+            g.fillStyle = '#d8d3c4'; // el remo tirado al lado
+            g.fillRect(-6, W / 2 + 1, 12, 0.8);
+          }
+          g.restore();
+        } else if (p.t === 'voley') {
+          g.save();
+          g.translate(p.x, p.y);
+          g.rotate(p.a);
+          g.fillStyle = 'rgba(120,96,58,.13)'; // arena pisoteada
+          g.fillRect(-24, -12, 48, 24);
+          g.strokeStyle = 'rgba(70,52,30,.45)';
+          g.lineWidth = 1;
+          g.strokeRect(-22.5, -10.5, 45, 21);
+          g.restore();
+        } else if (p.t === 'fogata') {
+          for (const q of p.gente) { // troncos para sentarse
+            g.fillStyle = 'rgba(0,0,0,.18)';
+            g.fillRect(px(p.x + Math.cos(q.a) * 10 - 2), px(p.y + Math.sin(q.a) * 10), 5, 2);
+          }
+          g.fillStyle = 'rgba(40,30,22,.55)'; // ceniza
+          g.beginPath();
+          g.arc(p.x, p.y, 4.5, 0, TAU);
+          g.fill();
+          for (let k = 0; k < 9; k++) { // piedras
+            const a = k / 9 * TAU;
+            g.fillStyle = k % 2 ? '#8d8a80' : '#6f6c64';
+            g.fillRect(px(p.x + Math.cos(a) * 5.5 - 1), px(p.y + Math.sin(a) * 5.5 - 1), 2, 2);
+          }
+        }
       }
     }
     // Agua horneada pixel a pixel con la distancia a la orilla (shoreDist, interpolada

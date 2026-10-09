@@ -93,6 +93,13 @@ const BRIDGE_STREET_STYLES = ['celeste', 'hormigon', 'boca'];
 const BRIDGE_PIER_GAP = 58;   // separacion de las pilas en el agua
 const BRIDGE_LAMP_GAP = 64;   // separacion de los faroles sobre el puente
 
+// Playa: cada cuanto (en px de rio) se arma un grupito de cosas en la arena, y cuanto
+// lugar se deja libre alrededor del corredor de cada puente (las palmeras mas, porque
+// su copa se extruye lejos del tronco y tapaba el tablero)
+const BEACH_GROUP_STEP = 52;
+const BEACH_BRIDGE_CLEAR = 20;
+const BEACH_PALM_CLEAR = 34;
+
 // Plaza de Mayo: explanada maciza de 2x2 celdas, sin calles cruzandola
 const PLAZA_MAYO_CELLS = 2;
 
