@@ -4,7 +4,7 @@
 const { describe, test } = require('node:test');
 const fs = require('fs'), assert = require('assert');
 const scriptFiles = [
-  'constants.js', 'utils.js', 'input.js', 'world.js',
+  'constants.js', 'utils.js', 'audio.js', 'input.js', 'world.js',
   'entities.js', 'traffic.js', 'game.js', 'renderer.js', 'ui.js'
 ];
 let js = scriptFiles.map(f => fs.readFileSync(__dirname + '/js/' + f, 'utf8')).join('\n');
@@ -36,7 +36,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -46,7 +46,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game} = api;
 
 describe('helpers de color', () => {
   test('shade y mix componen colores validos', () => {
@@ -897,6 +897,27 @@ describe('jugador', () => {
   });
 });
 
+describe('audio', () => {
+  test('sin Web Audio no suena ni rompe', () => {
+    startGame(CREW[0]);
+    assert.equal(sound.ctx, null, 'en Node no hay AudioContext');
+    sound.update();
+    const a = sfx('explosion', G.me.x, G.me.y);
+    assert.ok(a && a.vol > 0.99, 'igual calcula cuanto se escucha');
+    for (let f = 0; f < 120; f++) update(1/60);
+  });
+
+  test('se escucha segun la distancia y del lado que pasa', () => {
+    const P = { x: 1000, y: 1000 };
+    assert.ok(Math.abs(audibleFor(P, 1000, 1000).vol - 1) < 1e-9, 'encima: a todo volumen');
+    assert.ok(audibleFor(P, 1100, 1000).pan > 0, 'a la derecha suena a la derecha');
+    assert.ok(audibleFor(P, 900, 1000).pan < 0, 'a la izquierda suena a la izquierda');
+    assert.ok(audibleFor(P, 1100, 1000).vol > audibleFor(P, 1300, 1000).vol, 'mas lejos, mas bajo');
+    assert.equal(audibleFor(P, 1000 + AUDIO_R, 1000), null, 'lejos no se escucha');
+    assert.equal(audibleFor(null, 0, 0), null, 'sin jugador local no suena nada');
+  });
+});
+
 describe('multijugador', () => {
   // Pone a P sobre la calle, a d px de G.me (en una dirección donde haya calle libre)
   const lejos = (P, d) => {
@@ -1022,6 +1043,32 @@ describe('multijugador', () => {
     G.bullets.push({ x: P2.x - 20, y: P2.y, vx: 1200, vy: 0, life: 1, owner: P2, dmg: 20 });
     update(1/60);
     assert.equal(P2.hp, hp1, 'la bala propia no lastima al que la tiro');
+  });
+
+  test('cada uno escucha lo que pasa cerca suyo', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    lejos(P2, AUDIO_R + 300);
+    for (let f = 0; f < 5; f++) update(1/60);
+    const heard = [], play = sound.play;
+    sound.play = function (name, x, y, k) { const a = play.call(this, name, x, y, k); heard.push({ name, a }); return a; };
+    try {
+      G.peds = []; G.cops = [];
+      P2.cool = 0; P2.wpn = 'pistola'; P2.ctl = { ...idleControls(), fire: true };
+      update(1/60);
+      const shot2 = heard.find(h => h.name === 'pistola');
+      assert.ok(shot2, 'el tiro del otro avisa que hubo un tiro');
+      assert.equal(shot2.a, null, 'pero en esta pantalla no se escucha: esta lejos');
+      heard.length = 0;
+      P2.ctl = idleControls();
+      G.me.wpn = 'pistola';
+      game.attack(G.me);
+      assert.ok(heard.some(h => h.name === 'pistola' && h.a && h.a.vol > 0.9), 'el tiro propio se escucha fuerte');
+      assert.equal(sfxFor(P2, 'guita'), null, 'los avisos del otro (guita, busqueda) no suenan aca');
+      assert.ok(sfxFor(G.me, 'guita'), 'los propios si');
+    } finally {
+      sound.play = play;
+    }
   });
 
   test('con otros jugando, morir reaparece solo al muerto', () => {

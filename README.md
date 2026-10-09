@@ -21,6 +21,7 @@ Juego estilo GTA top-down retro 2D desarrollado en HTML5 Canvas y JavaScript van
 | <kbd>M</kbd> | Mapa global |
 | <kbd>+</kbd> <kbd>-</kbd> | Zoom del mapa (con el mapa abierto) |
 | <kbd>P</kbd> | Pausa (solo jugando solo) |
+| <kbd>N</kbd> | Prender / apagar el sonido |
 
 ---
 
@@ -94,11 +95,11 @@ El Riachuelo cruza el mapa con meandros y desemboca en la playa grande.
 Lista de características planificadas y mejoras en desarrollo. Cada ítem linkea al issue correspondiente:
 
 ### 🔊 Audio & Efectos de sonido
-- [ ] Agregar efectos de sonido (SFX) (#70):
-  - [ ] Disparos e impactos de balas
-  - [ ] Sirenas de la policía al subir el nivel de búsqueda
-  - [ ] Sonido de motores, aceleración, frenadas y choques de autos
-  - [ ] Sonido al levantar fajos de guita
+- [x] Agregar efectos de sonido (SFX) (#70):
+  - [x] Disparos e impactos de balas
+  - [x] Sirenas de la policía al subir el nivel de búsqueda
+  - [x] Sonido de motores, aceleración, frenadas y choques de autos
+  - [x] Sonido al levantar fajos de guita
 - [ ] Música de fondo / radio de los vehículos estilo GTA retro (#71)
 
 ### 🎭 Personajes & Lore
