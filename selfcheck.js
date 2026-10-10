@@ -5,7 +5,7 @@ const { describe, test } = require('node:test');
 const fs = require('fs'), assert = require('assert');
 const scriptFiles = [
   'constants.js', 'utils.js', 'audio.js', 'songs.js', 'instruments.js', 'radio.js', 'input.js', 'world.js',
-  'entities.js', 'traffic.js', 'game.js', 'renderer.js', 'ui.js'
+  'entities.js', 'traffic.js', 'game.js', 'renderer.js', 'net.js', 'ui.js', 'shop.js'
 ];
 let js = scriptFiles.map(f => fs.readFileSync(__dirname + '/js/' + f, 'utf8')).join('\n');
 
@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,shop,say,input,packCtl,unpackCtl};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,shop,say,input,packCtl,unpackCtl} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -1273,5 +1273,206 @@ describe('multijugador', () => {
     assert.ok(G.me.car === car, 'el local sigue en su auto');
     assert.ok(P2.car !== car, 'el otro no se lo puede robar');
     assert.ok(driverOf(car) === G.me);
+  });
+});
+
+// Online: un host y un cliente, cada uno con su propia copia del juego, conectados por una
+// red de mentira en memoria (los mensajes pasan por JSON, como por WebRTC)
+describe('multijugador online', () => {
+  const C = new Function(js + `
+;return {G,net,world,buildCity,bakeGround,buildings,CREW,render,input,shop,villas,update,VERSION};`)();
+
+  // Red en memoria: cada pantalla es un nodo. Nada se entrega hasta pump(), como en la red de verdad.
+  const redLocal = () => {
+    const nodes = new Map(), q = [];
+    let n = 0;
+    const make = () => {
+      const id = 'peer' + (++n);
+      const t = { id, onMsg: null, onJoin: null, onLeave: null };
+      t.send = (type, data, to) => {
+        const raw = JSON.stringify(data);
+        for (const pid of nodes.keys()) if (pid !== id && (!to || to === pid)) q.push([pid, 'msg', type, JSON.parse(raw), id]);
+      };
+      t.leave = () => {
+        nodes.delete(id);
+        for (const pid of nodes.keys()) q.push([pid, 'leave', id]);
+      };
+      for (const pid of nodes.keys()) { q.push([pid, 'join', id]); q.push([id, 'join', pid]); }
+      nodes.set(id, t);
+      return t;
+    };
+    const pump = () => {
+      while (q.length) {
+        const [to, kind, a, b, c] = q.shift(), t = nodes.get(to);
+        if (!t) continue;
+        if (kind === 'join' && t.onJoin) t.onJoin(a);
+        if (kind === 'leave' && t.onLeave) t.onLeave(a);
+        if (kind === 'msg' && t.onMsg) t.onMsg(a, b, c);
+      }
+    };
+    return { make, pump, nodes };
+  };
+  const tick = () => new Promise(r => setImmediate(r));
+  const ciudad = b => JSON.stringify(b.map(o => [o.x | 0, o.y | 0, o.w | 0, o.h | 0]));
+
+  // Un frame de los dos lados: el host simula y manda la foto, el cliente la anima
+  const frame = red => {
+    update(1/60);
+    net.tick(1/60);
+    red.pump();
+    if (C.G.state === 'play') C.net.clientFrame(1/60);
+    else C.net.tick(1/60);
+    red.pump();
+  };
+
+  // Arma la sala y mete al cliente. Devuelve la red y el jugador del cliente en el host.
+  const conectar = async () => {
+    const red = redLocal();
+    for (const N of [net, C.net]) {
+      N.leave();
+      Object.assign(N, { role: null, hostId: null, myId: null, gone: false, ents: {}, onLost: null, onEnter: null });
+      N.makeTransport = red.make;
+    }
+    if (!buildings.length) { buildCity(); bakeGround(); }
+    startGame(CREW[0]);
+    await net.host('ABCDE');
+    const info = C.net.probe('ABCDE');
+    for (let i = 0; i < 5; i++) { await tick(); red.pump(); }
+    const d = await info;
+    if (world.seed !== C.world.seed) { C.buildCity(d.seed); C.bakeGround(); }
+    C.net.join(2);
+    red.pump();
+    for (let f = 0; f < 10; f++) frame(red);
+    const P2 = G.players.find(p => p.peer);
+    return { red, info: d, P2 };
+  };
+
+  test('el cliente arma la misma ciudad con la semilla del host y entra a la sala', async () => {
+    const { info, P2 } = await conectar();
+    assert.equal(info.seed, world.seed, 'el host pasa su semilla');
+    assert.equal(ciudad(C.buildings), ciudad(buildings), 'misma semilla, misma ciudad');
+    assert.equal(G.players.length, 2, 'el host suma al que entra');
+    assert.ok(P2 && P2.def === CREW[2], 'con el personaje que eligio');
+    assert.equal(C.G.state, 'play', 'el cliente ya esta jugando');
+    assert.equal(C.G.me.id, P2.id, 'el cliente es ese jugador');
+    assert.equal(C.G.players.length, 2, 'y ve a los dos');
+    assert.ok(C.G.cars.length > 5 && C.G.peds.length > 5, 've los autos y la gente de alrededor');
+    assert.ok(C.G.pickups.length === G.pickups.length, 've todos los fierros y la guita del mapa');
+    assert.equal(C.G.tranzas.length, G.tranzas.length, 'los tranzas son los mismos');
+    C.render();
+  });
+
+  test('el cliente se maneja con sus controles y ve lo que simula el host', async () => {
+    const { red, P2 } = await conectar();
+    let moved = 0;
+    for (const k of ['KeyD', 'KeyA', 'KeyS', 'KeyW']) {
+      const x0 = P2.x, y0 = P2.y;
+      C.input.keys[k] = true;
+      for (let f = 0; f < 25; f++) frame(red);
+      C.input.keys[k] = false;
+      moved = Math.max(moved, Math.hypot(P2.x - x0, P2.y - y0));
+    }
+    for (let f = 0; f < 30; f++) frame(red);
+    assert.ok(moved > 5, 'el host mueve al jugador del cliente: ' + moved.toFixed(1));
+    assert.ok(Math.hypot(C.G.me.x - P2.x, C.G.me.y - P2.y) < 3, 'y el cliente lo ve donde esta');
+    const H = G.players.find(p => p !== P2), h = C.G.players.find(p => p.id === H.id);
+    assert.ok(Math.hypot(h.x - H.x, h.y - H.y) < 3, 'el cliente ve al host donde esta');
+    assert.equal(G.me, H, 'los controles del cliente no mueven al host');
+    for (let f = 0; f < 60; f++) { frame(red); if (f % 20 === 0) C.render(); }
+    for (const o of C.G.cars.concat(C.G.peds, C.G.players)) assert.ok(Number.isFinite(o.x) && Number.isFinite(o.y), 'sin NaN en el cliente');
+  });
+
+  test('un toque corto llega aunque se suelte antes del frame', () => {
+    const P = { net: { ctl: idleControls(), tap: {} }, ctl: idleControls() };
+    net.role = 'host';
+    net.peers.set('x', { P, known: new Set(), ev: [] });
+    net.onHostMsg('ctl', packCtl({ ...idleControls(), use: true }), 'x');
+    net.onHostMsg('ctl', packCtl(idleControls()), 'x');
+    net.applyControls();
+    assert.ok(P.ctl.use, 'el toque se ve un frame');
+    net.applyControls();
+    assert.ok(!P.ctl.use, 'y despues se suelta');
+    net.peers.delete('x');
+    assert.deepEqual(unpackCtl(packCtl({ ...idleControls(), x: -1, y: 0.5, fire: true, slot: 3 })),
+      { ...idleControls(), x: -1, y: 0.5, fire: true, slot: 3 }, 'los controles van y vuelven iguales');
+  });
+
+  test('mensajes, temblor y efectos llegan a la pantalla del que corresponde', async () => {
+    const { red, P2 } = await conectar();
+    G.msg = '';
+    say('SOLO PARA EL CLIENTE', 2, P2);
+    game.shakeFor(P2, 5);
+    game.flashFor(P2, 0.6);
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.equal(C.G.msg, 'SOLO PARA EL CLIENTE', 'el mensaje llega al cliente');
+    assert.notEqual(G.msg, 'SOLO PARA EL CLIENTE', 'y no sale en la pantalla del host');
+    assert.ok(C.G.shake > 0 && C.G.flash > 0, 'tiembla y se ilumina la pantalla del cliente');
+    C.G.fx.length = 0;
+    game.explode(P2.x + 30, P2.y, 10, 0);
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(C.G.fx.length > 20, 'el cliente ve la explosion cerca suyo: ' + C.G.fx.length);
+  });
+
+  test('las compras del cliente las hace el host', async () => {
+    const { red, P2 } = await conectar();
+    const b = shops[0], d = b.door;
+    P2.x = d.x + d.ox; P2.y = d.y + d.oy; P2.car = null;
+    P2.money = 5000; P2.wanted = 0;
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(P2.nearShop, 'esta en la puerta de la armeria');
+    assert.ok(C.G.me.nearShop, 'y el cliente lo sabe (cartel para entrar)');
+    C.input.keys.KeyE = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = false;
+    assert.ok(C.G.shopOpen, 'la armeria se abre en la pantalla del cliente');
+    assert.ok(!G.shopOpen, 'y no en la del host');
+    const i = C.shop.items.findIndex(it => it.id === 'ak');
+    C.shop.buy(i);
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(P2.inv.ak > 0 && P2.money < 5000, 'el host le vende');
+    assert.ok(C.G.me.inv.ak > 0 && C.G.me.money === P2.money, 'el cliente ve el fierro y la guita');
+    assert.equal(C.G.me.inv.pistola, Infinity, 'la 9mm sigue con balas infinitas');
+    C.shop.close();
+  });
+
+  test('las fotos son chicas y lo que no cambia se manda una vez', async () => {
+    const { red, P2 } = await conectar();
+    const peer = net.peers.get(P2.peer);
+    const a = JSON.stringify(net.snapshot({ ...peer, known: new Set() })).length;
+    const b = JSON.stringify(net.snapshot(peer)).length;
+    console.log('  foto entera: ' + (a / 1024).toFixed(1) + ' KB, despues: ' + (b / 1024).toFixed(1) + ' KB');
+    assert.ok(b < a, 'sin los colores y caras repetidos es mas chica');
+    assert.ok(b < 24 * 1024, 'una foto entra holgada (20 por segundo)');
+  });
+
+  test('si se va el cliente el host lo saca; si se va el host el cliente se entera', async () => {
+    let { red } = await conectar();
+    C.net.leave();
+    red.pump();
+    assert.equal(G.players.length, 1, 'el host sigue solo');
+    ({ red } = await conectar());
+    let lost = null;
+    C.net.onLost = m => { lost = m; };
+    net.leave();
+    red.pump();
+    assert.ok(lost, 'el cliente se entera de que se corto');
+    assert.equal(C.G.state, 'net', 'y deja de jugar');
+    net.role = null;
+  });
+
+  test('no entra a una sala llena ni con otra version', async () => {
+    const { red } = await conectar();
+    const hostId = [...red.nodes.keys()][0], no = [];
+    const t = red.make();
+    t.onMsg = (type, d) => { if (type === 'bienv') no.push(d.no); };
+    t.send('hola', { crew: 0, v: 'otra' }, hostId);
+    red.pump();
+    for (let i = G.players.length; i < MAX_PLAYERS; i++) addPlayer(CREW[0]);
+    t.send('hola', { crew: 0, v: C.VERSION }, hostId);
+    red.pump();
+    assert.deepEqual(no, ['VERSION', 'LLENA'], 'otra version y sala llena no entran');
+    assert.equal(G.players.length, MAX_PLAYERS);
+    net.leave();
+    net.role = null;
   });
 });

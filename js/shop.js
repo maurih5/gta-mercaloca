@@ -56,10 +56,9 @@ class ShopManager {
     if (G.me) G.me.cool = 0.5;
   }
 
-  // Qué se puede hacer con cada ítem según lo que ya tiene el jugador
-  // La tienda es del jugador local (G.me)
-  status(it) {
-    const P = G.me;
+  // Qué se puede hacer con cada ítem según lo que ya tiene el jugador.
+  // La ventana es del jugador local (G.me); en red la compra la hace el host (purchase)
+  status(it, P = G.me) {
     if (it.id === 'porro') {
       return P.porros >= PORRO_MAX
         ? { can: false, label: 'BOLSILLO LLENO' }
@@ -81,26 +80,35 @@ class ShopManager {
   }
 
   buy(i) {
-    const it = this.items[i], st = this.status(it), P = G.me;
-    if (!st.can) return;
-    if (P.money < st.price) {
-      this.say('NO TE ALCANZA LA GUITA', true);
+    if (!this.status(this.items[i]).can) return;
+    // Conectado a la sala de otro: le pide la compra al host, que contesta con el cartel
+    if (net.client) {
+      net.buy(this.kind, i);
       return;
     }
+    const r = this.purchase(G.me, this.items[i]);
+    if (r) this.say(r.msg, r.bad);
+    this.render();
+  }
+
+  // Le vende it a P (le cobra y le da lo que compró). Devuelve el cartel para la tienda.
+  purchase(P, it) {
+    const st = it && this.status(it, P);
+    if (!st || !st.can) return null;
+    if (P.money < st.price) return { msg: 'NO TE ALCANZA LA GUITA', bad: true };
     P.money -= st.price;
     if (it.id === 'porro') {
       P.porros++;
-      this.say('UNO MAS AL BOLSILLO. APRETA F PARA FUMAR');
-    } else if (it.id === 'chaleco') {
-      P.armor = 100;
-      this.say('CHALECO PUESTO');
-    } else {
-      const refill = it.id in P.inv;
-      game.giveWeapon(P, it.id, it.ammo || 0);
-      P.wpn = it.id;
-      this.say(refill ? 'BALAS CARGADAS' : WEAPONS[it.id].name + ' COMPRADA');
+      return { msg: 'UNO MAS AL BOLSILLO. APRETA F PARA FUMAR' };
     }
-    this.render();
+    if (it.id === 'chaleco') {
+      P.armor = 100;
+      return { msg: 'CHALECO PUESTO' };
+    }
+    const refill = it.id in P.inv;
+    game.giveWeapon(P, it.id, it.ammo || 0);
+    P.wpn = it.id;
+    return { msg: refill ? 'BALAS CARGADAS' : WEAPONS[it.id].name + ' COMPRADA' };
   }
 
   say(t, bad) {

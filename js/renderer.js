@@ -2018,6 +2018,16 @@ class Renderer {
     }
   }
 
+  // El nombre de los otros jugadores arriba de la cabeza, con el color de su remera
+  drawPlayerTags() {
+    for (const q of G.players) {
+      if (q === G.me || q.dead || q.healing) continue;
+      const x = q.x - G.cam.x, y = q.y - G.cam.y - (q.car ? 14 : 18);
+      if (x < -60 || y < -30 || x > RW + 60 || y > RH + 30) continue;
+      this.text(q.def.name, px(x), px(y), q.def.shirt, 4, 'center');
+    }
+  }
+
   // El HUD es del jugador local (G.me): su guita, su búsqueda, su arresto
   drawHUD() {
     const ctx = this.ctx;
@@ -2048,6 +2058,10 @@ class Renderer {
     const ammo = P.inv[P.wpn];
     this.text(WEAPONS[P.wpn].short + (ammo === Infinity ? '' : ' ' + ammo), 36, 40, '#e8e8e8', 6);
     this.text(P.def.name, 7, 13, '#ffd34a', 8);
+    // Jugando online: el código de la sala (para pasarlo) y cuántos hay
+    if (net.role && net.code) {
+      this.text('SALA ' + net.code + ' - ' + G.players.length + '/' + MAX_PLAYERS, RW / 2, 9, '#9ad0ff', 6, 'center');
+    }
     const h = Math.floor(dayT() * 24), mm = Math.floor(((dayT() * 24) % 1) * 60);
     this.text(String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0'), 7, 26, '#cfcfcf', 7);
 
@@ -2255,6 +2269,7 @@ class Renderer {
 
     this.drawLights(night);
     this.drawFamousTags();
+    this.drawPlayerTags();
     ctx.restore();
 
     // Porro: gradiente verde que respira mientras dura la cámara lenta

@@ -349,6 +349,14 @@ class SoundManager {
 }
 
 const sound = new SoundManager();
-const sfx = (name, x, y, k) => sound.play(name, x, y, k);
+// En red, el host además se lo manda a los demás: cada uno lo escucha desde donde está
+const sfx = (name, x, y, k) => {
+  net.fx(['s', x, y, name, k]);
+  return sound.play(name, x, y, k);
+};
 // Avisos que son solo del jugador (levantó guita, lo buscan, lo agarraron): suenan si es G.me
-const sfxFor = (P, name) => (P === G.me ? sound.play(name, P.x, P.y) : null);
+const sfxFor = (P, name) => {
+  if (P === G.me) return sound.play(name, P.x, P.y);
+  if (P) net.to(P, ['S', name]);
+  return null;
+};

@@ -6,6 +6,25 @@ const TAU = Math.PI * 2;
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 
+// Corre fn con Math.random sembrado (mulberry32): con la misma semilla sale siempre lo
+// mismo. Así todos los jugadores de una sala generan la misma ciudad.
+function withSeed(seed, fn) {
+  const orig = Math.random;
+  let a = seed >>> 0;
+  Math.random = () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  try {
+    return fn();
+  } finally {
+    Math.random = orig;
+  }
+}
+
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
 const lerp = (a, b, t) => a + (b - a) * t;

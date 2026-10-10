@@ -67,15 +67,19 @@ class Game {
   }
 
   // Los mensajes y el temblor son de la pantalla local: lo que le pasa a otro jugador
-  // no se le muestra a este (con P = null es para todos)
+  // se le manda a su pantalla por la red (con P = null es para esta pantalla)
   say(t, s = 2.6, P = null) {
-    if (P && P !== G.me) return;
+    if (P && P !== G.me) {
+      net.to(P, ['m', t, s]);
+      return;
+    }
     G.msg = t;
     G.msgT = s;
   }
 
   shakeFor(P, n) {
     if (P === G.me) G.shake += n;
+    else if (P) net.to(P, ['k', n]);
   }
 
   nearMe(x, y) {
@@ -84,6 +88,24 @@ class Game {
 
   shakeAt(x, y, n) {
     if (this.nearMe(x, y)) G.shake += n;
+    net.fx(['K', x, y, n]);
+  }
+
+  // Fogonazo blanco en la pantalla de P, o en la de todos los que estén cerca de (x, y)
+  flashFor(P, v) {
+    if (P === G.me) G.flash = Math.max(G.flash, v);
+    else if (P) net.to(P, ['f', v]);
+  }
+
+  flashAt(x, y, v) {
+    if (this.nearMe(x, y)) G.flash = Math.max(G.flash, v);
+    net.fx(['F', x, y, v]);
+  }
+
+  // La armería y el tranza se abren en la pantalla del jugador que entró
+  openShop(P, kind) {
+    if (P === G.me) shop.open(kind);
+    else net.to(P, ['shop', kind]);
   }
 
   snapCam() {
@@ -247,7 +269,7 @@ class Game {
     decal(car.x, car.y, P ? 14 : 12, 'rgba(10,10,10,.5)');
     if (P) {
       this.shakeFor(P, 12);
-      if (P === G.me) G.flash = 0.8;
+      this.flashFor(P, 0.8);
       P.hp -= 25;
       this.exitCar(P);
     } else {
@@ -437,7 +459,7 @@ class Game {
     puff(x, y, '40,40,40', 12, 24);
     decal(x, y, 13, 'rgba(10,10,10,.5)');
     this.shakeAt(x, y, 10);
-    if (this.nearMe(x, y)) G.flash = Math.max(G.flash, 0.7);
+    this.flashAt(x, y, 0.7);
     for (const list of [G.cops, G.peds, G.tranzas]) {
       for (const e of list) {
         if (e.hp <= 0 || e.inside) continue;
@@ -754,15 +776,15 @@ class Game {
         if (t.hp > 0 && t.villa.angry <= 0 && dist(t, P) < 16) P.nearTranza = t;
       }
 
-      // Los menús (armería, tranza) son de la pantalla local: solo los abre G.me
+      // Los menús (armería, tranza) se abren en la pantalla del que entró
       if (ctl.use && P.cool <= 0 && P.nearShop) {
         P.cool = 0.4;
         if (P.wanted >= 2) this.say('EL ARMERO NO ATIENDE CON LA YUTA ENCIMA', 2.6, P);
-        else if (P === G.me) shop.open('armeria');
+        else this.openShop(P, 'armeria');
       } else if (ctl.use && P.cool <= 0 && P.nearTranza) {
         P.cool = 0.4;
         P.nearTranza.ang = Math.atan2(P.y - P.nearTranza.y, P.x - P.nearTranza.x);
-        if (P === G.me) shop.open('tranza');
+        this.openShop(P, 'tranza');
       } else if (ctl.use && P.cool <= 0) {
         P.cool = 0.4;
         let best = null, bd = 26;
@@ -820,6 +842,7 @@ class Game {
 
     // Controles: el jugador local los lee del teclado; los remotos llegan por la red
     if (G.me) G.me.ctl = G.paused || G.mapOpen || G.shopOpen ? idleControls() : input.readControls();
+    net.applyControls();
 
     for (const P of G.players.slice()) {
       if (this.updatePlayer(P, rdt, dt) === 'reset') return;
@@ -1453,6 +1476,25 @@ class Game {
     }
     G.pickups = G.pickups.filter(pk => !pk.gone && !(pk.drop && pk.t > 30));
 
+    this.updateFx(dt);
+
+    for (const P of G.players) {
+      if (P.hp <= 0 && !P.dead) {
+        P.dead = true;
+        P.hp = 0;
+        this.exitCar(P);
+        boom(P.x, P.y, 32, '170,30,30');
+        sfxFor(P, 'muerte');
+        decal(P.x, P.y, 9, 'rgba(95,12,12,.55)');
+        this.shakeFor(P, 10);
+      }
+    }
+
+    this.updateCamera(rdt);
+  }
+
+  // Chispas y humo: son de cada pantalla (en red cada uno anima los suyos)
+  updateFx(dt) {
     for (const f of G.fx) {
       f.x += f.vx * dt;
       f.y += f.vy * dt;
@@ -1470,20 +1512,10 @@ class Game {
       s.life -= dt;
     }
     G.smoke = G.smoke.filter(s => s.life > 0);
+  }
 
-    for (const P of G.players) {
-      if (P.hp <= 0 && !P.dead) {
-        P.dead = true;
-        P.hp = 0;
-        this.exitCar(P);
-        boom(P.x, P.y, 32, '170,30,30');
-        sfxFor(P, 'muerte');
-        decal(P.x, P.y, 9, 'rgba(95,12,12,.55)');
-        this.shakeFor(P, 10);
-      }
-    }
-
-    // Cámara del jugador local, con suavizado y adelanto según velocidad
+  // Cámara del jugador local, con suavizado y adelanto según velocidad
+  updateCamera(rdt) {
     const P = G.me;
     if (!P) return;
     const lead = P.car ? clamp(P.car.spd / 195, 0, 1) * 52 : 0;

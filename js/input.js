@@ -19,6 +19,10 @@ class InputManager {
       addEventListener('keydown', this._boundDown);
       addEventListener('keyup', this._boundUp);
       addEventListener('wheel', this._boundWheel, { passive: false });
+      // Al cambiar de ventana no llega el soltar de las teclas: que no queden apretadas
+      addEventListener('blur', () => {
+        for (const k in this.keys) this.keys[k] = false;
+      });
     }
   }
 
