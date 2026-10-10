@@ -1,0 +1,75 @@
+name: Tests
+
+# Corre los tests en cada PR. El job "test" es check obligatorio en los rulesets de
+# dev y main, junto con "Compilar" (build-pr.yml): si un test falla, no se mergea.
+# Además publica el check "Tests" (resumen por suite) y un check por test, a partir
+# del XML JUnit que genera el runner (.github/scripts/junit-check.js).
+#
+# Los tests son selfcheck.js (node:test, sin dependencias): cada test() es un check.
+
+on:
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write   # crear los checks con el token del workflow si no hay GitHub App
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REPORTE_JUNIT: reports/junit.xml
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      HAS_APP: ${{ secrets.CI_APP_ID != '' }}   # el if de un step no ve su propio env
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Tests de los scripts de versión
+        run: bash .github/scripts/test-version.sh
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Tests
+        run: |
+          mkdir -p "$(dirname "$REPORTE_JUNIT")"
+          node --test \
+            --test-reporter=spec --test-reporter-destination=stdout \
+            --test-reporter=junit --test-reporter-destination="$REPORTE_JUNIT" \
+            selfcheck.js
+
+      - name: Sacar el classname genérico del reporte
+        # node:test pone classname="test" en todos los casos; sin esto cada check
+        # se llamaría "<suite> › test › <nombre>".
+        if: ${{ !cancelled() }}
+        run: '[ ! -f "$REPORTE_JUNIT" ] || sed -i ''s/ classname="test"//'' "$REPORTE_JUNIT"'
+
+      # Con una GitHub App de la org (secrets CI_APP_ID / CI_APP_PRIVATE_KEY) los checks
+      # aparecen sueltos, con el ícono de la app; sin ellos, agrupados bajo "Tests /".
+      - name: Token de la GitHub App
+        id: app-token
+        if: ${{ !cancelled() && env.HAS_APP == 'true' }}
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+
+      - name: Checks "Tests" y uno por test
+        if: ${{ !cancelled() }}
+        uses: actions/github-script@v9
+        with:
+          github-token: ${{ steps.app-token.outputs.token || github.token }}
+          script: |
+            const run = require('./.github/scripts/junit-check.js');
+            // El XML de node:test no trae el archivo: todos los tests están en selfcheck.js.
+            await run({ github, context, core, ruta: process.env.REPORTE_JUNIT,
+              archivoDeSuite: () => 'selfcheck.js' });

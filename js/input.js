@@ -19,6 +19,10 @@ class InputManager {
       addEventListener('keydown', this._boundDown);
       addEventListener('keyup', this._boundUp);
       addEventListener('wheel', this._boundWheel, { passive: false });
+      // Al cambiar de ventana no llega el soltar de las teclas: que no queden apretadas
+      addEventListener('blur', () => {
+        for (const k in this.keys) this.keys[k] = false;
+      });
     }
   }
 
@@ -67,7 +71,30 @@ class InputManager {
                    (this.keys.KeyW || this.keys.ArrowUp ? 1 : 0);
     return keyVal !== 0 ? keyVal : this.touchAxis.y;
   }
+
+  // Lo que el jugador local quiere hacer este frame. La simulación solo lee estos
+  // controles (P.ctl), nunca el teclado: así un jugador remoto se maneja igual,
+  // con los controles que llegan por la red.
+  readControls() {
+    const k = this.keys;
+    let slot = 0;
+    for (let i = 1; i <= 9; i++) if (k['Digit' + i]) { slot = i; break; }
+    return {
+      x: this.getHorizontalAxis(),
+      y: this.getVerticalAxis(),
+      run: !!(k.ShiftLeft || k.ShiftRight),
+      fire: !!k.Space,
+      use: !!k.KeyE,
+      next: !!k.KeyQ,
+      porro: !!k.KeyF,
+      respawn: !!k.Enter,
+      slot,
+    };
+  }
 }
+
+// Controles en reposo: jugador sin input (menú abierto, remoto sin datos todavía)
+const idleControls = () => ({ x: 0, y: 0, run: false, fire: false, use: false, next: false, porro: false, respawn: false, slot: 0 });
 
 // Instancia global e interoperabilidad directa con objeto `keys`
 const input = new InputManager();

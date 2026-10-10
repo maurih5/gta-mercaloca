@@ -218,11 +218,32 @@ class TouchController {
       }
     );
 
+    // Cambiar de arma
+    bindBtn(
+      'btn-wpn',
+      () => {
+        keys.KeyQ = true;
+        setTimeout(() => { keys.KeyQ = false; }, 150);
+      },
+      () => {}
+    );
+
+    // Fumar porro
+    bindBtn(
+      'btn-porro',
+      () => {
+        keys.KeyF = true;
+        setTimeout(() => { keys.KeyF = false; }, 150);
+      },
+      () => {}
+    );
+
     // Pausa
     bindBtn(
       'btn-pause',
       () => {
-        G.paused = !G.paused;
+        // Con otros jugando no hay pausa (igual que la P)
+        if (G.players.length <= 1 && !net.client) G.paused = !G.paused;
       },
       () => {}
     );
@@ -235,6 +256,12 @@ class TouchController {
       },
       () => {}
     );
+
+    // Sonido: prender / apagar (mismo efecto que la N)
+    sound.syncButton();
+    bindBtn('btn-sound', () => { sound.unlock(); sound.toggleMute(); }, () => {});
+    // Radio: cambiar de emisora (mismo efecto que la R; solo manejando)
+    bindBtn('btn-radio', () => { sound.unlock(); radio.next(); }, () => {});
 
     // Zoom del mapa (mismo mecanismo que las teclas +/-)
     bindBtn('btn-zoom-in', () => { keys.Equal = true; }, () => { keys.Equal = false; });
@@ -257,10 +284,12 @@ class TouchController {
   }
 
   bindGlobalTouch() {
-    // Al tocar la pantalla tras morir, reiniciar la partida
+    // Al tocar la pantalla tras morir, volver al barrio (como apretar Enter: el juego
+    // decide si reinicia la partida o, con otros jugando, reaparece solo él)
     addEventListener('touchstart', () => {
-      if (G.player && G.player.dead) {
-        startGame(G.player.def);
+      if (G.me && G.me.dead) {
+        keys.Enter = true;
+        setTimeout(() => { keys.Enter = false; }, 150);
       }
     }, { passive: true });
 

@@ -3,9 +3,12 @@
    ========================================================================= */
 
 class EntityManager {
-  makePlayer(def) {
+  // Todo lo que es de cada jugador vive acá (guita, búsqueda, arresto, hospital...):
+  // en el estado global (G) solo queda el mundo compartido y la vista local.
+  makePlayer(def, id = 0) {
     return {
       kind: 'player',
+      id,
       def,
       x: 0,
       y: 0,
@@ -19,6 +22,26 @@ class EntityManager {
       dead: false,
       muzzle: 0,
       run: 0,
+      wpn: 'pistola',
+      inv: { pistola: Infinity },
+      armor: 0,
+      swing: 0,
+      porros: 0,
+      money: 0,
+      wanted: 0,
+      wantCool: 0,
+      busted: 0,
+      bustT: 0,
+      bustFine: 0,
+      healing: 0,
+      healT: 0,
+      nearShop: null,
+      nearTranza: null,
+      zone: null,
+      slowmo: 0,
+      high: 0,
+      ctl: idleControls(),
+      prev: idleControls(),
     };
   }
 
@@ -49,9 +72,27 @@ class EntityManager {
     };
   }
 
-  sidewalkSpot(near, far) {
-    const px0 = (typeof G !== 'undefined' && G.player) ? G.player.x : WORLD / 2;
-    const py0 = (typeof G !== 'undefined' && G.player) ? G.player.y : WORLD / 2;
+  // Un famoso es un peatón con nombre: camina como cualquiera, pero no entra a edificios,
+  // dice sus frases y tiene sus propias reglas al caer
+  makeFamous(def, x, y) {
+    const p = this.makePedAt(x, y);
+    return Object.assign(p, {
+      famous: def,
+      def: null,
+      face: 'famous-' + def.id,
+      shirt: def.shirt,
+      pants: def.pants,
+      hp: def.hp,
+      sped: def.spd,
+      life: FAMOUS_LIFE,
+      talkT: 0,
+      line: '',
+      lineT: 0,
+    });
+  }
+
+  sidewalkSpot(near, far, center) {
+    const c0 = spawnCenter(center), px0 = c0.x, py0 = c0.y;
     for (let i = 0; i < 150; i++) {
       const a = rnd(0, TAU), d = rnd(near, far);
       const x = clamp(px0 + Math.cos(a) * d, 12, WORLD - 12);
@@ -124,14 +165,21 @@ class EntityManager {
     };
   }
 
-  makeCop() {
-    const px0 = (typeof G !== 'undefined' && G.player) ? G.player.x : WORLD / 2;
-    const py0 = (typeof G !== 'undefined' && G.player) ? G.player.y : WORLD / 2;
-    const a = rnd(0, TAU), d = rnd(200, 310);
+  makeCop(center) {
+    const c0 = spawnCenter(center), px0 = c0.x, py0 = c0.y;
+    // La yuta a pie no aparece adentro de la villa
+    let x = 0, y = 0, ok = false;
+    for (let i = 0; i < 20 && !ok; i++) {
+      const a = rnd(0, TAU), d = rnd(200, 310);
+      x = clamp(px0 + Math.cos(a) * d, 10, WORLD - 10);
+      y = clamp(py0 + Math.sin(a) * d, 10, WORLD - 10);
+      ok = !villaAt(x, y) && !hitBuilding(x, y, 6);
+    }
+    if (!ok) return null;
     return {
       kind: 'cop',
-      x: clamp(px0 + Math.cos(a) * d, 10, WORLD - 10),
-      y: clamp(py0 + Math.sin(a) * d, 10, WORLD - 10),
+      x,
+      y,
       ang: 0,
       r: 5,
       hp: 45,
@@ -139,38 +187,93 @@ class EntityManager {
       walk: 0,
       muzzle: 0,
       bustT: 0,
+      tgt: center && center.kind === 'player' ? center : null,
     };
   }
 
-  makeChaser() {
-    const px0 = (typeof G !== 'undefined' && G.player) ? G.player.x : WORLD / 2;
-    const py0 = (typeof G !== 'undefined' && G.player) ? G.player.y : WORLD / 2;
-    const a = rnd(0, TAU), d = rnd(240, 380);
-    const sp = {
-      x: clamp(px0 + Math.cos(a) * d, 20, WORLD - 20),
-      y: clamp(py0 + Math.sin(a) * d, 20, WORLD - 20),
+  // Tranza parado en su esquina de la villa. Si lo atacan, la villa entera se pudre.
+  makeTranza(villa, spot, i) {
+    const look = TRANZA_LOOK[i % TRANZA_LOOK.length];
+    return {
+      kind: 'tranza',
+      villa,
+      home: spot,
+      x: spot.x,
+      y: spot.y,
+      ang: rnd(0, TAU),
+      r: 5,
+      hp: 60,
+      walk: 0,
+      cool: rnd(0.3, 1),
+      muzzle: 0,
+      look: rnd(1, 4),
+      dead: 0,
+      face: 'tranza' + (i % TRANZA_LOOK.length),
+      shirt: look.shirt,
+      pants: look.pants,
+      wpn: i % 3 === 2 ? 'uzi' : 'pistola',
     };
-    const c = this.makeCar(sp.x, sp.y, true);
+  }
+
+  makeChaser(center) {
+    const c0 = spawnCenter(center), px0 = c0.x, py0 = c0.y;
+    // Aparece sobre una calle de verdad: un punto al azar caía a veces en el río o la explanada
+    let c = null;
+    for (let i = 0; i < 20 && !c; i++) {
+      const a = rnd(0, TAU), d = rnd(240, 380);
+      const t = this.makeCar(clamp(px0 + Math.cos(a) * d, 20, WORLD - 20), clamp(py0 + Math.sin(a) * d, 20, WORLD - 20), true);
+      // makeCar lo acomoda al carril más cercano, que cerca del borde puede quedar afuera del
+      // mapa (onRoad sigue dando true ahí): de afuera no vuelve y queda girando para siempre
+      const adentro = t.x > 20 && t.y > 20 && t.x < WORLD - 20 && t.y < WORLD - 20;
+      if (adentro && onRoad(t.x, t.y) && !hitBuilding(t.x, t.y, 8) && !hitCarBlock(t.x, t.y, 8)) c = t;
+    }
+    if (!c) {
+      const fs = freeRoadSpot();
+      c = this.makeCar(fs.x, fs.y, true);
+    }
     c.ai = false;
     c.chase = true;
+    c.tgt = center && center.kind === 'player' ? center : null;
     c.cruise = 150;
     return c;
   }
 
   makePickup() {
     const s = freeRoadSpot();
-    const isHp = Math.random() < 0.22;
-    return {
+    const r = Math.random();
+    const kind = r < 0.56 ? 'cash' : r < 0.74 ? 'hp' : 'weapon';
+    const pk = {
       x: s.x,
       y: s.y,
-      kind: isHp ? 'hp' : 'cash',
-      food: isHp ? FOODS[(Math.random() * FOODS.length) | 0] : null,
+      kind,
+      food: kind === 'hp' ? FOODS[(Math.random() * FOODS.length) | 0] : null,
       t: 0,
     };
+    if (pk.kind === 'weapon') {
+      const l = this.pickLoot();
+      pk.w = l.id;
+      pk.ammo = l.ammo;
+    }
+    return pk;
   }
 
+  pickLoot() {
+    let r = Math.random() * LOOT.reduce((a, l) => a + l.w, 0);
+    for (const l of LOOT) {
+      if ((r -= l.w) <= 0) return l;
+    }
+    return LOOT[0];
+  }
+
+  // Fierro que suelta un enemigo: dura un rato en el piso y desaparece
+  makeDrop(x, y, w, ammo) {
+    return { x, y, kind: 'weapon', w, ammo, t: 0, drop: true };
+  }
+
+  // Chispas, humo y manchas: el host las repite en la pantalla de los demás (js/net.js)
   boom(x, y, n, col, pow = 1) {
     if (typeof G === 'undefined' || !G.fx) return;
+    net.fx(['b', x, y, n, col, pow]);
     for (let i = 0; i < n; i++) {
       const a = rnd(0, TAU), v = rnd(20, 80) * pow;
       G.fx.push({
@@ -188,6 +291,7 @@ class EntityManager {
 
   puff(x, y, col, n = 1, rise = 14) {
     if (typeof G === 'undefined' || !G.smoke) return;
+    net.fx(['p', x, y, col, n, rise]);
     for (let i = 0; i < n; i++) {
       G.smoke.push({
         x: x + rnd(-3, 3),
@@ -203,6 +307,7 @@ class EntityManager {
   }
 
   decal(x, y, r, col) {
+    net.fx(['d', x, y, r, col]);
     if (!GCTX) return;
     GCTX.fillStyle = col;
     GCTX.beginPath();
@@ -213,16 +318,27 @@ class EntityManager {
 
 const entities = new EntityManager();
 
+// Alrededor de quién se reparte lo que aparece (autos, peatones, yuta): el punto dado,
+// o el jugador local, o el centro del mapa si todavía no hay nadie jugando
+function spawnCenter(center) {
+  if (center) return center;
+  if (typeof G !== 'undefined' && G.me) return G.me;
+  return { x: WORLD / 2, y: WORLD / 2 };
+}
+
 // Exportación de funciones clásicas para compatibilidad
-const makePlayer = def => entities.makePlayer(def);
+const makePlayer = (def, id) => entities.makePlayer(def, id);
 const makePedAt = (x, y) => entities.makePedAt(x, y);
-const sidewalkSpot = (near, far) => entities.sidewalkSpot(near, far);
+const makeFamous = (def, x, y) => entities.makeFamous(def, x, y);
+const sidewalkSpot = (near, far, center) => entities.sidewalkSpot(near, far, center);
 const makePed = () => entities.makePed();
 const makeCar = (x, y, cop) => entities.makeCar(x, y, cop);
-const makeCop = () => entities.makeCop();
-const makeChaser = () => entities.makeChaser();
+const makeCop = center => entities.makeCop(center);
+const makeChaser = center => entities.makeChaser(center);
+const makeTranza = (v, spot, i) => entities.makeTranza(v, spot, i);
 const makePickup = () => entities.makePickup();
 const makeGuard = (building, i, n) => entities.makeGuard(building, i, n);
+const makeDrop = (x, y, w, ammo) => entities.makeDrop(x, y, w, ammo);
 const boom = (x, y, n, col, pow) => entities.boom(x, y, n, col, pow);
 const puff = (x, y, col, n, rise) => entities.puff(x, y, col, n, rise);
 const decal = (x, y, r, col) => entities.decal(x, y, r, col);

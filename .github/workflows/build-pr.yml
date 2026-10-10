@@ -1,0 +1,196 @@
+name: Artefacto de la PR
+
+# Arma el sitio del juego (zip con index.html, js/ e img/) con el código de la PR y la
+# versión definitiva que se va a publicar (X.Y.Z-rc.N para dev, X.Y.Z para main), y
+# lo deja como artifact del run. El job "Compilar" es check obligatorio para mergear
+# a dev/main; al mergear, publicar.yml publica ESTE mismo archivo, sin recompilar.
+#
+# La versión vigente sale de los tags (.github/scripts/version-actual.sh), no del
+# código. Para que el artefacto sea exactamente lo que queda mergeado:
+#   - PR a dev: tiene que estar al día con dev (acá y en el ruleset de dev).
+#   - PR dev -> main: main no puede tener cambios que no estén en dev (main solo
+#     acumula los merge commits de cada release, que no cambian archivos).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches: [dev, main]
+  # Para recompilar a mano una PR (p. ej. si venció el artifact antes del merge).
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Número de la PR a compilar
+        required: true
+
+# Sin cancelar: al abrir una PR con etiqueta llegan dos eventos (opened y labeled) y, si
+# el segundo cancelaba al primero, quedaba un check "Compilar sitio" cancelado que el
+# ruleset cuenta como requerido y bloquea el merge. Así el segundo espera y los dos pasan.
+concurrency:
+  group: build-pr-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+  actions: read
+
+env:
+  # Versión de partida mientras no haya tags "versionCode=N".
+  VERSION_INICIAL: "0.0.0"
+  VERSION_CODE_INICIAL: "0"
+
+jobs:
+  compilar:
+    # El nombre del job es el check requerido en los rulesets: si se cambia, cambiarlo ahí.
+    name: Compilar sitio
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Datos de la PR
+        id: pr
+        uses: actions/github-script@v9
+        env:
+          PR_INPUT: ${{ inputs.pr }}
+        with:
+          script: |
+            const numero = context.payload.pull_request?.number ?? Number(process.env.PR_INPUT);
+            if (!Number.isInteger(numero) || numero <= 0) {
+              core.setFailed(`Número de PR inválido: '${process.env.PR_INPUT}'`);
+              return;
+            }
+            // Siempre se relee la PR: en un re-run o un dispatch el payload puede estar viejo.
+            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number: numero });
+            if (pr.state !== 'open') {
+              core.setFailed(`La PR #${numero} no está abierta`);
+              return;
+            }
+            const labels = pr.labels.map(l => l.name.toLowerCase());
+            let tipo = 'bugfix';
+            if (labels.includes('breaking')) tipo = 'breaking';
+            else if (labels.includes('feature')) tipo = 'feature';
+
+            // A main solo se publica lo que viene de dev; el resto de las PRs a main
+            // (p. ej. un hotfix) pasan el check sin generar artefacto ni release.
+            const aplica = pr.base.ref === 'dev' || pr.head.ref === 'dev';
+            if (!aplica) core.notice(`PR a main desde '${pr.head.ref}': no genera release`);
+
+            core.setOutput('numero', numero);
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('base_ref', pr.base.ref);
+            core.setOutput('tipo', tipo);
+            core.setOutput('aplica', aplica);
+
+      - name: Checkout de la PR
+        if: steps.pr.outputs.aplica == 'true'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+          fetch-depth: 0
+
+      - name: Esperar publicaciones en curso y verificar contra la rama destino
+        if: steps.pr.outputs.aplica == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+        run: |
+          # Si se acaba de mergear otra PR, su publicación todavía no creó el tag de su
+          # versión: compilar ahora calcularía la misma versión. Se espera a que termine.
+          # Por ruta y no con --workflow: eso exige que el archivo ya esté en main.
+          for i in $(seq 1 30); do
+            pendientes=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=50" \
+              -q '[.workflow_runs[] | select(.path == ".github/workflows/publicar.yml" and .status != "completed")] | length')
+            [ "$pendientes" = "0" ] && break
+            echo "⏳ Hay una publicación en curso, esperando... ($i/30)"
+            sleep 30
+          done
+          [ "$pendientes" = "0" ] || { echo "❌ La publicación en curso no terminó a tiempo; re-ejecutá este check"; exit 1; }
+
+          git fetch --tags --force origin "$BASE_REF"
+          if [ "$BASE_REF" = "dev" ]; then
+            if ! git merge-base --is-ancestor origin/dev HEAD; then
+              echo "❌ La PR no está al día con dev. Actualizá la rama ('Update branch') para compilar con la versión correcta."
+              exit 1
+            fi
+          else
+            # El merge a main tiene que quedar idéntico a dev (lo que se compila acá).
+            arbol=$(git merge-tree --write-tree origin/main HEAD) || {
+              echo "❌ dev no mergea limpio en main: mergeá main en dev primero."; exit 1; }
+            if [ "$arbol" != "$(git rev-parse 'HEAD^{tree}')" ]; then
+              echo "❌ main tiene cambios que no están en dev: mergeá main en dev primero."
+              git diff --stat HEAD "$arbol"
+              exit 1
+            fi
+          fi
+          echo "BASE_SHA=$(git rev-parse "origin/$BASE_REF")" >> "$GITHUB_ENV"
+
+      - name: Calcular versión
+        if: steps.pr.outputs.aplica == 'true'
+        shell: bash
+        env:
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+          TIPO: ${{ steps.pr.outputs.tipo }}
+        run: |
+          set -euo pipefail
+          # dev: el próximo rc a partir de la última versión publicada.
+          # main: la estable que corresponde al último rc publicado.
+          actual=$(bash .github/scripts/version-actual.sh "$VERSION_INICIAL" "$VERSION_CODE_INICIAL")
+          echo "$actual"
+          nueva=$(bash .github/scripts/calcular-version.sh "$BASE_REF" "$TIPO" \
+            "$(sed -n 's/^versionName=//p' <<<"$actual")" "$(sed -n 's/^versionCode=//p' <<<"$actual")")
+          version=$(sed -n 's/^version=//p' <<<"$nueva")
+          versionCode=$(sed -n 's/^versionCode=//p' <<<"$nueva")
+
+          if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
+            echo "❌ El tag $version ya existe: no se puede volver a publicar esa versión"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_ENV"
+          echo "versionCode=$versionCode" >> "$GITHUB_ENV"
+          echo "### $version ($versionCode)" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ Versión a publicar: $version (versionCode $versionCode, tipo $TIPO)"
+
+      - uses: actions/setup-node@v7
+        if: steps.pr.outputs.aplica == 'true'
+        with:
+          node-version: 24
+
+      - name: Compilar
+        if: steps.pr.outputs.aplica == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artefacto
+          bash .github/scripts/armar-sitio.sh "$version" "$RUNNER_TEMP/sitio"
+          (cd "$RUNNER_TEMP/sitio" && zip -qr "$GITHUB_WORKSPACE/artefacto/gta-mercaloca-$version.zip" .)
+
+      - name: Datos de la compilación
+        if: steps.pr.outputs.aplica == 'true'
+        shell: bash
+        env:
+          PR: ${{ steps.pr.outputs.numero }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+          TIPO: ${{ steps.pr.outputs.tipo }}
+        run: |
+          # publicar.yml compara esto contra la PR mergeada antes de publicar.
+          archivos=$(find artefacto -maxdepth 1 -type f -printf '%f\n' | sort | jq -R . | jq -s .)
+          [ "$archivos" != "[]" ] || { echo "❌ artefacto/ está vacío"; exit 1; }
+          jq -n \
+            --argjson pr "$PR" --arg head_sha "$HEAD_SHA" --arg base_ref "$BASE_REF" \
+            --arg base_sha "$BASE_SHA" --arg tipo "$TIPO" \
+            --arg version "$version" --arg versionCode "$versionCode" --argjson archivos "$archivos" \
+            '{pr: $pr, head_sha: $head_sha, base_ref: $base_ref, base_sha: $base_sha,
+              tipo: $tipo, version: $version, versionCode: $versionCode, archivos: $archivos}' > compilacion.json
+          mv compilacion.json artefacto/
+          cat artefacto/compilacion.json
+
+      - name: Subir artefacto
+        if: steps.pr.outputs.aplica == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: artefacto-pr
+          path: artefacto/
+          # La PR puede quedar abierta un tiempo antes de mergearse.
+          retention-days: 30
+          if-no-files-found: error

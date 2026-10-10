@@ -2,14 +2,18 @@
    GTA MERCALOCA - Constantes y Configuración General
    ========================================================================= */
 
-const VERSION = 'v45-277773b';
+// Solo para correr local: la versión publicada sale de los tags y la inyecta el build
+// (.github/scripts/armar-sitio.sh), igual que los ?v= de index.html.
+const VERSION = 'local';
 
 const CREW = [
-  {id:'p1', name:'EL SMOKE',  img:'img/p1.jpeg', crop:[0.42,0.11,0.25,0.29], shirt:'#3f9a4a', pants:'#232323'},
-  {id:'p2', name:'ACADEMIA',  img:'img/p2.jpeg', crop:[0.40,0.08,0.19,0.14], shirt:'#1d1d22', pants:'#2a2a33'},
-  {id:'p3', name:'PALMERA',   img:'img/p3.jpeg', crop:[0.37,0.03,0.20,0.14], shirt:'#26262c', pants:'#3a3f4a'},
-  {id:'p4', name:'EL JEFE',   img:'img/p4.jpeg', crop:[0.42,0.17,0.25,0.24], shirt:'#4a4238', pants:'#1c1c1c'},
-  {id:'p5', name:'LA PIEDRA', img:'img/p5.jpeg', crop:[0.56,0.16,0.22,0.20], shirt:'#e8e8e0', pants:'#242424'},
+  // crop: [x, y, ancho, alto] de la cara en la foto (de la frente o la gorra al mentón)
+  {id:'p1', name:'EL MORO',          img:'img/p1.jpeg',   crop:[0.43,0.13,0.22,0.25],  shirt:'#3f9a4a', pants:'#232323'},
+  {id:'p2', name:'EL IVO',           img:'img/p2.jpeg',   crop:[0.41,0.10,0.16,0.11],  shirt:'#1d1d22', pants:'#2a2a33'},
+  {id:'p3', name:'EL CIEGO AUGUSTO', img:'img/p3.jpeg',   crop:[0.38,0.045,0.17,0.115], shirt:'#26262c', pants:'#3a3f4a'},
+  {id:'p4', name:'EL KEVIN',         img:'img/p4.jpeg',   crop:[0.43,0.19,0.22,0.19],  shirt:'#4a4238', pants:'#1c1c1c'},
+  {id:'p5', name:'EL ALEXIS',        img:'img/p5.jpeg',   crop:[0.575,0.18,0.18,0.15], shirt:'#e8e8e0', pants:'#242424'},
+  {id:'p6', name:'EL GER',           img:'img/crew.jpeg', crop:[0.42,0.10,0.24,0.29],  shirt:'#3a7d3c', pants:'#2a2a2a'},
 ];
 
 const TIPS = [
@@ -23,6 +27,11 @@ const TIPS = [
 
 // Resolucion interna y proyeccion de falso 3D
 const RW = 480, RH = 270;
+// El canvas tiene el doble de píxeles reales que la resolución lógica: todo se sigue
+// dibujando en la grilla de 480x270 (los px() caen en bloques de 2x2), pero las caras
+// de los personajes usan esos píxeles extra para verse con el doble de definición.
+const RENDER_SCALE = 2;
+const FACE_PX = 12 * RENDER_SCALE;      // lado de la foto de la cara, en píxeles reales (la cabeza mide 12)
 const FOCAL = 300;                      // menor = mas perspectiva en la extrusion
 
 // Geometria del mundo y grilla
@@ -39,17 +48,64 @@ const AVENUE_LANE = AVENUE_ROAD * 0.24;
 const ROTONDA_R = 58;
 const ROTONDA_ISLAND_R = 26;
 
-// Riachuelo: ancho base del cauce y radio de la playa en la desembocadura.
-// El ancho real varia a lo largo de la curva (RIVER_WOBBLE) para que la orilla
-// muerda las manzanas en vez de cortarlas en cuadrados de grilla.
-const RIVER_HALF = CELL * 0.55;
-const RIVER_WOBBLE = 0.42;
-const BEACH_RADIUS = CELL * 1.8;
-// Ancho de la franja de arena que rodea todo el cauce, no solo la desembocadura
-const BEACH_BAND = 26;
+// Riachuelo: ancho base del cauce. El ancho real varia a lo largo de la curva
+// (RIVER_WOBBLE) para que la orilla muerda las manzanas en vez de cortarlas en
+// cuadrados de grilla, y se abre en la desembocadura.
+const RIVER_HALF = CELL * 0.5;
+const RIVER_WOBBLE = 0.24;
+// Ancho base de la franja de arena que rodea todo el cauce (varia por tramo y se
+// hace un playon en la desembocadura)
+const BEACH_BAND = 30;
+// Agua del Riachuelo: paleta de la orilla (verdosa, baja) al centro (hondo), espuma
+// contra la costa, barro humedo y su ancho, y el color en el minimapa
+const WATER_PAL = ['#7ea68c', '#64947f', '#4f8079', '#426f72', '#385f68', '#2f505d'];
+const WATER_FOAM = '#c3d5c4';
+const WATER_MUD = '#6f6449';
+const WATER_MUD_W = 9;
+const WATER_MINI = '#3f6f73';
+// Lo que navega el rio: tipo, velocidad (px/s), sentido (1 = aguas abajo), fase
+// inicial (fraccion del largo) y carril (fraccion del medio ancho, a la derecha
+// de la marcha). La posicion es funcion de G.t: igual para todos los jugadores.
+const RIVER_BOATS = [
+  { k: 'barcaza', v: 9, dir: 1, ph: 0.08, lane: 0.22 },
+  { k: 'remolcador', v: 15, dir: -1, ph: 0.47, lane: 0.3 },
+  { k: 'lancha', v: 44, dir: 1, ph: 0.31, lane: 0.4 },
+  { k: 'lancha', v: 38, dir: -1, ph: 0.76, lane: 0.42 },
+  { k: 'bote', v: 6, dir: 1, ph: 0.62, lane: 0.5 },
+  { k: 'bote', v: 5, dir: -1, ph: 0.19, lane: 0.48 },
+  { k: 'remolcador', v: 13, dir: 1, ph: 0.88, lane: 0.18 },
+  { k: 'barcaza', v: 8, dir: -1, ph: 0.55, lane: 0.25 },
+];
+// Camalotes, basura y patos que van a la deriva con la corriente
+const RIVER_FLOATS = 70;
 
-// Puentes: medio ancho del corredor sobre la avenida donde el agua no existe
-const BRIDGE_HALF = AVENUE_ROAD * 0.62;
+// Puentes: cuantos hay en total (las dos avenidas y el resto en calles comunes)
+const BRIDGE_COUNT = 7;
+// Estilos de puente, cada uno con su personalidad. k: tipo de estructura; steel: color
+// del hierro (o del hormigon); dark: la cara en sombra; HT: alto del reticulado.
+const BRIDGE_STYLES = {
+  // 9 de Julio (columna): atirantado blanco de un mastil inclinado, onda Puente de la Mujer
+  mujer:         { k: 'atirantado',    steel: '#eceee8', dark: '#b7bab4', walk: '#b4b1a8' },
+  // Avenida de la plaza (fila): reticulado verde con vigas en X, onda Puente Pueyrredon
+  pueyrredon:    { k: 'reticulado',    steel: '#4a8a5a', dark: '#2f5c3c', walk: '#a39f95', HT: 20 },
+  // Calles comunes: reticulados bajos pintados, de hormigon con faroles, y el Transbordador
+  boca:          { k: 'reticulado',    steel: '#d0582e', dark: '#8a3820', walk: '#a39f95', HT: 13 },
+  celeste:       { k: 'reticulado',    steel: '#78b4d4', dark: '#4a7f9c', walk: '#a8a59b', HT: 13 },
+  hormigon:      { k: 'hormigon',      steel: '#c9c2b2', dark: '#8f887a', walk: '#b3ad9f' },
+  transbordador: { k: 'transbordador', steel: '#46525e', dark: '#2c343c', walk: '#a39f95' },
+};
+// Las calles comunes van rotando estos estilos a lo largo del rio; el Transbordador va
+// en la calle horizontal mas cercana a la desembocadura (donde esta La Boca).
+const BRIDGE_STREET_STYLES = ['celeste', 'hormigon', 'boca'];
+const BRIDGE_PIER_GAP = 58;   // separacion de las pilas en el agua
+const BRIDGE_LAMP_GAP = 64;   // separacion de los faroles sobre el puente
+
+// Playa: cada cuanto (en px de rio) se arma un grupito de cosas en la arena, y cuanto
+// lugar se deja libre alrededor del corredor de cada puente (las palmeras mas, porque
+// su copa se extruye lejos del tronco y tapaba el tablero)
+const BEACH_GROUP_STEP = 52;
+const BEACH_BRIDGE_CLEAR = 20;
+const BEACH_PALM_CLEAR = 34;
 
 // Plaza de Mayo: explanada maciza de 2x2 celdas, sin calles cruzandola
 const PLAZA_MAYO_CELLS = 2;
@@ -69,6 +125,31 @@ const HOSPITAL_TIME = 3.2;
 // Items de curacion desperdigados por el mapa: cuanta vida da cada uno
 const FOOD_HEAL = { pernil: 45, choripan: 30, mate: 15 };
 const FOODS = Object.keys(FOOD_HEAL);
+
+// Famosos: NPCs con nombre (parodias) que aparecen cada tanto cerca de algún jugador,
+// pasean un rato y se van. Cada uno tiene su cara (look), sus frases y lo que suelta.
+//  near: lo que dice cuando un jugador se le acerca; hurt: cuando le pegan
+//  immortal: no se lo puede bajar; drop: lo que suelta al caer; stripes: rayas de la camiseta
+const FAMOUS = [
+  {
+    id: 'listorti', name: 'JOSE MARIA LISTORTO', immortal: true, hp: 30,
+    shirt: '#2b2f3a', pants: '#1a1a1f', spd: 26,
+    look: { skin: '#e2b896', hair: '#2a1d12', hairStyle: 'corto', smile: true },
+    near: ['¿QUE HACES, CAPO?', 'JA JA JA JA', 'MIRA LA CAMARA, SALUDA'],
+    hurt: ['OOOOOOOOOOH!', 'OOOOOOOOOOOH!', 'OOOOOOOOOOH! JA JA'],
+  },
+  {
+    id: 'messi', name: 'LIONEL MESSIAS', hp: 60,
+    shirt: '#75aadb', pants: '#1a1a1a', stripes: '#ffffff', spd: 34,
+    look: { skin: '#d9a87f', hair: '#4a2f1c', hairStyle: 'corto', beard: '#4a2f1c' },
+    near: ['¿QUE MIRAS, BOBO?', 'ANDA PA ALLA, BOBO', 'ANDA PA ALLA'],
+    hurt: ['¿QUE MIRAS, BOBO?', 'BOBO!'],
+    drop: { kind: 'gold', n: 5, value: 400 },
+  },
+];
+const FAMOUS_EVERY = [40, 80];          // cada cuánto (s, al azar) puede aparecer uno cerca de cada jugador
+const FAMOUS_LIFE = 150;                // segundos que pasea antes de irse (cuando nadie lo ve)
+const FAMOUS_TALK = 34;                 // distancia a la que te habla
 
 // Poblacion viva y radios de simulacion
 const SIM_R = 560;                       // radio de simulacion
@@ -120,3 +201,66 @@ const CARMODEL = [
   {k:'taxi',   w:23, h:11, cruise:64, col:'#e8b52a'},
   {k:'bus',    w:36, h:14, cruise:38, col:'#c85a1e'},
 ];
+
+// Armas: daño por bala, cadencia (cool), dispersión, perdigones, velocidad y alcance de la bala
+const WEAPONS = {
+  baston:   {name:'BASTON DEL CIEGO', short:'BASTON',  melee:true,  dmg:38, cool:0.42, reach:19},
+  pistola:  {name:'PISTOLA 9MM',      short:'9MM',     dmg:22, cool:0.21,  spread:0.055, pellets:1, spd:430, life:0.70, shake:1.1, barrel:11},
+  escopeta: {name:'ESCOPETA',         short:'ESCOPETA',dmg:15, cool:0.75,  spread:0.30,  pellets:6, spd:390, life:0.34, shake:3.2, barrel:14},
+  uzi:      {name:'UZI',              short:'UZI',     dmg:12, cool:0.075, spread:0.14,  pellets:1, spd:450, life:0.55, shake:0.6, barrel:12},
+  ak:       {name:'AK-47',            short:'AK-47',   dmg:30, cool:0.115, spread:0.05,  pellets:1, spd:540, life:0.90, shake:1.5, barrel:14},
+  granada:  {name:'GRANADAS',         short:'GRANADA', thrown:true, dmg:110, cool:0.7, radius:42},
+};
+const WEAPON_ORDER = ['baston', 'pistola', 'escopeta', 'uzi', 'ak', 'granada'];
+
+// Lo que vende la armeria: precio del fierro (viene con balas) y precio de la recarga
+const SHOP_ITEMS = [
+  {id:'baston',   price:300,                          desc:'El verde del Ciego Augusto. Pega fuerte.'},
+  {id:'escopeta', price:900,  ammo:16,  refill:250,   desc:'Seis perdigones. Pa los de cerca.'},
+  {id:'uzi',      price:1400, ammo:120, refill:300,   desc:'Escupe balas. Ideal desde el auto.'},
+  {id:'ak',       price:2600, ammo:90,  refill:450,   desc:'La que manda. Pega y llega lejos.'},
+  {id:'granada',  price:700,  ammo:4,   refill:450,   desc:'Revienta autos y patrulleros.'},
+  {id:'chaleco',  price:500,                          desc:'Chaleco antibalas. Aguanta la yuta.'},
+];
+
+// Fierros tirados en la calle: arma, balas que trae y peso del sorteo
+const LOOT = [
+  {id:'escopeta', ammo:8,  w:3},
+  {id:'uzi',      ammo:45, w:3},
+  {id:'ak',       ammo:30, w:2},
+  {id:'granada',  ammo:2,  w:2},
+  {id:'baston',   ammo:0,  w:1},
+];
+
+// Villas: zonas del mapa (rango de celdas de la grilla, inclusive) con casillas, calles de tierra y tranzas.
+// La yuta a pie no entra y la busqueda baja mas rapido adentro. `potrero` es la celda de la canchita.
+const VILLAS = [
+  {name:'VILLA LA CHAPITA', cx0:1,  cy0:16, cx1:4,  cy1:19, tranzas:6, potrero:[2, 17]},
+  {name:'VILLA EL FIERRO',  cx0:17, cy0:2,  cx1:20, cy1:5,  tranzas:6, potrero:[19, 3]},
+];
+
+// Casillas: paredes de ladrillo sin revocar, bloque o pintadas; techos de chapa o losa
+const SHACK_WALLS = ['#a5583a','#b4653f','#9a4e32','#8a8a80','#9a968a','#5f8aa8','#c9b458','#7aa36a','#c87a8a','#d8d0c0'];
+const SHACK_ROOFS = ['#8a9098','#7a8088','#9aa0a6','#8a5a3a','#7a4a30','#9a958a'];
+
+// Ropa de los tranzas
+const TRANZA_LOOK = [
+  {shirt:'#2a2a30', pants:'#1c1c22', cap:'#c8302a'},
+  {shirt:'#3a3a5a', pants:'#22222a', cap:'#1a1a1a'},
+  {shirt:'#e8e8e0', pants:'#1c1c22', cap:'#2a5ab0'},
+  {shirt:'#5a2a2a', pants:'#2a2a2a', cap:'#e8e8e8'},
+];
+
+// Lo que vende el tranza: atiende aunque te busque la yuta, pero mas caro
+const TRANZA_ITEMS = [
+  {id:'porro',   price:80,                         desc:'Te baja un cambio: el mundo va en camara lenta. Tecla F.'},
+  {id:'uzi',     price:1100, ammo:60, refill:250,  desc:'Usada, pero anda. Sin preguntas.'},
+  {id:'granada', price:950,  ammo:3,  refill:600,  desc:'Del deposito del fondo. No preguntes de donde.'},
+];
+const PORRO_MAX = 5;      // cuantos entran en el bolsillo
+const PORRO_TIME = 7;     // segundos de camara lenta
+const SLOWMO = 0.38;      // velocidad del mundo mientras dura
+
+// Multijugador
+const MAX_PLAYERS = 4;
+const PVP = true;         // las balas, granadas y atropellos de un jugador lastiman a los otros
