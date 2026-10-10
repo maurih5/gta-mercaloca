@@ -524,7 +524,14 @@ class World {
    * Genera proceduralmente la cuadrícula de la ciudad, edificios con alturas,
    * parques, palmeras, faroles y semáforos en cada bocacalle.
    */
-  buildCity() {
+  // La ciudad sale de una semilla: la misma semilla arma la misma ciudad en todas las
+  // pantallas (el host le pasa la suya a los que se suman a la sala)
+  buildCity(seed = (Math.random() * 2 ** 31) | 0) {
+    this.seed = seed;
+    withSeed(seed, () => this.generate());
+  }
+
+  generate() {
     this.buildings.length = 0;
     this.props.length = 0;
     this.lamps.length = 0;
@@ -1162,6 +1169,10 @@ class World {
    * permitiendo renderizar el fondo a coste mínimo por frame.
    */
   bakeGround() {
+    withSeed((this.seed || 0) + 1, () => this.paintGround());
+  }
+
+  paintGround() {
     GROUND = document.createElement('canvas');
     GROUND.width = GROUND.height = WORLD;
     const g = GCTX = GROUND.getContext('2d');
@@ -2286,7 +2297,7 @@ class World {
 const world = new World();
 
 // Exportación de funciones y métodos para interoperabilidad total
-const buildCity = () => world.buildCity();
+const buildCity = seed => world.buildCity(seed);
 const bakeGround = () => world.bakeGround();
 const onRoad = (x, y) => world.onRoad(x, y);
 const lightState = (L, horiz) => world.lightState(L, horiz);

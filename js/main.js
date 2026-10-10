@@ -3,15 +3,40 @@
    ========================================================================= */
 
 let lastTime = (typeof performance !== 'undefined') ? performance.now() : 0;
+let lastRaf = 0, pulse = null;
 
 function frame(now) {
+  lastRaf = performance.now();
+  step(now);
+  if (typeof requestAnimationFrame !== 'undefined') {
+    requestAnimationFrame(frame);
+  }
+}
+
+// Con la pestaña escondida (o la ventana tapada) el navegador deja de llamar a
+// requestAnimationFrame. Si esta pantalla es el host de una sala, el mundo de todos
+// depende de ella: un worker (sus timers no se frenan) sigue marcando el paso.
+function keepHosting() {
+  if (pulse || typeof Worker === 'undefined' || typeof Blob === 'undefined') return;
+  try {
+    pulse = new Worker(URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 33)'])));
+    pulse.onmessage = () => {
+      const now = performance.now();
+      if (net.hosting && now - lastRaf > 120) step(now);
+    };
+  } catch (e) {
+    pulse = false;
+  }
+}
+
+function step(now) {
   const dt = Math.min(0.05, (now - lastTime) / 1000);
   lastTime = now;
 
   if (G.state === 'play') {
     // Con otros jugando el mundo no se puede frenar: no hay pausa, y el mapa y los menús
     // dejan al jugador local quieto (sin controles) pero la simulación sigue
-    const solo = G.players.length <= 1;
+    const solo = G.players.length <= 1 && !net.client;
     if (keys.KeyP && !G._p && !G.mapOpen && solo) {
       G.paused = !G.paused;
       G._p = true;
@@ -47,15 +72,15 @@ function frame(now) {
     }
     if (touchController) touchController.syncMapButtons();
 
-    if (!solo || (!G.paused && !G.mapOpen && !G.shopOpen)) update(dt);
-    render();
+    // En la sala de otro no se simula nada: manda los controles y anima lo que manda el host
+    if (net.client) net.clientFrame(dt);
+    else if (!solo || (!G.paused && !G.mapOpen && !G.shopOpen)) update(dt);
+    // Escondida (host marcando el paso con el worker) no hace falta dibujar
+    if (G.state === 'play' && !(typeof document !== 'undefined' && document.hidden)) render();
   }
+  net.tick(dt);
   sound.update();
   radio.update();
-
-  if (typeof requestAnimationFrame !== 'undefined') {
-    requestAnimationFrame(frame);
-  }
 }
 
 async function boot() {
@@ -71,9 +96,33 @@ async function boot() {
   }, 2400);
 
   const t0 = (typeof performance !== 'undefined') ? performance.now() : 0;
+  const q = new URLSearchParams(location.search);
+
+  // ?sala=CODIGO: se entra a la sala de otro. Antes de armar la ciudad hay que encontrar
+  // al host, que pasa la semilla de la suya (así es la misma ciudad para todos).
+  const sala = (q.get('sala') || '').toUpperCase();
+  let seed;
+  if (sala) {
+    clearInterval(timer);
+    if (tipEl) tipEl.textContent = 'BUSCANDO LA SALA ' + sala + '...';
+    try {
+      if (!validSala(sala)) throw new Error('CODIGO');
+      const info = await net.probe(sala);
+      if (info.v !== VERSION) throw new Error('VERSION');
+      seed = info.seed;
+    } catch (e) {
+      net.leave();
+      show('net');
+      ui.netMsg('NO SE PUDO ENTRAR', {
+        CODIGO: 'EL CODIGO DE SALA ' + sala + ' NO EXISTE',
+        VERSION: 'ESA SALA JUEGA OTRA VERSION DEL JUEGO. RECARGA LA PAGINA',
+      }[e.message] || 'NO ENCONTRAMOS A NADIE EN LA SALA ' + sala, true);
+      return;
+    }
+  }
 
   // Generar la ciudad y hornear el suelo
-  world.buildCity();
+  world.buildCity(seed);
   world.bakeGround();
 
   // Precargar imágenes del crew y pantallas
@@ -152,7 +201,7 @@ async function boot() {
   G.faces.cop = cop;
 
   // ?play arranca directo a jugar; ?famoso=<id> también, con ese famoso al lado (para probarlo)
-  const skip = typeof location !== 'undefined' && /[?&](play|famoso)/.test(location.search);
+  const skip = !sala && /[?&](play|famoso)/.test(location.search);
 
   setTimeout(() => {
     clearInterval(timer);
@@ -160,7 +209,6 @@ async function boot() {
     if (skip) {
       show('');
       startGame(CREW[0]);
-      const q = new URLSearchParams(location.search);
       const h = parseFloat(q.get('h'));
       if (!isNaN(h)) G.t = (((h / 24 - 0.34 + 1) % 1) * DAY);
       // ?x=..&y=..: arrancar parado en ese punto del mundo (para mirar un lugar puntual)
@@ -180,6 +228,11 @@ async function boot() {
         G.me.money = 4200;
         setTimeout(() => bust(), 400);
       }
+    } else if (sala) {
+      // Directo a elegir personaje para entrar a la sala
+      ui.mode = 'join';
+      G.state = 'sel';
+      fadeTo(() => show('sel'));
     } else {
       G.state = 'menu';
       fadeTo(() => show('menu'));
@@ -190,6 +243,8 @@ async function boot() {
 
 // Iniciar arranque automáticamente cuando cargue el DOM
 if (typeof document !== 'undefined') {
+  // Al cerrar la pestaña se avisa a la sala, así los demás no esperan a que se corte
+  addEventListener('pagehide', () => net.leave());
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
   } else {

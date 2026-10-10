@@ -33,6 +33,21 @@
   #menu .mi:hover,#menu .mi.sel{color:var(--grove);transform:scale(1.06)}
   #menu .hint{margin-top:28px;font-size:9px;color:#8e8e8e;line-height:2.2}
 
+  /* Online: crear o entrar a una sala, y la pantalla mientras conecta */
+  #online .panel,#net .panel{position:relative;text-align:center;padding:24px;max-width:94vw}
+  #online h1,#net h1{font-size:min(7vw,44px);color:var(--gold);letter-spacing:3px;text-shadow:5px 5px 0 #000}
+  #online h2{font-size:min(2.6vw,13px);margin-top:12px;color:#ddd;text-shadow:3px 3px 0 #000}
+  #online .mi,#net .mi{margin-top:26px;font-size:14px;color:#eee;text-shadow:3px 3px 0 #000;cursor:pointer;transition:.1s}
+  #online .mi:hover,#net .mi:hover{color:var(--grove);transform:scale(1.06)}
+  #online .join{margin-top:26px;display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap}
+  #online .join .mi{margin-top:0}
+  #online input{font:inherit;font-size:16px;width:9.5em;padding:9px 10px;text-align:center;letter-spacing:4px;
+                text-transform:uppercase;color:var(--gold);background:#0b0b0b;border:2px solid #555;outline:none}
+  #online input:focus{border-color:var(--gold)}
+  #online .msg{margin-top:14px;min-height:12px;font-size:9px;color:#ff8a7a}
+  #online .hint,#net .hint{margin-top:24px;font-size:9px;color:#8e8e8e;line-height:2.2}
+  #net .hint{font-size:11px;color:#ddd}
+
   #sel .grid{position:relative;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;max-width:94vw}
   /* Si no entran los seis en una fila, dos filas de tres (y no cinco y uno suelto) */
   @media (max-width:1080px){#sel .grid{max-width:min(94vw,500px)}}
@@ -330,9 +345,37 @@
     <h1>MERCALOCA</h1>
     <h2>SAN ANDREAS &mdash; GROVE ST. 4 LIFE</h2>
     <div class="mi sel" id="btnPlay">&gt; EMPEZAR PARTIDA</div>
+    <div class="mi" id="btnOnline">&gt; JUGAR ONLINE</div>
     <div class="hint">WASD / FLECHAS mover &nbsp;&middot;&nbsp; ESPACIO disparar &nbsp;&middot;&nbsp; E auto<br>
       SHIFT correr &nbsp;&middot;&nbsp; Q / 1-6 cambiar arma &nbsp;&middot;&nbsp; P pausa<br>
       E en la puerta de la armeria para comprar fierros &nbsp;&middot;&nbsp; F fumar<br>si te frenan con la yuta encima, vas preso</div>
+  </div>
+</div>
+
+<div class="screen" id="online">
+  <div class="bg" style="background-image:url('img/crew.jpeg');filter:blur(5px) brightness(.35)"></div>
+  <div class="vig"></div><div class="scan"></div>
+  <div class="panel">
+    <h1>ONLINE</h1>
+    <h2>HASTA 4 EN EL MISMO BARRIO</h2>
+    <div class="mi" id="btnHost">&gt; CREAR SALA</div>
+    <div class="join">
+      <input id="sala-code" maxlength="5" placeholder="CODIGO" autocomplete="off" spellcheck="false" aria-label="Codigo de sala">
+      <div class="mi" id="btnJoin">&gt; ENTRAR</div>
+    </div>
+    <div class="msg" id="online-msg"></div>
+    <div class="mi" id="btnOnlineBack">&lt; VOLVER</div>
+    <div class="hint">El que crea la sala pasa el link (o el codigo) y los demas entran.<br>
+      Guita, estrellas y fierros son de cada uno &nbsp;&middot;&nbsp; las balas lastiman a todos</div>
+  </div>
+</div>
+
+<div class="screen" id="net">
+  <div class="bg" style="background-image:url('img/crew.jpeg');filter:blur(7px) brightness(.3)"></div>
+  <div class="panel">
+    <h1 id="net-title">CONECTANDO</h1>
+    <div class="hint" id="net-text"></div>
+    <div class="mi" id="btnNetBack" style="display:none">&lt; VOLVER AL MENU</div>
   </div>
 </div>
 
@@ -403,6 +446,7 @@
 <script src="js/traffic.js?v=20"></script>
 <script src="js/game.js?v=20"></script>
 <script src="js/renderer.js?v=20"></script>
+<script src="js/net.js?v=20"></script>
 <script src="js/ui.js?v=20"></script>
 <script src="js/shop.js?v=20"></script>
 <script src="js/touch.js?v=20"></script>

@@ -270,8 +270,10 @@ class EntityManager {
     return { x, y, kind: 'weapon', w, ammo, t: 0, drop: true };
   }
 
+  // Chispas, humo y manchas: el host las repite en la pantalla de los demás (js/net.js)
   boom(x, y, n, col, pow = 1) {
     if (typeof G === 'undefined' || !G.fx) return;
+    net.fx(['b', x, y, n, col, pow]);
     for (let i = 0; i < n; i++) {
       const a = rnd(0, TAU), v = rnd(20, 80) * pow;
       G.fx.push({
@@ -289,6 +291,7 @@ class EntityManager {
 
   puff(x, y, col, n = 1, rise = 14) {
     if (typeof G === 'undefined' || !G.smoke) return;
+    net.fx(['p', x, y, col, n, rise]);
     for (let i = 0; i < n; i++) {
       G.smoke.push({
         x: x + rnd(-3, 3),
@@ -304,6 +307,7 @@ class EntityManager {
   }
 
   decal(x, y, r, col) {
+    net.fx(['d', x, y, r, col]);
     if (!GCTX) return;
     GCTX.fillStyle = col;
     GCTX.beginPath();

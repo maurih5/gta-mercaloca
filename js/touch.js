@@ -242,7 +242,8 @@ class TouchController {
     bindBtn(
       'btn-pause',
       () => {
-        G.paused = !G.paused;
+        // Con otros jugando no hay pausa (igual que la P)
+        if (G.players.length <= 1 && !net.client) G.paused = !G.paused;
       },
       () => {}
     );

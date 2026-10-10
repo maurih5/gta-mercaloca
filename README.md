@@ -26,6 +26,20 @@ Juego estilo GTA top-down retro 2D desarrollado en HTML5 Canvas y JavaScript van
 
 ---
 
+## 🌐 Jugar online
+
+Hasta **4 jugadores en el mismo barrio**, cada uno desde su compu o su celular. No hace falta servidor ni cuenta.
+
+1. Uno entra a **JUGAR ONLINE → CREAR SALA**, elige personaje y arranca. Arriba aparece el código de la sala (`SALA 7X9HJ`) y el link queda copiado.
+2. Los demás abren ese link (o ponen el código en **JUGAR ONLINE**), eligen personaje y caen al lado.
+
+* La guita, las estrellas, los fierros y la yuta son de cada uno. Las balas, las granadas y los autos lastiman a todos (PvP).
+* Con otros jugando no hay pausa, el porro no frena el mundo y al morir reaparece solo el que murió.
+* **El que crea la sala tiene que dejar el juego abierto**: es el que mueve el mundo de todos. Si cierra, la sala se termina.
+* La conexión es directa entre navegadores (WebRTC con [Trystero](https://github.com/dmotz/trystero), que se encuentra por relays públicos de Nostr). En algunas redes muy cerradas (ciertas redes de empresa o de datos móviles) puede no conectar.
+
+---
+
 ## 👥 Personajes actuales
 
 * **El Moro**
@@ -183,11 +197,11 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 
 ### 🌐 Multijugador (Multiplayer)
 - [x] Base multijugador: el juego simula varios jugadores en la misma partida (guita, búsqueda, armas y arresto por jugador; IA, yuta y spawns que reparten entre todos; daño con autor y PvP)
-- [ ] Modo multijugador online en tiempo real (#74):
-  - [ ] Red P2P con WebRTC (el host simula, los demás mandan controles)
-  - [ ] Soporte para salas / lobbies compartidos
-  - [ ] Sincronización de jugadores en el mapa (movimiento, autos y disparos)
-  - [ ] Cooperativo y PvP barrial
+- [x] Modo multijugador online en tiempo real (#74):
+  - [x] Red P2P con WebRTC (el host simula, los demás mandan controles)
+  - [x] Soporte para salas / lobbies compartidos
+  - [x] Sincronización de jugadores en el mapa (movimiento, autos y disparos)
+  - [x] Cooperativo y PvP barrial
 - [ ] Sesiones multijugador en bares: reglas de sesión, fuego amigo, moderación, respawn (#15)
 
 ---
@@ -211,6 +225,7 @@ Agregados a la dirección (por ejemplo `http://localhost:8000/?famoso=messi`):
 | Parámetro | Qué hace |
 | :--- | :--- |
 | `?play` | Arranca directo a jugar, sin menú |
+| `?sala=7X9HJ` | Entra a esa sala online (es el link que se comparte) |
 | `?famoso=messi` | Arranca con ese famoso al lado (`listorti`, `messi`) |
 | `&h=22` | Hora del día (0-24) |
 | `&x=1200&y=800` | Arranca parado en ese punto del mapa |
