@@ -123,6 +123,7 @@ class Game {
     this.snapCam();
     G.cars = [];
     this.resetSupers();
+    for (const g of parrillas) Object.assign(g, { cooking: false, t: 0, portions: 0, owner: null });
     copNav.reset();
     G.peds = [];
     G.guards = [];
@@ -196,7 +197,7 @@ class Game {
     Object.assign(P, {
       x: s.x, y: s.y, hp: P.maxhp, dead: false, car: null, cool: 0.5,
       inv: { pistola: Infinity }, wpn: 'pistola', armor: 0,
-      wanted: 0, wantCool: 0, slowmo: 0,
+      wanted: 0, wantCool: 0, slowmo: 0, food: 80, drink: 80, bag: {},
     });
     if (P === G.me) this.snapCam();
     this.say('DE VUELTA EN EL BARRIO', 2.6, P);
@@ -230,7 +231,9 @@ class Game {
     P.hp = P.maxhp;
     P.car = null;
     P.cool = 0.5;
-    // En la comisaria te sacan los fierros y el chaleco
+    // En la comisaria te sacan los fierros y el chaleco, y te dan un mate cocido
+    P.food = Math.max(P.food, 50);
+    P.drink = Math.max(P.drink, 50);
     P.inv = { pistola: Infinity };
     P.wpn = 'pistola';
     P.armor = 0;
@@ -578,6 +581,111 @@ class Game {
     p.lineT = 2.6;
   }
 
+  // ---- Hambre y sed ----
+
+  // Bajan solas; en 0 se pierde vida de a poco y, bien comido y tomado, la vida sube
+  updateNeeds(P, dt) {
+    const f0 = P.food, d0 = P.drink;
+    P.food = Math.max(0, P.food - HUNGER_RATE * dt);
+    P.drink = Math.max(0, P.drink - THIRST_RATE * dt);
+    // Avisos al cruzar el umbral (una vez por bajada)
+    if (f0 > NEED_LOW && P.food <= NEED_LOW) this.say('TENES HAMBRE. C PARA COMER', 2.6, P);
+    if (d0 > NEED_LOW && P.drink <= NEED_LOW) this.say('TENES SED. C PARA TOMAR ALGO', 2.6, P);
+    if ((f0 > 0 && P.food <= 0) || (d0 > 0 && P.drink <= 0)) {
+      this.say(P.food <= 0 ? 'TE ESTAS MURIENDO DE HAMBRE' : 'TE ESTAS MURIENDO DE SED', 3, P);
+    }
+    if (P.food <= 0 || P.drink <= 0) P.hp -= NEED_HURT * dt;
+    else if (P.food > NEED_GOOD && P.drink > NEED_GOOD && P.hp < P.maxhp) {
+      P.hp = Math.min(P.maxhp, P.hp + NEED_REGEN * dt);
+    }
+  }
+
+  // Lo que más le sirve ahora de lo que tiene en la mochila (null si nada le sirve)
+  bestBite(P) {
+    let best = null, bs = 0;
+    for (const id in P.bag) {
+      const F = FOOD[id];
+      if (!F || !(P.bag[id] > 0)) continue;
+      const s = Math.min(F.food, 100 - P.food) + Math.min(F.drink, 100 - P.drink)
+        + Math.min(F.heal, P.maxhp - P.hp) * 0.5;
+      if (s > bs) { bs = s; best = id; }
+    }
+    return best;
+  }
+
+  eat(P, id = this.bestBite(P)) {
+    if (!Object.keys(P.bag).some(k => FOOD[k] && P.bag[k] > 0)) {
+      this.say('NO TENES NADA PARA COMER. PASA POR UN SUPER', 2.2, P);
+      return false;
+    }
+    const F = FOOD[id];
+    if (!F || !(P.bag[id] > 0)) {
+      this.say('ESTAS LLENO', 1.8, P);
+      return false;
+    }
+    if (--P.bag[id] <= 0) delete P.bag[id];
+    P.food = Math.min(100, P.food + F.food);
+    P.drink = Math.min(100, P.drink + F.drink);
+    P.hp = Math.min(P.maxhp, P.hp + F.heal);
+    sfxFor(P, 'comida');
+    this.say((F.drink > F.food ? 'TE TOMASTE ' : 'TE COMISTE ') + (FOOD_NAME[id] || id.toUpperCase()), 2, P);
+    return true;
+  }
+
+  // Cuántas cosas lleva en la mochila
+  bagCount(P) {
+    let n = 0;
+    for (const k in P.bag) n += P.bag[k];
+    return n;
+  }
+
+  // ---- Asado ----
+
+  // E en la parrilla: si está apagada, se prende con carne y carbón de la mochila; si hay
+  // asado, se lleva una porción (cruda, a punto o quemada según cuánto lleva)
+  useGrill(P, g) {
+    if (!g.cooking) {
+      if (!(P.bag.carne > 0) || !(P.bag.carbon > 0)) {
+        this.say('PARA EL ASADO: CARNE DEL CHOTO Y CARBON', 2.6, P);
+        return false;
+      }
+      for (const k of ['carne', 'carbon']) if (--P.bag[k] <= 0) delete P.bag[k];
+      Object.assign(g, { cooking: true, t: 0, portions: ASADO_PORCIONES, owner: P });
+      puff(g.x, g.y - 4, '200,200,200', 6, 12);
+      this.say('A LA PARRILLA! VOLVE A PUNTO, NO TE COLGUES', 2.8, P);
+      return true;
+    }
+    if (this.bagCount(P) >= BAG_MAX) {
+      this.say('NO TE ENTRA EN LA MOCHILA', 2, P);
+      return false;
+    }
+    const q = g.t < ASADO_PUNTO ? 'crudo' : g.t < ASADO_QUEMA ? 'asado' : 'quemado';
+    P.bag[q] = (P.bag[q] || 0) + 1;
+    g.portions--;
+    sfxFor(P, 'comida');
+    this.say('TE LLEVASTE ' + FOOD_NAME[q] + (g.portions ? ' (QUEDAN ' + g.portions + ')' : ''), 2.4, P);
+    if (g.owner && g.owner !== P && G.players.includes(g.owner)) this.say('TE ESTAN COMIENDO EL ASADO!', 2.6, g.owner);
+    if (g.portions <= 0) Object.assign(g, { cooking: false, t: 0, owner: null });
+    return true;
+  }
+
+  // El asado se va haciendo solo: avisos al dueño cuando está a punto y cuando se quema
+  updateGrills(dt) {
+    for (const g of parrillas) {
+      if (!g.cooking) continue;
+      const t0 = g.t;
+      g.t += dt;
+      const P = G.players.includes(g.owner) ? g.owner : null;
+      if (t0 < ASADO_PUNTO && g.t >= ASADO_PUNTO) this.say('EL ASADO ESTA A PUNTO!', 3, P);
+      if (t0 < ASADO_QUEMA && g.t >= ASADO_QUEMA) this.say('SE TE QUEMA EL ASADO!', 3, P);
+      if (g.t >= ASADO_CARBON) {
+        puff(g.x, g.y - 4, '40,40,40', 10, 18);
+        this.say('SE HIZO CARBON. NO QUEDO NADA', 3, P);
+        Object.assign(g, { cooking: false, t: 0, portions: 0, owner: null });
+      }
+    }
+  }
+
   // ---- Robo al super ----
 
   // Disparar en la puerta: arranca el asalto (o te avisa que ya está cerrado)
@@ -738,6 +846,8 @@ class Game {
       P.healT += dt;
       if (P.healT > HOSPITAL_TIME) {
         P.hp = P.maxhp;
+        P.food = Math.max(P.food, 60); // suero y un sanguchito de miga
+        P.drink = Math.max(P.drink, 60);
         P.healing = 0;
         sfxFor(P, 'hospital');
         this.say('LISTO. A LA CALLE.', 2.6, P);
@@ -753,7 +863,13 @@ class Game {
     P.nearShop = null;
     P.nearTranza = null;
     P.nearSuper = null;
+    P.nearGrill = null;
     if (!P.dead) this.switchWeapon(P);
+
+    if (!P.dead) this.updateNeeds(P, dt);
+
+    // Comer o tomar algo de la mochila: C (o el botón 🍖)
+    if (ctl.eat && !P.prev.eat && !P.dead) this.eat(P);
 
     // Fumarse un porro: F (o el botón 🌿)
     if (ctl.porro && !P.prev.porro && !P.dead) {
@@ -876,6 +992,9 @@ class Game {
         const d = b.door;
         if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearSuper = b;
       }
+      for (const g of parrillas) {
+        if (dist(g, P) < GRILL_R) P.nearGrill = g;
+      }
 
       // Los menús (armería, tranza) se abren en la pantalla del que entró
       if (ctl.use && P.cool <= 0 && P.nearShop) {
@@ -891,6 +1010,9 @@ class Game {
         if (P.nearSuper.robbing || P.nearSuper.closed > 0) this.say('CERRADO POR ROBO', 2.6, P);
         else if (P.wanted >= 2) this.say('EL DE SEGURIDAD NO TE DEJA PASAR', 2.6, P);
         else this.openShop(P, P.nearSuper.super);
+      } else if (ctl.use && P.cool <= 0 && P.nearGrill) {
+        P.cool = 0.4;
+        this.useGrill(P, P.nearGrill);
       } else if (ctl.use && P.cool <= 0) {
         P.cool = 0.4;
         let best = null, bd = 26;
@@ -1208,6 +1330,7 @@ class Game {
 
     this.updateFamous(dt);
     this.updateSupers(dt);
+    this.updateGrills(dt);
 
     // Velocidad real de cada auto (cuánto se movió de verdad), para que nadie espere
     // atrás de uno que acelera contra una pared sin avanzar
@@ -1571,8 +1694,12 @@ class Game {
           this.giveWeapon(P, pk.w, pk.ammo);
           this.say(WEAPONS[pk.w].melee ? WEAPONS[pk.w].name : WEAPONS[pk.w].short + ' +' + pk.ammo, 2.6, P);
         } else {
-          const heal = FOOD_HEAL[pk.food] || 35;
+          const heal = FOOD_HEAL[pk.food] || 35, F = FOOD[pk.food];
           P.hp = Math.min(P.maxhp, P.hp + heal);
+          if (F) {
+            P.food = Math.min(100, P.food + F.food);
+            P.drink = Math.min(100, P.drink + F.drink);
+          }
           this.say('+' + heal + ' VIDA (' + pk.food.toUpperCase() + ')', 2.6, P);
         }
         sfxFor(P, { cash: 'guita', gold: 'guita', weapon: 'arma' }[pk.kind] || 'comida');

@@ -23,7 +23,7 @@ const NET_FX_MAX = 800;                    // tope de efectos por foto
 const NET_MSGS = ['quien', 'info', 'hola', 'bienv', 'chau', 'ctl', 'snap', 'compra'];
 const SALA_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const SALA_LEN = 5;
-const CTL_KEYS = ['run', 'fire', 'use', 'next', 'porro', 'respawn'];
+const CTL_KEYS = ['run', 'fire', 'use', 'next', 'porro', 'respawn', 'eat'];
 const NET_CTL_OLD = 0.6;                   // controles sin renovar: el jugador se queda quieto
 
 const newSalaCode = () => Array.from({ length: SALA_LEN }, () => SALA_ABC[(Math.random() * SALA_ABC.length) | 0]).join('');
@@ -283,9 +283,10 @@ class NetManager {
     const players = G.players.map(q => [
       q.id, CREW.indexOf(q.def), r1(q.x), r1(q.y), r2(q.ang), Math.ceil(q.hp), q.maxhp,
       q.car ? id(q.car) : 0, q.wpn, r2(q.muzzle), r2(q.swing),
-      (q.dead ? 1 : 0) | (q.busted ? 2 : 0) | (q.healing ? 4 : 0) | (q.nearShop ? 8 : 0) | (q.nearTranza ? 16 : 0) | (q.nearSuper ? 32 : 0),
+      (q.dead ? 1 : 0) | (q.busted ? 2 : 0) | (q.healing ? 4 : 0) | (q.nearShop ? 8 : 0) | (q.nearTranza ? 16 : 0) | (q.nearSuper ? 32 : 0) | (q.nearGrill ? 64 : 0),
       r1(q.bustT), r1(q.healT), q.money, q.wanted, Math.round(q.armor), q.porros, r1(q.slowmo), q.bustFine,
       q === P ? packInv(q.inv) : 0,
+      Math.round(q.food), Math.round(q.drink), q === P ? q.bag : 0,
     ]);
 
     // Los efectos de lejos no le interesan (salvo las manchas, que quedan en el piso)
@@ -297,6 +298,7 @@ class NetManager {
 
     return {
       t: r2(G.t), c: cars, p: peds, k: cops, z: tranzas, va: villas.map(v => r1(v.angry)),
+      pa: parrillas.map(g => [r1(g.t), g.cooking ? g.portions : 0]),
       sp: supers.map(b => [r1(b.robT || 0), Math.ceil(b.closed || 0), (b.robbing ? 1 : 0) | (b.alarm > 0 ? 2 : 0)]),
       b: bullets, g: nades, u: pickups, j: players, e: ev,
     };
@@ -450,6 +452,10 @@ class NetManager {
       t.hp = a[4] ? 60 : 0;
     });
     s.va.forEach((v, i) => { if (villas[i]) villas[i].angry = v; });
+    (s.pa || []).forEach((a, i) => {
+      const g = parrillas[i];
+      if (g) Object.assign(g, { t: a[0], portions: a[1], cooking: a[1] > 0 });
+    });
     (s.sp || []).forEach((a, i) => {
       const b = supers[i];
       if (b) Object.assign(b, { robT: a[0], closed: a[1], robbing: !!(a[2] & 1), alarm: a[2] & 2 ? 1 : 0 });
@@ -492,6 +498,7 @@ class NetManager {
       q.nearShop = a[11] & 8 ? true : null;
       q.nearTranza = a[11] & 16 ? true : null;
       q.nearSuper = a[11] & 32 ? true : null;
+      q.nearGrill = a[11] & 64 ? true : null;
       q.bustT = a[12];
       q.healT = a[13];
       q.money = a[14];
@@ -501,6 +508,9 @@ class NetManager {
       q.slowmo = a[18];
       q.bustFine = a[19];
       if (a[20]) q.inv = unpackInv(a[20]);
+      q.food = a[21];
+      q.drink = a[22];
+      if (a[23]) q.bag = a[23];
     });
 
     const me = G.players.find(q => q.id === this.myId) || null;

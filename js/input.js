@@ -87,6 +87,7 @@ class InputManager {
       use: !!k.KeyE,
       next: !!k.KeyQ,
       porro: !!k.KeyF,
+      eat: !!k.KeyC,
       respawn: !!k.Enter,
       slot,
     };
@@ -94,7 +95,7 @@ class InputManager {
 }
 
 // Controles en reposo: jugador sin input (menú abierto, remoto sin datos todavía)
-const idleControls = () => ({ x: 0, y: 0, run: false, fire: false, use: false, next: false, porro: false, respawn: false, slot: 0 });
+const idleControls = () => ({ x: 0, y: 0, run: false, fire: false, use: false, next: false, porro: false, eat: false, respawn: false, slot: 0 });
 
 // Instancia global e interoperabilidad directa con objeto `keys`
 const input = new InputManager();

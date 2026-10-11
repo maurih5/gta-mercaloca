@@ -63,11 +63,12 @@ class ShopManager {
   // Qué se puede hacer con cada ítem según lo que ya tiene el jugador.
   // La ventana es del jugador local (G.me); en red la compra la hace el host (purchase)
   status(it, P = G.me) {
-    if (it.heal) {
+    if (inBag(it.id)) {
       if (it.out) return { can: false, label: 'NO HAY' };
-      return P.hp >= P.maxhp
-        ? { can: false, label: 'ESTAS LLENO' }
-        : { can: true, price: it.price, label: '$' + it.price };
+      const n = P.bag[it.id] || 0;
+      return game.bagCount(P) >= BAG_MAX
+        ? { can: false, label: 'MOCHILA LLENA' }
+        : { can: true, price: it.price, label: '$' + it.price + (n ? ' (' + n + ')' : '') };
     }
     if (it.id === 'porro') {
       return P.porros >= PORRO_MAX
@@ -107,10 +108,9 @@ class ShopManager {
     if (!st || !st.can) return null;
     if (P.money < st.price) return { msg: 'NO TE ALCANZA LA GUITA', bad: true };
     P.money -= st.price;
-    if (it.heal) {
-      P.hp = Math.min(P.maxhp, P.hp + it.heal);
-      sfxFor(P, 'comida');
-      return { msg: '+' + it.heal + ' VIDA. PROVECHO' };
+    if (inBag(it.id)) {
+      P.bag[it.id] = (P.bag[it.id] || 0) + 1;
+      return { msg: 'A LA MOCHILA (' + game.bagCount(P) + '/' + BAG_MAX + '). C PARA COMERLO' };
     }
     if (it.id === 'porro') {
       P.porros++;
@@ -140,7 +140,9 @@ class ShopManager {
     list.innerHTML = '';
     this.items.forEach((it, i) => {
       const st = this.status(it);
-      const name = WEAPONS[it.id] ? WEAPONS[it.id].name : it.id.toUpperCase() + (it.heal ? ' +' + it.heal + ' VIDA' : '');
+      const F = FOOD[it.id];
+      const name = WEAPONS[it.id] ? WEAPONS[it.id].name : it.id.toUpperCase()
+        + (F ? (F.food ? ' +' + F.food + ' HAMBRE' : '') + (F.drink ? ' +' + F.drink + ' SED' : '') : '');
       const row = document.createElement('div');
       row.className = 'shop-row' + (i === this.sel ? ' sel' : '') + (st.can ? '' : ' off');
 
@@ -148,7 +150,7 @@ class ShopManager {
       icon.width = 28;
       icon.height = 16;
       icon.className = 'shop-icon';
-      if (it.heal) foodIcon(icon.getContext('2d'), it.id, 14, 8);
+      if (inBag(it.id)) foodIcon(icon.getContext('2d'), it.id, 14, 8);
       else weaponIcon(icon.getContext('2d'), it.id, 14, 8);
 
       const info = document.createElement('div');
