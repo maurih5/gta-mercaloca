@@ -67,15 +67,19 @@ class Game {
   }
 
   // Los mensajes y el temblor son de la pantalla local: lo que le pasa a otro jugador
-  // no se le muestra a este (con P = null es para todos)
+  // se le manda a su pantalla por la red (con P = null es para esta pantalla)
   say(t, s = 2.6, P = null) {
-    if (P && P !== G.me) return;
+    if (P && P !== G.me) {
+      net.to(P, ['m', t, s]);
+      return;
+    }
     G.msg = t;
     G.msgT = s;
   }
 
   shakeFor(P, n) {
     if (P === G.me) G.shake += n;
+    else if (P) net.to(P, ['k', n]);
   }
 
   nearMe(x, y) {
@@ -84,6 +88,24 @@ class Game {
 
   shakeAt(x, y, n) {
     if (this.nearMe(x, y)) G.shake += n;
+    net.fx(['K', x, y, n]);
+  }
+
+  // Fogonazo blanco en la pantalla de P, o en la de todos los que estén cerca de (x, y)
+  flashFor(P, v) {
+    if (P === G.me) G.flash = Math.max(G.flash, v);
+    else if (P) net.to(P, ['f', v]);
+  }
+
+  flashAt(x, y, v) {
+    if (this.nearMe(x, y)) G.flash = Math.max(G.flash, v);
+    net.fx(['F', x, y, v]);
+  }
+
+  // La armería, el tranza y los supers se abren en la pantalla del jugador que entró
+  openShop(P, kind) {
+    if (P === G.me) shop.open(kind);
+    else net.to(P, ['shop', kind]);
   }
 
   snapCam() {
@@ -100,6 +122,7 @@ class Game {
     G.me.y = s.y;
     this.snapCam();
     G.cars = [];
+    this.resetSupers();
     copNav.reset();
     G.peds = [];
     G.guards = [];
@@ -189,6 +212,7 @@ class Game {
     }
     P.hp = Math.max(P.hp, 1);
     this.shakeFor(P, 6);
+    sfxFor(P, 'arresto');
     this.say('QUEDATE QUIETO!', 2.2, P);
   }
 
@@ -218,6 +242,7 @@ class Game {
 
   exitCar(P = G.me) {
     if (!P || !P.car) return;
+    sfx('puerta', P.car.x, P.car.y);
     P.car.ai = true;
     P.car.spd = 0;
     P.car.nav = false; // la IA retoma desde donde lo dejaste
@@ -232,18 +257,20 @@ class Game {
     P.wanted = Math.min(5, P.wanted + n);
     P.wantCool = 0;
     if (P.wanted > old && P.wanted >= 2) {
+      sfxFor(P, 'busqueda');
       this.say('NIVEL DE BUSQUEDA ' + '*'.repeat(P.wanted), 2.6, P);
     }
   }
 
   wreckCar(car) {
     const P = driverOf(car);
+    sfx('explosion', car.x, car.y);
     boom(car.x, car.y, P ? 34 : 24, '255,150,40', 2);
     puff(car.x, car.y, '40,40,40', 10, 26);
     decal(car.x, car.y, P ? 14 : 12, 'rgba(10,10,10,.5)');
     if (P) {
       this.shakeFor(P, 12);
-      if (P === G.me) G.flash = 0.8;
+      this.flashFor(P, 0.8);
       P.hp -= 25;
       this.exitCar(P);
     } else {
@@ -270,6 +297,7 @@ class Game {
   // Un balazo a un jugador: en el auto lo absorbe casi todo la chapa
   shootPlayer(P, dmg) {
     this.shakeFor(P, 1.6);
+    sfx('impacto', P.x, P.y);
     if (P.car) {
       P.car.hp -= dmg;
       this.hurtPlayer(P, (dmg * 2) / 7);
@@ -282,8 +310,18 @@ class Game {
   // Daño a peatón o policía, con premio y búsqueda para el jugador que lo bajó (by)
   hurt(e, dmg, by = null) {
     if (e.hp <= 0) return;
+    if (e.famous) {
+      this.famousLine(e, e.famous.hurt);
+      // El inmortal acusa el golpe y sigue como si nada
+      if (e.famous.immortal) {
+        boom(e.x, e.y, 5, '255,255,255');
+        sfx('impacto', e.x, e.y);
+        return;
+      }
+    }
     e.hp -= dmg;
     boom(e.x, e.y, 7, '190,35,35');
+    sfx('impacto', e.x, e.y);
     if (e.kind === 'tranza') {
       if (e.villa.angry <= 0) this.say('SE PUDRIO TODO EN ' + e.villa.name, 3, by);
       e.villa.angry = 45;
@@ -296,6 +334,7 @@ class Game {
     }
     if (e.hp <= 0) {
       decal(e.x, e.y, rnd(4, 7), 'rgba(95,12,12,.5)');
+      if (e.famous) this.famousDown(e, by);
       this.wantUp(by, e.kind === 'cop' ? 2 : 1);
       if (by) by.money += e.kind === 'cop' ? 120 : 40;
       if (e.kind === 'cop' && Math.random() < 0.3) G.pickups.push(makeDrop(e.x, e.y, 'escopeta', 6));
@@ -357,6 +396,7 @@ class Game {
         t: 1.15,
         owner: P,
       });
+      sfx('granada', P.x, P.y);
     } else {
       for (let i = 0; i < W.pellets; i++) {
         const a = P.ang + rnd(-W.spread, W.spread);
@@ -372,6 +412,7 @@ class Game {
         });
       }
       P.muzzle = 1;
+      sfx(id, P.x, P.y);
       this.shakeFor(P, W.shake);
       boom(P.x + Math.cos(P.ang) * W.barrel, P.y + Math.sin(P.ang) * W.barrel, 3, '255,225,150');
     }
@@ -387,6 +428,7 @@ class Game {
   // Bastonazo: pega a todo lo que esté adelante y lo empuja
   swing(P, W) {
     P.swing = 1;
+    sfx('swing', P.x, P.y);
     let hit = false;
     for (const e of this.targetsOf(P)) {
       const d = dist(e, P);
@@ -403,6 +445,7 @@ class Game {
       hit = true;
     }
     if (hit) {
+      sfx('golpe', P.x, P.y);
       this.shakeFor(P, 2);
       if (P.wanted < 1) this.wantUp(P, 1);
     }
@@ -411,12 +454,13 @@ class Game {
   // by: el jugador que la provocó (granada, auto que revienta), o null
   explode(x, y, R, dmg, by = null) {
     const at = { x, y };
+    sfx('explosion', x, y);
     boom(x, y, 40, '255,150,40', 2.2);
     boom(x, y, 16, '255,230,160', 1.2);
     puff(x, y, '40,40,40', 12, 24);
     decal(x, y, 13, 'rgba(10,10,10,.5)');
     this.shakeAt(x, y, 10);
-    if (this.nearMe(x, y)) G.flash = Math.max(G.flash, 0.7);
+    this.flashAt(x, y, 0.7);
     for (const list of [G.cops, G.peds, G.tranzas]) {
       for (const e of list) {
         if (e.hp <= 0 || e.inside) continue;
@@ -495,6 +539,7 @@ class Game {
           if (uzi && Math.random() < 0.08) t.cool = rnd(0.8, 1.4); // pausa entre ráfagas
           const a = t.ang + rnd(-0.18, 0.18);
           t.muzzle = 1;
+          sfx(t.wpn === 'uzi' ? 'uzi' : 'pistola', t.x, t.y);
           G.bullets.push({
             x: t.x + Math.cos(a) * 9,
             y: t.y + Math.sin(a) * 9,
@@ -524,6 +569,160 @@ class Game {
     }
   }
 
+  // ---- Famosos ----
+
+  // Dice una de sus frases (la ven todos los que estén cerca: es un globito en el mundo)
+  famousLine(p, lines) {
+    if (!lines || !lines.length || p.lineT > 1.2) return;
+    p.line = lines[(Math.random() * lines.length) | 0];
+    p.lineT = 2.6;
+  }
+
+  // ---- Robo al super ----
+
+  // Disparar en la puerta: arranca el asalto (o te avisa que ya está cerrado)
+  robSuper(P, b) {
+    if (b.robbing) return; // ya lo están robando: se suma solo con quedarse en la puerta
+    if (b.closed > 0) {
+      this.say('CERRADO. YA LO ROBARON', 2.6, P);
+      return;
+    }
+    const d = b.door, dx = d.x + d.ox, dy = d.y + d.oy;
+    Object.assign(b, {
+      robbing: true, robT: 0, robIdle: 0, robbers: [], alarm: SUPER_ALARM, alarmT: 0,
+      witnesses: G.peds.filter(p => p.hp > 0 && !p.inside && Math.hypot(p.x - dx, p.y - dy) < ROB_WITNESS_R),
+    });
+    this.say('ESTO ES UN ASALTO! QUEDATE EN LA PUERTA', 2.6, P);
+    this.flashAt(dx, dy, 0.3);
+  }
+
+  // Todo lo que pasa en los supers: alarma, persiana, el asalto en curso y los testigos.
+  // Es mundo compartido: cualquier jugador en la puerta con el asalto en marcha se suma.
+  updateSupers(dt) {
+    for (const b of supers) {
+      const d = b.door, dx = d.x + d.ox, dy = d.y + d.oy;
+      b.closed = Math.max(0, (b.closed || 0) - dt);
+      if (b.alarm > 0) {
+        b.alarm -= dt;
+        b.alarmT -= dt;
+        if (b.alarmT <= 0) {
+          b.alarmT = 0.9;
+          sfx('alarma', dx, dy);
+        }
+      }
+      if (b.witnessT > 0) {
+        b.witnessT -= dt;
+        if (b.witnessT <= 0 && b.witnesses.some(p => p.hp > 0 && G.peds.includes(p))) {
+          for (const q of b.robbers) {
+            if (!G.players.includes(q)) continue;
+            this.wantUp(q, 1);
+            this.say('UN TESTIGO LLAMO A LA YUTA', 2.6, q);
+          }
+        }
+      }
+      if (!b.robbing) continue;
+
+      const here = G.players.filter(q => inPlay(q) && !q.car && Math.hypot(q.x - dx, q.y - dy) < ROB_R);
+      for (const q of here) {
+        if (b.robbers.includes(q)) continue;
+        b.robbers.push(q);
+        this.wantUp(q, ROB_STARS);
+      }
+      if (!here.length) {
+        b.robIdle += dt;
+        if (b.robIdle > ROB_GRACE) {
+          for (const q of b.robbers) this.say('SE CORTO EL ASALTO', 2.6, q);
+          this.endRobbery(b);
+        }
+        continue;
+      }
+      b.robIdle = 0;
+      b.robT += dt * here.length;
+      if (b.robT >= ROB_TIME) this.lootSuper(b);
+    }
+  }
+
+  // La caja vacía: los fajos saltan a la vereda y se los lleva el que los junta
+  lootSuper(b) {
+    const d = b.door, L = ROB_LOOT[b.super];
+    const ax = Math.sign(d.ox), ay = Math.sign(d.oy);
+    for (let i = 0; i < L.n; i++) {
+      const out = rnd(10, 26), side = rnd(-22, 22);
+      G.pickups.push({
+        x: d.x + ax * out + ay * side, y: d.y + ay * out + ax * side,
+        kind: 'cash', value: Math.round(rnd(L.v[0], L.v[1]) / 10) * 10, t: 0, drop: true,
+      });
+    }
+    const msg = b.super === 'lanus' ? 'LA CAJA ESTABA VACIA. YA LA ROBARON AYER' : 'CAJA VACIA! JUNTA LA GUITA Y RAJA';
+    for (const q of b.robbers) this.say(msg, 3, q);
+    boom(d.x + ax * 12, d.y + ay * 12, 10, '120,220,120');
+    b.witnessT = ROB_WITNESS;
+    this.endRobbery(b);
+  }
+
+  endRobbery(b) {
+    b.robbing = false;
+    b.robT = 0;
+    b.closed = SUPER_CLOSED;
+  }
+
+  // Partida nueva: los supers abiertos y sin alarma
+  resetSupers() {
+    for (const b of supers) {
+      Object.assign(b, { robbing: false, robT: 0, robIdle: 0, closed: 0, alarm: 0, witnessT: 0, robbers: [], witnesses: [] });
+    }
+  }
+
+  // Cayó un famoso: suelta lo suyo y el que lo bajó se entera
+  famousDown(e, by) {
+    const d = e.famous.drop;
+    if (d && d.kind === 'gold') {
+      for (let i = 0; i < d.n; i++) {
+        const a = (i / d.n) * TAU + rnd(-0.3, 0.3), r = rnd(14, 26); // desparramados: se juntan de a uno
+        G.pickups.push({ x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r, kind: 'gold', value: d.value, t: 0, drop: true });
+      }
+    }
+    this.say('BAJASTE A ' + e.famous.name, 2.6, by);
+  }
+
+  // Aparecen cerca de cada jugador cada tanto (sin que otro jugador los vea aparecer),
+  // hablan cuando alguien se les acerca y se van cuando ya pasearon y nadie los mira
+  updateFamous(dt) {
+    for (const p of G.peds) {
+      if (!p.famous || p.hp <= 0) continue;
+      p.life -= dt;
+      p.lineT = Math.max(0, p.lineT - dt);
+      p.talkT -= dt;
+      const { p: P, d } = nearestPlayer(p, inPlay);
+      if (P && d < FAMOUS_TALK && p.talkT <= 0) {
+        this.famousLine(p, p.famous.near);
+        p.talkT = rnd(5, 9);
+      }
+    }
+    G.peds = G.peds.filter(p => !p.famous || p.hp <= 0 || p.life > 0 || !farFromPlayers(p, OFFSCREEN));
+
+    for (const P of G.players) {
+      if (!inPlay(P)) continue;
+      if (P.famousT === undefined) P.famousT = rnd(FAMOUS_EVERY[0], FAMOUS_EVERY[1]);
+      P.famousT -= dt;
+      if (P.famousT > 0) continue;
+      P.famousT = rnd(FAMOUS_EVERY[0], FAMOUS_EVERY[1]);
+      const around = G.peds.filter(q => q.famous && q.hp > 0);
+      if (around.some(q => dist(q, P) < SIM_R)) continue;
+      // Cada famoso es uno solo en todo el mapa
+      const pool = FAMOUS.filter(f => !around.some(q => q.famous === f));
+      if (!pool.length) continue;
+      const def = pool[(Math.random() * pool.length) | 0];
+      const sp = sidewalkSpot(OFFSCREEN, SIM_R * 0.8, P);
+      if (!sp || !offscreenForOthers(sp, P)) {
+        P.famousT = 3; // no hubo lugar: se prueba de nuevo enseguida
+        continue;
+      }
+      G.peds.push(makeFamous(def, sp.x, sp.y));
+      this.say(def.name + ' ANDA POR EL BARRIO', 2.8, P);
+    }
+  }
+
   // Lo que hace un jugador en su frame: moverse, manejar, tirar, entrar a lugares.
   // Solo lee P.ctl (sus controles), nunca el teclado. Devuelve 'reset' si se reinició la partida.
   updatePlayer(P, rdt, dt) {
@@ -540,6 +739,7 @@ class Game {
       if (P.healT > HOSPITAL_TIME) {
         P.hp = P.maxhp;
         P.healing = 0;
+        sfxFor(P, 'hospital');
         this.say('LISTO. A LA CALLE.', 2.6, P);
       }
       return;
@@ -552,6 +752,7 @@ class Game {
     P.swing = Math.max(0, P.swing - rdt * 5);
     P.nearShop = null;
     P.nearTranza = null;
+    P.nearSuper = null;
     if (!P.dead) this.switchWeapon(P);
 
     // Fumarse un porro: F (o el botón 🌿)
@@ -561,6 +762,7 @@ class Game {
         P.slowmo = PORRO_TIME;
         P.hp = Math.min(P.maxhp, P.hp + 15);
         puff(P.x, P.y - 6, '200,220,200', 6, 10);
+        sfxFor(P, 'porro');
         this.say('TE BAJASTE UN CAMBIO...', 2.2, P);
       } else if (P.porros <= 0) {
         this.say('NO TENES PORROS. BUSCA UN TRANZA', 1.8, P);
@@ -613,6 +815,7 @@ class Game {
           car.hp -= dmg;
           P.hp -= dmg * 0.5;
           boom(car.x, car.y, 8, '255,190,90');
+          sfx('choque', car.x, car.y, dmg);
           this.shakeFor(P, dmg * 0.5);
         }
         car.spd *= -0.25;
@@ -669,16 +872,25 @@ class Game {
       for (const t of G.tranzas) {
         if (t.hp > 0 && t.villa.angry <= 0 && dist(t, P) < 16) P.nearTranza = t;
       }
+      for (const b of supers) {
+        const d = b.door;
+        if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearSuper = b;
+      }
 
-      // Los menús (armería, tranza) son de la pantalla local: solo los abre G.me
+      // Los menús (armería, tranza) se abren en la pantalla del que entró
       if (ctl.use && P.cool <= 0 && P.nearShop) {
         P.cool = 0.4;
         if (P.wanted >= 2) this.say('EL ARMERO NO ATIENDE CON LA YUTA ENCIMA', 2.6, P);
-        else if (P === G.me) shop.open('armeria');
+        else this.openShop(P, 'armeria');
       } else if (ctl.use && P.cool <= 0 && P.nearTranza) {
         P.cool = 0.4;
         P.nearTranza.ang = Math.atan2(P.y - P.nearTranza.y, P.x - P.nearTranza.x);
-        if (P === G.me) shop.open('tranza');
+        this.openShop(P, 'tranza');
+      } else if (ctl.use && P.cool <= 0 && P.nearSuper) {
+        P.cool = 0.4;
+        if (P.nearSuper.robbing || P.nearSuper.closed > 0) this.say('CERRADO POR ROBO', 2.6, P);
+        else if (P.wanted >= 2) this.say('EL DE SEGURIDAD NO TE DEJA PASAR', 2.6, P);
+        else this.openShop(P, P.nearSuper.super);
       } else if (ctl.use && P.cool <= 0) {
         P.cool = 0.4;
         let best = null, bd = 26;
@@ -694,6 +906,7 @@ class Game {
           best.ai = false;
           best.chase = false; // un patrullero robado deja de perseguir
           P.car = best;
+          sfx('puerta', best.x, best.y);
           if (!best.cop) this.wantUp(P, 1);
           this.say(best.cop ? 'AUTO DE LA YUTA' : 'AUTO ROBADO', 2.6, P);
         }
@@ -713,6 +926,7 @@ class Game {
     }
     P.cool -= rdt;
 
+    if (ctl.fire && !(P.prev && P.prev.fire) && P.nearSuper && !P.car && !P.dead) this.robSuper(P, P.nearSuper);
     if (ctl.fire && !P.dead && P.cool <= 0) this.attack(P);
   }
 
@@ -735,6 +949,7 @@ class Game {
 
     // Controles: el jugador local los lee del teclado; los remotos llegan por la red
     if (G.me) G.me.ctl = G.paused || G.mapOpen || G.shopOpen ? idleControls() : input.readControls();
+    net.applyControls();
 
     for (const P of G.players.slice()) {
       if (this.updatePlayer(P, rdt, dt) === 'reset') return;
@@ -753,6 +968,7 @@ class Game {
       if (hitBuilding(b.x, b.y, 1)) {
         b.life = 0;
         boom(b.x, b.y, 4, '220,220,200');
+        sfx('pared', b.x, b.y);
         continue;
       }
       if (b.owner) {
@@ -810,7 +1026,7 @@ class Game {
       }
       if (!busy) {
         p.doorT -= dt;
-        if (p.doorT <= 0 && !p.target) {
+        if (p.doorT <= 0 && !p.target && !p.famous) {
           const b = nearestDoor(p.x, p.y, 110);
           if (b) p.target = b;
           else p.doorT = rnd(4, 10);
@@ -989,6 +1205,9 @@ class Game {
         P.pedSpawn = 0;
       }
     }
+
+    this.updateFamous(dt);
+    this.updateSupers(dt);
 
     // Velocidad real de cada auto (cuánto se movió de verdad), para que nadie espere
     // atrás de uno que acelera contra una pared sin avanzar
@@ -1254,6 +1473,7 @@ class Game {
           a.spd *= -0.3;
           b.spd *= -0.3;
           boom((a.x + b.x) / 2, (a.y + b.y) / 2, 10, '255,190,90');
+          sfx('choque', (a.x + b.x) / 2, (a.y + b.y) / 2, dmg);
           this.shakeAt((a.x + b.x) / 2, (a.y + b.y) / 2, Math.min(10, dmg * 0.5));
           const da = driverOf(a), db = driverOf(b);
           if (da) da.hp -= dmg * 0.5;
@@ -1309,6 +1529,7 @@ class Game {
         c.cool = rnd(0.7, 1.6) / (1 + P.wanted * 0.15);
         const a = c.ang + rnd(-0.16, 0.16);
         c.muzzle = 1;
+        sfx('pistola', c.x, c.y);
         G.bullets.push({
           x: c.x + Math.cos(a) * 9,
           y: c.y + Math.sin(a) * 9,
@@ -1340,9 +1561,12 @@ class Game {
       const { p: P, d } = nearestPlayer(pk, inPlay);
       if (P && d < 12) {
         if (pk.kind === 'cash') {
-          const v = 150 + ((Math.random() * 8) | 0) * 50;
+          const v = pk.value || 150 + ((Math.random() * 8) | 0) * 50;
           P.money += v;
           this.say('+$' + v, 2.6, P);
+        } else if (pk.kind === 'gold') {
+          P.money += pk.value;
+          this.say('+$' + pk.value + ' BALON DE ORO', 2.6, P);
         } else if (pk.kind === 'weapon') {
           this.giveWeapon(P, pk.w, pk.ammo);
           this.say(WEAPONS[pk.w].melee ? WEAPONS[pk.w].name : WEAPONS[pk.w].short + ' +' + pk.ammo, 2.6, P);
@@ -1351,7 +1575,8 @@ class Game {
           P.hp = Math.min(P.maxhp, P.hp + heal);
           this.say('+' + heal + ' VIDA (' + pk.food.toUpperCase() + ')', 2.6, P);
         }
-        const col = { cash: '120,220,120', hp: '230,90,90', weapon: '255,200,90' }[pk.kind];
+        sfxFor(P, { cash: 'guita', gold: 'guita', weapon: 'arma' }[pk.kind] || 'comida');
+        const col = { cash: '120,220,120', gold: '255,215,70', hp: '230,90,90', weapon: '255,200,90' }[pk.kind];
         boom(pk.x, pk.y, 8, col);
         if (pk.drop) pk.gone = true;
         else Object.assign(pk, makePickup());
@@ -1359,6 +1584,25 @@ class Game {
     }
     G.pickups = G.pickups.filter(pk => !pk.gone && !(pk.drop && pk.t > 30));
 
+    this.updateFx(dt);
+
+    for (const P of G.players) {
+      if (P.hp <= 0 && !P.dead) {
+        P.dead = true;
+        P.hp = 0;
+        this.exitCar(P);
+        boom(P.x, P.y, 32, '170,30,30');
+        sfxFor(P, 'muerte');
+        decal(P.x, P.y, 9, 'rgba(95,12,12,.55)');
+        this.shakeFor(P, 10);
+      }
+    }
+
+    this.updateCamera(rdt);
+  }
+
+  // Chispas y humo: son de cada pantalla (en red cada uno anima los suyos)
+  updateFx(dt) {
     for (const f of G.fx) {
       f.x += f.vx * dt;
       f.y += f.vy * dt;
@@ -1376,19 +1620,10 @@ class Game {
       s.life -= dt;
     }
     G.smoke = G.smoke.filter(s => s.life > 0);
+  }
 
-    for (const P of G.players) {
-      if (P.hp <= 0 && !P.dead) {
-        P.dead = true;
-        P.hp = 0;
-        this.exitCar(P);
-        boom(P.x, P.y, 32, '170,30,30');
-        decal(P.x, P.y, 9, 'rgba(95,12,12,.55)');
-        this.shakeFor(P, 10);
-      }
-    }
-
-    // Cámara del jugador local, con suavizado y adelanto según velocidad
+  // Cámara del jugador local, con suavizado y adelanto según velocidad
+  updateCamera(rdt) {
     const P = G.me;
     if (!P) return;
     const lead = P.car ? clamp(P.car.spd / 195, 0, 1) * 52 : 0;

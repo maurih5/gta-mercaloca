@@ -37,6 +37,7 @@ class EntityManager {
       healT: 0,
       nearShop: null,
       nearTranza: null,
+      nearSuper: null,
       zone: null,
       slowmo: 0,
       high: 0,
@@ -70,6 +71,25 @@ class EntityManager {
       fade: 1,
       target: null,
     };
+  }
+
+  // Un famoso es un peatón con nombre: camina como cualquiera, pero no entra a edificios,
+  // dice sus frases y tiene sus propias reglas al caer
+  makeFamous(def, x, y) {
+    const p = this.makePedAt(x, y);
+    return Object.assign(p, {
+      famous: def,
+      def: null,
+      face: 'famous-' + def.id,
+      shirt: def.shirt,
+      pants: def.pants,
+      hp: def.hp,
+      sped: def.spd,
+      life: FAMOUS_LIFE,
+      talkT: 0,
+      line: '',
+      lineT: 0,
+    });
   }
 
   sidewalkSpot(near, far, center) {
@@ -251,8 +271,10 @@ class EntityManager {
     return { x, y, kind: 'weapon', w, ammo, t: 0, drop: true };
   }
 
+  // Chispas, humo y manchas: el host las repite en la pantalla de los demás (js/net.js)
   boom(x, y, n, col, pow = 1) {
     if (typeof G === 'undefined' || !G.fx) return;
+    net.fx(['b', x, y, n, col, pow]);
     for (let i = 0; i < n; i++) {
       const a = rnd(0, TAU), v = rnd(20, 80) * pow;
       G.fx.push({
@@ -270,6 +292,7 @@ class EntityManager {
 
   puff(x, y, col, n = 1, rise = 14) {
     if (typeof G === 'undefined' || !G.smoke) return;
+    net.fx(['p', x, y, col, n, rise]);
     for (let i = 0; i < n; i++) {
       G.smoke.push({
         x: x + rnd(-3, 3),
@@ -285,6 +308,7 @@ class EntityManager {
   }
 
   decal(x, y, r, col) {
+    net.fx(['d', x, y, r, col]);
     if (!GCTX) return;
     GCTX.fillStyle = col;
     GCTX.beginPath();
@@ -306,6 +330,7 @@ function spawnCenter(center) {
 // Exportación de funciones clásicas para compatibilidad
 const makePlayer = (def, id) => entities.makePlayer(def, id);
 const makePedAt = (x, y) => entities.makePedAt(x, y);
+const makeFamous = (def, x, y) => entities.makeFamous(def, x, y);
 const sidewalkSpot = (near, far, center) => entities.sidewalkSpot(near, far, center);
 const makePed = () => entities.makePed();
 const makeCar = (x, y, cop) => entities.makeCar(x, y, cop);

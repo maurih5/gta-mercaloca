@@ -473,13 +473,17 @@ class TrafficAI {
     for (const P of G.players) {
       if (P.dead || P.healing) continue;
       if (P.car && P.car !== skip) consider(P.car, P.car.w, P.car.h, 0, P.car);
-      else if (!P.car && skip !== P) consider(P, 6, 6, 0, 'player');
+      else if (!P.car && skip !== P && !onSidewalk(P.x, P.y)) consider(P, 6, 6, 0, 'player');
     }
-    // Peatones cruzando: se frena, pero si se queda plantado en la calle, bocinazo y pasa
+    // Peatones cruzando: se frena, pero si se queda plantado en la calle, bocinazo y pasa.
+    // El que va por la vereda no corta el paso: el carril queda a menos de un auto de ancho
+    // del medio de la vereda, y con el margen de consider() los autos grandes frenaban por
+    // gente que caminaba al costado (y el jugador parado en el cordón trababa la fila entera)
     if (c.pedIgn <= 0) {
       for (const p of G.peds) {
         if (p.hp <= 0 || p.inside || p === skip) continue;
         if (Math.abs(p.x - c.x) > scan || Math.abs(p.y - c.y) > scan) continue;
+        if (onSidewalk(p.x, p.y)) continue;
         consider(p, 6, 6, 0, 'ped');
       }
     }

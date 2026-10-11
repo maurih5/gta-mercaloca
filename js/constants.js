@@ -7,11 +7,13 @@
 const VERSION = 'local';
 
 const CREW = [
-  {id:'p1', name:'EL SMOKE',  img:'img/p1.jpeg', crop:[0.42,0.11,0.25,0.29], shirt:'#3f9a4a', pants:'#232323'},
-  {id:'p2', name:'ACADEMIA',  img:'img/p2.jpeg', crop:[0.40,0.08,0.19,0.14], shirt:'#1d1d22', pants:'#2a2a33'},
-  {id:'p3', name:'PALMERA',   img:'img/p3.jpeg', crop:[0.37,0.03,0.20,0.14], shirt:'#26262c', pants:'#3a3f4a'},
-  {id:'p4', name:'EL JEFE',   img:'img/p4.jpeg', crop:[0.42,0.17,0.25,0.24], shirt:'#4a4238', pants:'#1c1c1c'},
-  {id:'p5', name:'LA PIEDRA', img:'img/p5.jpeg', crop:[0.56,0.16,0.22,0.20], shirt:'#e8e8e0', pants:'#242424'},
+  // crop: [x, y, ancho, alto] de la cara en la foto (de la frente o la gorra al mentón)
+  {id:'p1', name:'EL MORO',          img:'img/p1.jpeg',   crop:[0.43,0.13,0.22,0.25],  shirt:'#3f9a4a', pants:'#232323'},
+  {id:'p2', name:'EL IVO',           img:'img/p2.jpeg',   crop:[0.41,0.10,0.16,0.11],  shirt:'#1d1d22', pants:'#2a2a33'},
+  {id:'p3', name:'EL CIEGO AUGUSTO', img:'img/p3.jpeg',   crop:[0.38,0.045,0.17,0.115], shirt:'#26262c', pants:'#3a3f4a'},
+  {id:'p4', name:'EL KEVIN',         img:'img/p4.jpeg',   crop:[0.43,0.19,0.22,0.19],  shirt:'#4a4238', pants:'#1c1c1c'},
+  {id:'p5', name:'EL ALEXIS',        img:'img/p5.jpeg',   crop:[0.575,0.18,0.18,0.15], shirt:'#e8e8e0', pants:'#242424'},
+  {id:'p6', name:'EL GER',           img:'img/crew.jpeg', crop:[0.42,0.10,0.24,0.29],  shirt:'#3a7d3c', pants:'#2a2a2a'},
 ];
 
 const TIPS = [
@@ -25,6 +27,11 @@ const TIPS = [
 
 // Resolucion interna y proyeccion de falso 3D
 const RW = 480, RH = 270;
+// El canvas tiene el doble de píxeles reales que la resolución lógica: todo se sigue
+// dibujando en la grilla de 480x270 (los px() caen en bloques de 2x2), pero las caras
+// de los personajes usan esos píxeles extra para verse con el doble de definición.
+const RENDER_SCALE = 2;
+const FACE_PX = 12 * RENDER_SCALE;      // lado de la foto de la cara, en píxeles reales (la cabeza mide 12)
 const FOCAL = 300;                      // menor = mas perspectiva en la extrusion
 
 // Geometria del mundo y grilla
@@ -118,6 +125,31 @@ const HOSPITAL_TIME = 3.2;
 // Items de curacion desperdigados por el mapa: cuanta vida da cada uno
 const FOOD_HEAL = { pernil: 45, choripan: 30, mate: 15 };
 const FOODS = Object.keys(FOOD_HEAL);
+
+// Famosos: NPCs con nombre (parodias) que aparecen cada tanto cerca de algún jugador,
+// pasean un rato y se van. Cada uno tiene su cara (look), sus frases y lo que suelta.
+//  near: lo que dice cuando un jugador se le acerca; hurt: cuando le pegan
+//  immortal: no se lo puede bajar; drop: lo que suelta al caer; stripes: rayas de la camiseta
+const FAMOUS = [
+  {
+    id: 'listorti', name: 'JOSE MARIA LISTORTO', immortal: true, hp: 30,
+    shirt: '#2b2f3a', pants: '#1a1a1f', spd: 26,
+    look: { skin: '#e2b896', hair: '#2a1d12', hairStyle: 'corto', smile: true },
+    near: ['¿QUE HACES, CAPO?', 'JA JA JA JA', 'MIRA LA CAMARA, SALUDA'],
+    hurt: ['OOOOOOOOOOH!', 'OOOOOOOOOOOH!', 'OOOOOOOOOOH! JA JA'],
+  },
+  {
+    id: 'messi', name: 'LIONEL MESSIAS', hp: 60,
+    shirt: '#75aadb', pants: '#1a1a1a', stripes: '#ffffff', spd: 34,
+    look: { skin: '#d9a87f', hair: '#4a2f1c', hairStyle: 'corto', beard: '#4a2f1c' },
+    near: ['¿QUE MIRAS, BOBO?', 'ANDA PA ALLA, BOBO', 'ANDA PA ALLA'],
+    hurt: ['¿QUE MIRAS, BOBO?', 'BOBO!'],
+    drop: { kind: 'gold', n: 5, value: 400 },
+  },
+];
+const FAMOUS_EVERY = [40, 80];          // cada cuánto (s, al azar) puede aparecer uno cerca de cada jugador
+const FAMOUS_LIFE = 150;                // segundos que pasea antes de irse (cuando nadie lo ve)
+const FAMOUS_TALK = 34;                 // distancia a la que te habla
 
 // Poblacion viva y radios de simulacion
 const SIM_R = 560;                       // radio de simulacion
@@ -225,6 +257,50 @@ const TRANZA_ITEMS = [
   {id:'uzi',     price:1100, ammo:60, refill:250,  desc:'Usada, pero anda. Sin preguntas.'},
   {id:'granada', price:950,  ammo:3,  refill:600,  desc:'Del deposito del fondo. No preguntes de donde.'},
 ];
+// Supermercados: la comida se come ahí nomás y cura (heal) en el momento.
+// El CHOTO tiene carne; el NOCHE % es más barato y no tiene. El CHOTO de Lanús
+// vende lo mismo que el CHOTO, pero la carne nunca llega (out).
+const CHOTO_ITEMS = [
+  {id:'carne',    price:260, heal:70, desc:'Vacio del bueno. Lo morfas ahi nomas, crudo.'},
+  {id:'pernil',   price:180, heal:45, desc:'Pernil de cumpleanos. Sin el cumpleanos.'},
+  {id:'choripan', price:120, heal:30, desc:'Chori con chimi. El del CHOTO, no el de la cancha.'},
+  {id:'mate',     price:60,  heal:15, desc:'Yerba, termo y bombilla. Te levanta.'},
+];
+const NOCHE_ITEMS = [
+  {id:'fideos',     price:70, heal:35, desc:'Monitos con manteca. Carne no hay, nunca hubo.'},
+  {id:'galletitas', price:40, heal:20, desc:'Paquete de criollitas, la mitad rotas.'},
+  {id:'mate',       price:35, heal:15, desc:'Yerba de marca propia. Tiene palos.'},
+];
+const LANUS_ITEMS = [
+  {id:'carne',    price:260, heal:70, out:true, desc:'HOY NO HAY CARNE. Ayer tampoco.'},
+  {id:'pernil',   price:180, heal:45, desc:'El ultimo que quedaba. Tiene una mordida.'},
+  {id:'choripan', price:120, heal:30, desc:'Lo hace el de seguridad en la puerta.'},
+  {id:'mate',     price:60,  heal:15, desc:'Lo tenes que cebar vos.'},
+];
+// Las cadenas: cartel del techo (al de Lanús se le cayó la O), colores de la fachada y del cartel, y dónde va cada
+// local (fracción del mapa; se convierte el edificio grande más cercano a ese punto).
+// El de Lanús va del otro lado del Riachuelo, como corresponde.
+const SUPERS = [
+  { k: 'choto', name: 'CHOTO', at: [0.30, 0.44], col: '#e8e0d4', roof: '#c8302a', sign: '#c8302a', ink: '#fff' },
+  { k: 'noche', name: 'NOCHE %', at: [0.22, 0.62], col: '#e4e6ec', roof: '#2a4fa8', sign: '#d8302a', ink: '#fff' },
+  { k: 'noche', name: 'NOCHE %', at: [0.86, 0.36], col: '#e4e6ec', roof: '#2a4fa8', sign: '#d8302a', ink: '#fff' },
+  { k: 'lanus', name: 'CH TO', at: [0.70, 0.86], col: '#d6cdbd', roof: '#a8342e', sign: '#a8342e', ink: '#f2e6d8' },
+];
+// Robo al super: se arranca disparando en la puerta y hay que quedarse ROB_TIME segundos
+// ahí (si roban dos, va el doble de rápido). Si nadie queda en la puerta ROB_GRACE
+// segundos, se corta. Después el local queda con la persiana baja SUPER_CLOSED segundos.
+// Los que vieron el robo (a ROB_WITNESS_R de la puerta), si siguen vivos ROB_WITNESS
+// segundos después, llaman a la yuta: una estrella más.
+const ROB_TIME = 4;
+const ROB_R = 22;
+const ROB_GRACE = 1.5;
+const ROB_STARS = 2;
+const SUPER_CLOSED = 90;
+const SUPER_ALARM = 12;
+const ROB_WITNESS = 6;
+const ROB_WITNESS_R = 110;
+// Botín: cuántos fajos salen de la caja y cuánto vale cada uno
+const ROB_LOOT = { choto: { n: 6, v: [250, 450] }, noche: { n: 4, v: [150, 300] }, lanus: { n: 1, v: [40, 40] } };
 const PORRO_MAX = 5;      // cuantos entran en el bolsillo
 const PORRO_TIME = 7;     // segundos de camara lenta
 const SLOWMO = 0.38;      // velocidad del mundo mientras dura

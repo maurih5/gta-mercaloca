@@ -20,17 +20,34 @@ Juego estilo GTA top-down retro 2D desarrollado en HTML5 Canvas y JavaScript van
 | <kbd>Shift</kbd> | Correr (a pie) |
 | <kbd>M</kbd> | Mapa global |
 | <kbd>+</kbd> <kbd>-</kbd> | Zoom del mapa (con el mapa abierto) |
-| <kbd>P</kbd> | Pausa |
+| <kbd>P</kbd> | Pausa (solo jugando solo) |
+| <kbd>N</kbd> | Prender / apagar el sonido |
+| <kbd>R</kbd> | Cambiar de emisora / apagar la radio (manejando) |
+
+---
+
+## 🌐 Jugar online
+
+Hasta **4 jugadores en el mismo barrio**, cada uno desde su compu o su celular. No hace falta servidor ni cuenta.
+
+1. Uno entra a **JUGAR ONLINE → CREAR SALA**, elige personaje y arranca. Arriba aparece el código de la sala (`SALA 7X9HJ`) y el link queda copiado.
+2. Los demás abren ese link (o ponen el código en **JUGAR ONLINE**), eligen personaje y caen al lado.
+
+* La guita, las estrellas, los fierros y la yuta son de cada uno. Las balas, las granadas y los autos lastiman a todos (PvP).
+* Con otros jugando no hay pausa, el porro no frena el mundo y al morir reaparece solo el que murió.
+* **El que crea la sala tiene que dejar el juego abierto**: es el que mueve el mundo de todos. Si cierra, la sala se termina.
+* La conexión es directa entre navegadores (WebRTC con [Trystero](https://github.com/dmotz/trystero), que se encuentra por relays públicos de Nostr). En algunas redes muy cerradas (ciertas redes de empresa o de datos móviles) puede no conectar.
 
 ---
 
 ## 👥 Personajes actuales
 
-* **El Smoke**
-* **Academia**
-* **Palmera**
-* **El Jefe**
-* **La Piedra**
+* **El Moro**
+* **El Ivo**
+* **El Ciego Augusto**
+* **El Kevin**
+* **El Alexis**
+* **El Ger**
 
 ---
 
@@ -78,28 +95,40 @@ Los autos manejan con volante y frenos de verdad (`js/traffic.js`):
 
 ---
 
+## 🌊 Riachuelo y playas
+
+El Riachuelo cruza el mapa con meandros y desemboca en la playa grande.
+
+* **Agua con profundidad**: orilla barrosa y verdosa, centro hondo, espuma que corre por la orilla y destellos que siguen la corriente (también de noche).
+* **Embarcaciones**: lanchas, botes, remolcadores y barcazas con estela, y camalotes, basura y patos a la deriva.
+* **Puentes con estilo propio**: atirantado blanco en la 9 de Julio, reticulados verde, celeste y rojo, puentes de hormigón con miradores y el **Transbordador** cerca de la desembocadura. Tienen veredas, faroles y pilas con espuma, y aparecen en el minimapa.
+* **Playas con vida**: arena mojada y seca con médanos, sombrillas, reposeras, toallas con gente tomando sol, puestos de choripán, torres de guardavidas, cancha de vóley, fogones, carpas, kayaks y muelles con pescadores.
+
+---
+
 ## 🗺️ Roadmap de pendientes
 
 Lista de características planificadas y mejoras en desarrollo. Cada ítem linkea al issue correspondiente:
 
 ### 🔊 Audio & Efectos de sonido
-- [ ] Agregar efectos de sonido (SFX):
-  - [ ] Disparos e impactos de balas
-  - [ ] Sirenas de la policía al subir el nivel de búsqueda
-  - [ ] Sonido de motores, aceleración, frenadas y choques de autos
-  - [ ] Sonido al levantar fajos de guita
-- [ ] Música de fondo / radio de los vehículos estilo GTA retro
+- [x] Agregar efectos de sonido (SFX) (#70):
+  - [x] Disparos e impactos de balas
+  - [x] Sirenas de la policía al subir el nivel de búsqueda
+  - [x] Sonido de motores, aceleración, frenadas y choques de autos
+  - [x] Sonido al levantar fajos de guita
+- [x] Música de fondo / radio de los vehículos estilo GTA retro (#71)
 
 ### 🎭 Personajes & Lore
-- [ ] Cambiar y pulir los nombres de los personajes
-- [ ] Incorporar nuevos personajes seleccionables
+- [x] Cambiar y pulir los nombres de los personajes (#72)
+- [ ] Incorporar nuevos personajes seleccionables (#73)
+  - [x] El Ger
 - [x] **Arma / Ítem especial:** Incorporar el **bastón verde del Ciego Augusto** (arma de combate cuerpo a cuerpo)
-- [ ] Sistema base de NPCs con nombre y parodias de famosos: spawn, diálogo, comportamiento único, recompensas y despawn (#9)
-  - [ ] Parodia de crack del fútbol (Messi): diálogo propio, suelta "balones de oro" (guita) al caer (#10)
+- [x] Sistema base de NPCs con nombre y parodias de famosos: spawn, diálogo, comportamiento único, recompensas y despawn (#9)
+  - [x] Parodia de crack del fútbol (Messi): diálogo propio, suelta "balones de oro" (guita) al caer (#10)
   - [ ] Parodia de ídolo del fútbol (Maradona): diálogo propio, suelta merca al caer (#11)
   - [ ] Parodia de conductor de TV (Marley): deja un rastro de partículas cómico al caminar (#12)
   - [ ] Parodia de celebridad de playa (Ricardo Fort): solo aparece en la playa, suelta chocolates (#13)
-  - [ ] NPC cómico inmortal (Listorti): no se puede eliminar, reacciona con una frase propia a los disparos (#14)
+  - [x] NPC cómico inmortal (Listorti): no se puede eliminar, reacciona con una frase propia a los disparos (#14)
   - [ ] Parodia volando en helicóptero (Gaspi): pathing aéreo, aparece como encuentro especial (#2)
 
 ### 🌿 Mecánicas & Jugabilidad
@@ -111,16 +140,20 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
   - [x] Efecto visual de gradiente/filtro verde en pantalla
 - [ ] Necesidades de hambre y sed: comida, bebida, efectos de estado e inventario (#41)
 - [ ] Mecánica de asado: combinar carbón + carne + parrilla, tiempo de cocción y resultado consumible (#40)
+- [ ] Respeto por jugador: robarle el trapo a una barra da respeto y la pone en tu contra (#81)
 
 ### 🗺️ Mundo & Ubicaciones
 - [x] Ampliar el mapa a 24x24 (#38)
 - [x] Riachuelo que cruza el mapa y desemboca en la playa (#39)
+  - [x] Agua con profundidad, espuma, corriente y embarcaciones
+  - [x] Puentes con estilo propio, veredas, faroles y Transbordador
+  - [x] Playas con gente, puestos, guardavidas, vóley y muelles
 - [x] Obelisco como landmark navegable (#33)
 - [x] Casa Rosada como landmark, con actividad de NPCs (#34)
-- [ ] Supermercado Coto (con carne) (#30)
-- [ ] Supermercado económico estilo Día (sin carne, más barato) (#31)
-- [ ] Poder robar los supermercados: alarma, botín, testigos, respuesta policial (#32)
-- [ ] Supermercado de Lanús con detalle cómico distintivo (#35)
+- [x] Supermercado CHOTO, parodia de Coto (con carne) (#30)
+- [x] Supermercado económico NOCHE %, parodia de Día (sin carne, más barato) (#31)
+- [x] Poder robar los supermercados: alarma, botín, testigos, respuesta policial (#32)
+- [x] CHOTO de Lanús: sin carne, cartel sin la O, changuitos dados vuelta y un perro durmiendo en la puerta (#35)
 - [ ] Casas personales personalizables: interior, guardado, mejoras (#28)
 - [ ] Autos personales: propiedad, guardado, personalización, recuperación (#29)
 - [ ] Bares como lugar social: pedidos, NPCs, minijuegos, reputación (#36)
@@ -129,12 +162,18 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 
 ### 🎮 Modos de juego
 - [ ] Invasión zombie por oleadas, con dificultad creciente (#7)
+  - [ ] Mejoras de barricadas y armas entre oleadas (#75)
 - [ ] Variante de invasión de carpinchos zombies (#8)
 - [ ] Toma y control de territorios (#4)
 - [ ] Ranking global con score (#5)
 
 ### 🎲 Eventos aleatorios
 - [ ] Sistema de eventos aleatorios en el mundo abierto: piquetes, cortes de luz, operativos policiales, festejos, corralito, guerra de bandas, etc. (#6)
+  - [ ] Rugbiers que te persiguen y te cagan a palos (#76)
+  - [ ] Tren que descarrila y corta calles (#77)
+  - [ ] Festejos del Mundial en el Obelisco (#78)
+  - [ ] Corralito que te saca la mitad de la guita (#79)
+  - [ ] Operativo policial en tu casa (#80)
 
 ### 📜 Misiones
 - [ ] Buscar a un personaje escondido en el mapa, vestido de "Wally" (#16)
@@ -157,10 +196,12 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
   - [x] Optimización de viewport, prevención de scroll/zoom no deseado y layout adaptable a pantallas móviles
 
 ### 🌐 Multijugador (Multiplayer)
-- [ ] Modo multijugador online en tiempo real:
-  - [ ] Soporte para salas / lobbies compartidos
-  - [ ] Sincronización de jugadores en el mapa (movimiento, autos y disparos)
-  - [ ] Cooperativo y PvP barrial
+- [x] Base multijugador: el juego simula varios jugadores en la misma partida (guita, búsqueda, armas y arresto por jugador; IA, yuta y spawns que reparten entre todos; daño con autor y PvP)
+- [x] Modo multijugador online en tiempo real (#74):
+  - [x] Red P2P con WebRTC (el host simula, los demás mandan controles)
+  - [x] Soporte para salas / lobbies compartidos
+  - [x] Sincronización de jugadores en el mapa (movimiento, autos y disparos)
+  - [x] Cooperativo y PvP barrial
 - [ ] Sesiones multijugador en bares: reglas de sesión, fuego amigo, moderación, respawn (#15)
 
 ---
@@ -177,14 +218,33 @@ python3 -m http.server 8000
 ```
 Luego entra a `http://localhost:8000`.
 
+### Atajos para probar
+
+Agregados a la dirección (por ejemplo `http://localhost:8000/?famoso=messi`):
+
+| Parámetro | Qué hace |
+| :--- | :--- |
+| `?play` | Arranca directo a jugar, sin menú |
+| `?novedades` | Abre el cartel de novedades aunque ya lo hayas tildado. Con datos de verdad: `node .github/scripts/novedades.js local > js/novedades.js` (no commitearlo) |
+| `?sala=7X9HJ` | Entra a esa sala online (es el link que se comparte) |
+| `?famoso=messi` | Arranca con ese famoso al lado (`listorti`, `messi`) |
+| `&h=22` | Hora del día (0-24) |
+| `&x=1200&y=800` | Arranca parado en ese punto del mapa |
+| `&w=3` | Arranca con ese nivel de búsqueda |
+
 ### Tests
 
 ```bash
-node selfcheck.js
+node --test selfcheck.js
 ```
 
 Corre el juego headless (mundo, semáforos, 60 s de simulación, arresto, hospital...).
 En cada PR cada test aparece como un check propio.
+
+### Música de la radio
+
+Los temas van en `music/`: grabados (`.ogg`/`.mp3`) o en MIDI, que el juego sintetiza.
+Cómo sumarlos a una emisora: [music/LEEME.md](music/LEEME.md).
 
 ---
 

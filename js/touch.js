@@ -242,7 +242,8 @@ class TouchController {
     bindBtn(
       'btn-pause',
       () => {
-        G.paused = !G.paused;
+        // Con otros jugando no hay pausa (igual que la P)
+        if (G.players.length <= 1 && !net.client) G.paused = !G.paused;
       },
       () => {}
     );
@@ -255,6 +256,12 @@ class TouchController {
       },
       () => {}
     );
+
+    // Sonido: prender / apagar (mismo efecto que la N)
+    sound.syncButton();
+    bindBtn('btn-sound', () => { sound.unlock(); sound.toggleMute(); }, () => {});
+    // Radio: cambiar de emisora (mismo efecto que la R; solo manejando)
+    bindBtn('btn-radio', () => { sound.unlock(); radio.next(); }, () => {});
 
     // Zoom del mapa (mismo mecanismo que las teclas +/-)
     bindBtn('btn-zoom-in', () => { keys.Equal = true; }, () => { keys.Equal = false; });

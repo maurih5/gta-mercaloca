@@ -5,8 +5,9 @@ Tests: `node --test selfcheck.js` (corre la lógica y el render con stubs de DOM
 
 ## El juego es multijugador
 
-Todo cambio tiene que funcionar con varios jugadores en la misma partida, aunque hoy se juegue solo.
-La red (WebRTC P2P, el host simula y los demás mandan controles) todavía no está; el modelo ya está preparado para ella.
+Todo cambio tiene que funcionar con varios jugadores en la misma partida, también online.
+La red está en `js/net.js` (WebRTC P2P con Trystero): el host simula todo y los clientes solo mandan
+sus controles y reciben una foto del mundo 20 veces por segundo. Los clientes **no corren `update()`**.
 
 - **No existe `G.player`.** Los jugadores están en `G.players`; `G.me` es el de esta pantalla.
   Lo que es de cada jugador (guita, búsqueda, arresto, hospital, armas, porros, zona) va en el objeto
@@ -26,5 +27,13 @@ La red (WebRTC P2P, el host simula y los demás mandan controles) todavía no es
 - **Nada frena el mundo con más de un jugador:** sin pausa, el porro no hace cámara lenta,
   y el arresto, el hospital, el mapa y la tienda dejan al jugador quieto mientras el resto sigue.
   Jugando solo se mantiene el comportamiento de siempre (`G.players.length === 1`).
+- **Lo que ve el cliente sale de la foto** (`net.snapshot` / `net.applySnap`): si el render o el HUD
+  empiezan a leer un campo nuevo de un jugador, auto, peatón, etc., hay que mandarlo ahí.
+- **Efectos y avisos ya viajan solos** si se usan los helpers: `boom`, `puff`, `decal`, `sfx`, `shakeAt`,
+  `flashAt` llegan a todos; `say(t, s, P)`, `sfxFor`, `shakeFor`, `flashFor` y `openShop` a la pantalla de P.
+  No escribir `G.msg`, `G.shake`, `G.flash` ni abrir menús a mano desde la simulación.
+- La ciudad sale de una semilla (`buildCity(seed)`): todo lo que se genere al armar el mundo tiene que
+  usar `Math.random` adentro de `buildCity`/`bakeGround`, así sale igual en todas las pantallas.
 - Los tests de `describe('multijugador')` en selfcheck.js cubren esto: si se agrega una mecánica,
-  agregar el caso con dos jugadores.
+  agregar el caso con dos jugadores. `describe('multijugador online')` conecta un host y un cliente
+  (dos copias del juego) por una red en memoria.

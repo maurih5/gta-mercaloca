@@ -4,8 +4,8 @@
 const { describe, test } = require('node:test');
 const fs = require('fs'), assert = require('assert');
 const scriptFiles = [
-  'constants.js', 'utils.js', 'input.js', 'world.js',
-  'entities.js', 'traffic.js', 'game.js', 'renderer.js', 'ui.js'
+  'constants.js', 'utils.js', 'audio.js', 'songs.js', 'instruments.js', 'radio.js', 'input.js', 'world.js',
+  'entities.js', 'traffic.js', 'game.js', 'renderer.js', 'net.js', 'novedades.js', 'ui.js', 'shop.js'
 ];
 let js = scriptFiles.map(f => fs.readFileSync(__dirname + '/js/' + f, 'utf8')).join('\n');
 
@@ -14,6 +14,7 @@ const ctxStub = new Proxy({}, {get:(t,k)=>{
   if(k === 'canvas') return {};
   if(k === 'createLinearGradient' || k === 'createRadialGradient') return () => ({addColorStop:noop});
   if(k === 'getImageData') return (x,y,w,h) => ({data:new Uint8ClampedArray(w*h*4)});
+  if(k === 'measureText') return t => ({width: String(t).length * 6});
   return typeof t[k] === 'undefined' ? noop : t[k];
 }, set:()=>true});
 const el = () => new Proxy({style:{}, classList:{toggle:noop,add:noop,remove:noop},
@@ -36,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -46,7 +47,20 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY} = api;
+
+describe('personajes', () => {
+  test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
+    assert.ok(CREW.length >= 6, 'estan los seis');
+    assert.equal(new Set(CREW.map(c => c.id)).size, CREW.length, 'ids distintos');
+    assert.equal(new Set(CREW.map(c => c.name)).size, CREW.length, 'nombres distintos');
+    for (const c of CREW) {
+      assert.ok(fs.existsSync(__dirname + '/' + c.img), c.name + ': falta la foto ' + c.img);
+      const [x, y, w, h] = c.crop;
+      assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 1 && y + h <= 1, c.name + ': recorte fuera de la foto');
+    }
+  });
+});
 
 describe('helpers de color', () => {
   test('shade y mix componen colores validos', () => {
@@ -141,6 +155,31 @@ describe('edificios', () => {
       assert.ok(buildings.includes(h), 'el hospital es un edificio real de la ciudad');
     }
     assert.ok(dist(hospitals[0], hospitals[1]) > CELL * 3, 'los hospitales tienen que estar lejos entre si: ' + dist(hospitals[0], hospitals[1]));
+  });
+
+  test('hay supers: un CHOTO, dos NOCHE % y el CHOTO de Lanus, con la puerta a la calle', () => {
+    const k = supers.map(b => b.super).sort();
+    assert.deepEqual(k, ['choto', 'lanus', 'noche', 'noche'], 'las cuatro sucursales: ' + k);
+    for (const b of supers) {
+      assert.ok(buildings.includes(b), 'el super es un edificio real de la ciudad');
+      assert.ok(!b.hospital && !b.shop && !b.villa && !b.casaRosada, 'no pisa otro lugar: ' + b.super);
+      const d = b.door;
+      assert.ok(onRoad(d.x + d.ox * 4, d.y + d.oy * 4), 'la puerta da a la calle: ' + b.super);
+    }
+    const noches = supers.filter(b => b.super === 'noche');
+    assert.ok(dist(noches[0], noches[1]) > CELL * 6, 'los dos NOCHE % no estan pegados');
+  });
+
+  test('el CHOTO de Lanus esta del otro lado del Riachuelo, con changuitos tirados y el perro', () => {
+    const L = supers.find(b => b.super === 'lanus'), lx = L.x + L.w / 2, ly = L.y + L.h / 2;
+    const cauce = riverCurve.filter(p => Math.abs(p.x - lx) < CELL * 2);
+    assert.ok(cauce.length && cauce.every(p => p.y < ly), 'queda al sur del rio');
+    const cerca = t => props.filter(p => p.t === t && Math.hypot(p.x - lx, p.y - ly) < Math.max(L.w, L.h));
+    assert.equal(cerca('perro').length, 1, 'hay un perro durmiendo en la puerta');
+    assert.ok(cerca('changuito').some(p => p.volcado), 'hay changuitos dados vuelta');
+    const C2 = supers.find(b => b.super === 'choto'), cx = C2.x + C2.w / 2, cy = C2.y + C2.h / 2;
+    assert.ok(props.filter(p => p.t === 'changuito' && Math.hypot(p.x - cx, p.y - cy) < Math.max(C2.w, C2.h)).every(p => !p.volcado),
+      'en el CHOTO normal estan en fila');
   });
 });
 
@@ -756,6 +795,153 @@ describe('simulacion', () => {
 });
 
 describe('jugador', () => {
+  test('en el super se compra comida que cura en el momento', () => {
+    startGame(CREW[0]);
+    const P = G.me, carne = CHOTO_ITEMS.find(it => it.id === 'carne');
+    P.money = 1000; P.hp = 20;
+    const r = shop.purchase(P, carne);
+    assert.ok(r && !r.bad, 'la vende');
+    assert.equal(P.hp, 20 + carne.heal, 'cura lo que dice');
+    assert.equal(P.money, 1000 - carne.price, 'la cobra');
+    P.hp = P.maxhp;
+    assert.ok(!shop.status(carne, P).can, 'lleno no se compra');
+    P.hp = 10; P.money = 5;
+    assert.ok(shop.purchase(P, carne).bad, 'sin guita no hay carne');
+    assert.equal(P.hp, 10, 'y no te cura');
+    P.money = 1000;
+    assert.ok(!NOCHE_ITEMS.some(it => it.id === 'carne'), 'el NOCHE % no tiene carne');
+    assert.ok(NOCHE_ITEMS.every(it => it.price < (CHOTO_ITEMS.find(c => c.id === it.id) || { price: Infinity }).price),
+      'lo que tienen los dos es mas barato en el NOCHE %');
+    const sinCarne = LANUS_ITEMS.find(it => it.id === 'carne');
+    assert.equal(shop.status(sinCarne, P).label, 'NO HAY', 'en Lanus nunca hay carne');
+    assert.equal(shop.purchase(P, sinCarne), null, 'y no te la venden');
+  });
+
+  // Robo al super: helpers. La yuta se saca de encima en cada frame para que no te arresten
+  // en medio de la prueba (lo que se prueba es el super, no la persecución).
+  const puerta = b => ({ x: b.door.x + b.door.ox, y: b.door.y + b.door.oy });
+  const correr = (seg, cada) => {
+    for (let f = 0; f < seg * 60; f++) {
+      G.cops.length = 0;
+      for (const c of G.cars) c.chase = false;
+      if (cada) cada();
+      update(1/60);
+    }
+  };
+  const fajos = b => G.pickups.filter(pk => pk.kind === 'cash' && pk.value && dist(pk, puerta(b)) < 60);
+
+  test('robar el super: disparo en la puerta, alarma, estrellas, botin y persiana', () => {
+    startGame(CREW[0]);
+    const P = G.me, b = supers.find(q => q.super === 'choto');
+    Object.assign(P, puerta(b));
+    P.wanted = 0;
+    input.keys.Space = true;
+    update(1/60);
+    input.keys.Space = false;
+    assert.ok(b.robbing, 'disparar en la puerta arranca el asalto');
+    assert.ok(b.alarm > 0, 'suena la alarma');
+    correr(0.2);
+    assert.ok(P.wanted >= ROB_STARS, 'te suben las estrellas: ' + P.wanted);
+    correr(ROB_TIME * 0.5);
+    assert.ok(b.robbing && b.robT > 0 && b.robT < ROB_TIME, 'la caja se vacia de a poco');
+    G.pickups = G.pickups.filter(pk => dist(pk, P) > 80);
+    correr(ROB_TIME * 0.6, () => Object.assign(P, puerta(b)));
+    assert.ok(!b.robbing && b.closed > SUPER_CLOSED - 2, 'termina y baja la persiana');
+    const botin = fajos(b);
+    assert.ok(botin.length > 0 && botin.length <= ROB_LOOT.choto.n, 'saltan los fajos: ' + botin.length);
+    const total = botin.reduce((t, pk) => t + pk.value, 0), antes = P.money;
+    for (const pk of botin) { Object.assign(P, { x: pk.x, y: pk.y }); correr(0.05); }
+    assert.ok(P.money - antes >= total, 'te los llevas todos: ' + (P.money - antes) + ' de ' + total);
+    // Cerrado: no se roba de nuevo ni se compra
+    Object.assign(P, puerta(b));
+    game.robSuper(P, b);
+    assert.ok(!b.robbing, 'con la persiana baja no se roba');
+    P.wanted = 0;
+    P.money = 1000;
+    const abiertos = [], orig = game.openShop;
+    game.openShop = (Q, kind) => abiertos.push(kind);
+    try {
+      P.cool = 0;
+      input.keys.KeyE = true;
+      correr(0.05);
+    } finally {
+      input.keys.KeyE = false;
+      game.openShop = orig;
+    }
+    assert.equal(abiertos.length, 0, 'con la persiana baja no se entra');
+    correr(1);
+    b.closed = 0.5;
+    correr(1);
+    assert.equal(b.closed, 0, 'despues de un rato vuelve a abrir');
+  });
+
+  test('si te vas de la puerta se corta el asalto', () => {
+    startGame(CREW[0]);
+    const P = G.me, b = supers.find(q => q.super === 'noche');
+    Object.assign(P, puerta(b));
+    game.robSuper(P, b);
+    correr(0.3);
+    P.x += CELL;
+    correr(2);
+    assert.ok(!b.robbing, 'se corta');
+    assert.ok(b.closed > 0, 'y el super cierra igual');
+    assert.equal(fajos(b).length, 0, 'sin botin');
+  });
+
+  test('el testigo que queda vivo llama a la yuta; si no queda nadie, no', () => {
+    for (const vivo of [true, false]) {
+      startGame(CREW[0]);
+      const P = G.me, b = supers.find(q => q.super === 'choto'), d = puerta(b);
+      const t = G.peds.find(p => !p.famous);
+      Object.assign(t, { x: d.x + 30, y: d.y + 30, hp: 30, inside: null });
+      Object.assign(P, d);
+      game.robSuper(P, b);
+      assert.ok(b.witnesses.includes(t), 'el de al lado vio todo');
+      if (!vivo) for (const w of b.witnesses) w.hp = 0; // no queda ninguno de los que vieron
+      // el testigo no se va lejos ni se muere solo (la prueba es lo que hace el super)
+      const quieto = () => { if (vivo) Object.assign(t, { x: d.x + 30, y: d.y + 30, hp: 30 }); Object.assign(P, d); };
+      correr(ROB_TIME + 0.2, quieto);
+      assert.ok(!b.robbing, 'termino el asalto');
+      const w = P.wanted;
+      correr(ROB_WITNESS + 0.3, quieto);
+      if (vivo) assert.equal(P.wanted, Math.min(5, w + 1), 'el testigo te suma una estrella');
+      else assert.ok(P.wanted <= w, 'sin testigos no hay estrella de mas');
+    }
+  });
+
+  test('en el CHOTO de Lanus la caja esta vacia', () => {
+    startGame(CREW[0]);
+    const P = G.me, b = supers.find(q => q.super === 'lanus');
+    Object.assign(P, puerta(b));
+    G.pickups = G.pickups.filter(pk => dist(pk, P) > 80);
+    game.robSuper(P, b);
+    correr(ROB_TIME + 0.2, () => Object.assign(P, puerta(b)));
+    assert.ok(!b.robbing && b.closed > 0, 'termina');
+    assert.ok(fajos(b).length <= ROB_LOOT.lanus.n, 'un fajito y gracias');
+    assert.ok(ROB_LOOT.lanus.v[1] < ROB_LOOT.noche.v[0], 'menos que en cualquier otro');
+  });
+
+  test('en la puerta del super se entra con E, pero no con la yuta encima', () => {
+    startGame(CREW[0]);
+    const P = G.me, b = supers.find(q => q.super === 'noche'), d = b.door;
+    const abiertos = [], orig = game.openShop;
+    game.openShop = (Q, kind) => abiertos.push([Q, kind]);
+    try {
+      P.x = d.x + d.ox; P.y = d.y + d.oy;
+      P.wanted = 2;
+      input.keys.KeyE = true;
+      for (let f = 0; f < 3; f++) update(1/60);
+      assert.ok(P.nearSuper === b, 'sabe que esta en la puerta');
+      assert.equal(abiertos.length, 0, 'con la yuta encima no entra');
+      P.wanted = 0; P.cool = 0;
+      for (let f = 0; f < 3; f++) update(1/60);
+      assert.deepEqual(abiertos[0], [P, 'noche'], 'se abre el NOCHE %');
+    } finally {
+      input.keys.KeyE = false;
+      game.openShop = orig;
+    }
+  });
+
   test('arresto: secuencia completa', () => {
     startGame(CREW[0]);
     for(let f=0;f<120;f++) update(1/60);
@@ -919,6 +1105,143 @@ describe('jugador', () => {
   });
 });
 
+describe('audio', () => {
+  test('sin Web Audio no suena ni rompe', () => {
+    startGame(CREW[0]);
+    assert.equal(sound.ctx, null, 'en Node no hay AudioContext');
+    sound.update();
+    const a = sfx('explosion', G.me.x, G.me.y);
+    assert.ok(a && a.vol > 0.99, 'igual calcula cuanto se escucha');
+    for (let f = 0; f < 120; f++) update(1/60);
+  });
+
+  test('se escucha segun la distancia y del lado que pasa', () => {
+    const P = { x: 1000, y: 1000 };
+    assert.ok(Math.abs(audibleFor(P, 1000, 1000).vol - 1) < 1e-9, 'encima: a todo volumen');
+    assert.ok(audibleFor(P, 1100, 1000).pan > 0, 'a la derecha suena a la derecha');
+    assert.ok(audibleFor(P, 900, 1000).pan < 0, 'a la izquierda suena a la izquierda');
+    assert.ok(audibleFor(P, 1100, 1000).vol > audibleFor(P, 1300, 1000).vol, 'mas lejos, mas bajo');
+    assert.equal(audibleFor(P, 1000 + AUDIO_R, 1000), null, 'lejos no se escucha');
+    assert.equal(audibleFor(null, 0, 0), null, 'sin jugador local no suena nada');
+  });
+});
+
+describe('radio', () => {
+  test('los temas compilan a notas validas y las pistas cierran juntas', () => {
+    assert.equal(noteNum('A4'), 69);
+    assert.equal(noteNum('C4'), 60);
+    assert.equal(noteNum('G#4'), 68);
+    assert.equal(noteNum('Bb3'), 58);
+    assert.ok(STATIONS.length >= 2, 'hay emisoras');
+    for (const st of STATIONS) {
+      assert.ok(st.name && st.songs.length, 'emisora con nombre y temas');
+      for (const id of st.songs) {
+        if (/\.(ogg|mp3|m4a|wav)$/i.test(id)) continue;
+        assert.ok(SONGS[id], 'el tema existe: ' + id);
+        const c = compileSong(SONGS[id]);
+        assert.ok(c.notes.length > 20 && c.len > 4, id + ' tiene notas');
+        if (!SONGS[id].tracks.some(t => t.notes)) assert.ok(c.len > 45, id + ': los temas escritos a mano tienen partes y duran mas de 45s (' + c.len.toFixed(0) + 's)');
+        for (const n of c.notes) {
+          assert.ok(n.t >= 0 && n.d > 0 && n.t + n.d <= c.len + 1e-6 && n.v > 0, id + ': nota fuera del tema');
+          assert.ok(n.inst === 'drums' ? !!DRUMS[n.n] : n.n >= 24 && n.n <= 108, id + ': nota invalida ' + n.n);
+          assert.ok(n.inst === 'drums' || INSTRUMENTS[n.inst] || ['square', 'triangle', 'sawtooth', 'sine'].includes(n.inst), id + ': instrumento desconocido ' + n.inst);
+        }
+        // Las pistas escritas a mano tienen que durar lo mismo, o el tema se desfasa al repetir
+        const lens = SONGS[id].tracks.filter(t => t.seq).map(t => t.seq.trim().split(/\s+/).reduce((s, k) => s + parseFloat(k.split(':')[1]), 0));
+        assert.ok(lens.every(l => Math.abs(l - lens[0]) < 1e-9), id + ': pistas de distinto largo ' + lens);
+      }
+    }
+  });
+
+  test('el convertidor de MIDI lee notas, tempo, instrumento y bateria', () => {
+    const { parseMidi, toSong } = require('./tools/midi2songs.js');
+    const vlq = n => n < 128 ? [n] : [0x80 | (n >> 7), n & 0x7f];
+    const ev = [
+      0, 0xff, 0x51, 3, 0x09, 0x27, 0xc0,        // tempo 600000 us = 100 bpm
+      0, 0xc0, 33,                               // canal 1: bajo
+      0, 0x90, 45, 100,                          // nota on
+      ...vlq(96), 0x80, 45, 0,                   // nota off a la negra
+      0, 0x99, 36, 127,                          // canal 10: bombo
+      ...vlq(24), 0x89, 36, 0,
+      0, 0xff, 0x2f, 0,
+    ];
+    const u32 = n => [n >>> 24, (n >> 16) & 255, (n >> 8) & 255, n & 255];
+    const buf = Buffer.from([...Buffer.from('MThd'), ...u32(6), 0, 0, 0, 1, 0, 96, ...Buffer.from('MTrk'), ...u32(ev.length), ...ev]);
+    const song = toSong(parseMidi(buf));
+    assert.equal(Math.round(song.bpm), 100);
+    const bass = song.tracks.find(t => t.inst === 'bass'), drums = song.tracks.find(t => t.inst === 'drums');
+    assert.ok(bass && drums, 'una pista de bajo y una de bateria');
+    assert.deepEqual(bass.notes[0].slice(0, 3), [0, 1, 45]);
+    assert.deepEqual(drums.notes[0].slice(0, 3), [1, 0.25, 'k']);
+    assert.ok(compileSong(song).len > 0, 'el juego lo puede tocar');
+  });
+});
+
+describe('novedades', () => {
+  const nov = require('./.github/scripts/novedades.js');
+  const tag = (name, code, commit) => ({ name, code, commit });
+  const merge = (commit, pr, rama, titulo) => ({ commit, subject: 'Merge pull request #' + pr + ' from maurih5/' + rama, body: titulo });
+
+  test('arma las novedades por version con los titulos de las PRs', () => {
+    const tags = [tag('0.1.0-rc.1', 1, 'a'), tag('0.1.0-rc.2', 2, 'b'), tag('0.1.0', 3, 'c'),
+                  tag('0.2.0-rc.1', 4, 'd'), tag('0.2.0-rc.2', 5, 'e')];
+    const merges = [ // git log: lo más nuevo primero
+      merge('e', 97, 'feat/robo', 'docs(readme): roadmap al dia'),
+      merge('d', 96, 'feat/supers', 'feat(supers): supermercados CHOTO y NOCHE %'),
+      merge('c', 95, 'dev', 'Release 0.1.0'),
+      merge('b', 94, 'fix/x', 'fix(trafico): los autos no se traban'),
+      merge('a', 93, 'feat/y', 'multijugador online'),
+      merge('z', 90, 'feat/viejo', 'feat: de antes de los tags'),
+    ];
+    const r = nov.armar({ tags, merges, actual: { version: '0.2.0-rc.3', pr: '98', titulo: 'feat(supers)!: robar los supermercados' } });
+    assert.deepEqual(r, [
+      { v: '0.2.0', items: [{ pr: 98, t: 'Robar los supermercados' }, { pr: 96, t: 'Supermercados CHOTO y NOCHE %' }] },
+      { v: '0.1.0', items: [{ pr: 94, t: 'Los autos no se traban' }, { pr: 93, t: 'Multijugador online' }] },
+    ], 'las rc se juntan en su version; docs, releases y lo de antes de los tags no van');
+    const main = nov.armar({ tags, merges, actual: { version: '0.2.0' } });
+    assert.deepEqual(main[0].items.map(i => i.pr), [96], 'la estable muestra lo de sus rc');
+    assert.equal(nov.armar({ tags, merges, actual: { version: '0.2.0-rc.3', pr: '96', titulo: 'feat: otra vez' } })[0].items.length, 1,
+      'una PR no sale dos veces');
+  });
+
+  test('el archivo generado es JS que el juego puede cargar', () => {
+    const out = require('child_process').execFileSync('node', ['.github/scripts/novedades.js', '1.2.3-rc.1', '7', 'feat(x): algo'],
+      { cwd: __dirname, encoding: 'utf8' });
+    const lista = new Function(out + ';return NOVEDADES;')();
+    assert.ok(Array.isArray(lista) && lista[0].v === '1.2.3' && lista[0].items[0].t === 'Algo', 'la PR compilada esta arriba');
+  });
+
+  test('el cartel sale mientras haya algo que no viste, hasta tildar no volver a mostrar', () => {
+    const guardado = {};
+    global.localStorage = { getItem: k => (k in guardado ? guardado[k] : null), setItem: (k, v) => { guardado[k] = String(v); } };
+    NOVEDADES.length = 0;
+    try {
+      assert.equal(ui.openNews(), false, 'sin novedades no sale');
+      assert.equal(ui.openNews(true), true, 'desde el menu se abre igual');
+      ui.closeNews(false);
+      NOVEDADES.push({ v: '0.2.0', items: [{ pr: 97, t: 'Robar los supermercados' }, { pr: 96, t: 'Supermercados' }] });
+      const links = [], orig = document.createElement;
+      document.createElement = tag => { const e = orig(tag); if (tag === 'a') links.push(e); return e; };
+      try { assert.ok(ui.openNews() && ui.newsOpen, 'hay novedades: sale'); } finally { document.createElement = orig; }
+      assert.deepEqual(links.map(l => [l.href, l.target]),
+        [['https://github.com/maurih5/gta-mercaloca/pull/97', '_blank'], ['https://github.com/maurih5/gta-mercaloca/pull/96', '_blank']],
+        'cada novedad abre su PR en otra pestania');
+      ui.closeNews(false);
+      assert.ok(ui.openNews(), 'cerrado sin el tilde, sale de nuevo la proxima');
+      ui.closeNews(true);
+      assert.equal(guardado[NEWS_KEY], '97', 'se guarda hasta donde viste');
+      assert.equal(ui.openNews(), false, 'con el tilde no sale mas');
+      NOVEDADES.unshift({ v: '0.3.0', items: [{ pr: 101, t: 'Algo nuevo' }] });
+      assert.ok(ui.openNews(), 'sale una version con algo nuevo: vuelve a aparecer');
+      ui.closeNews(false);
+      assert.ok(newsFresh(NOVEDADES, 97) && !newsFresh(NOVEDADES, 101) && newsMax(NOVEDADES) === 101, 'helpers');
+    } finally {
+      NOVEDADES.length = 0;
+      delete global.localStorage;
+    }
+  });
+});
+
 describe('multijugador', () => {
   // Pone a P sobre la calle, a d px de G.me (en una dirección donde haya calle libre)
   const lejos = (P, d) => {
@@ -932,6 +1255,45 @@ describe('multijugador', () => {
   const alejarDeVillas = P => {
     for (let i = 0; i < 50 && villaAt(P.x, P.y); i++) { const s = freeRoadSpot(); P.x = s.x; P.y = s.y; }
   };
+
+  test('el super abre en la pantalla del que entra y la comida es de cada uno', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]), b = supers.find(q => q.super === 'choto'), d = b.door;
+    const abiertos = [], orig = game.openShop;
+    game.openShop = (Q, kind) => abiertos.push([Q, kind]);
+    try {
+      lejos(G.me, CELL * 3);
+      P2.x = d.x + d.ox; P2.y = d.y + d.oy; P2.wanted = 0; P2.cool = 0;
+      P2.ctl = { ...idleControls(), use: true };
+      update(1/60);
+      assert.ok(P2.nearSuper === b && !G.me.nearSuper, 'solo el de la puerta esta en el super');
+      assert.deepEqual(abiertos, [[P2, 'choto']], 'se le abre a el, no al local');
+    } finally {
+      game.openShop = orig;
+    }
+    G.me.hp = 30; P2.hp = 30; P2.money = 500;
+    shop.purchase(P2, CHOTO_ITEMS.find(it => it.id === 'choripan'));
+    assert.ok(P2.hp > 30 && P2.money < 500, 'el que compra come y paga');
+    assert.equal(G.me.hp, 30, 'al otro no le llega');
+  });
+
+  test('dos roban el mismo super: va el doble de rapido y los dos quedan buscados', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]), P3 = addPlayer(CREW[2]), b = supers.find(q => q.super === 'choto');
+    const d = { x: b.door.x + b.door.ox, y: b.door.y + b.door.oy };
+    Object.assign(G.me, d);
+    Object.assign(P2, { x: d.x + 4, y: d.y + 4 });
+    lejos(P3, CELL * 4);
+    for (const q of G.players) q.wanted = 0;
+    game.robSuper(P2, b);
+    const paso = () => { G.cops.length = 0; for (const c of G.cars) c.chase = false; Object.assign(G.me, d); Object.assign(P2, { x: d.x + 4, y: d.y + 4 }); update(1/60); };
+    for (let f = 0; f < 60; f++) paso();
+    assert.ok(b.robT > 1.6 && b.robT < 2.4, 'con dos en la puerta la caja va al doble: ' + b.robT);
+    assert.ok(G.me.wanted >= ROB_STARS && P2.wanted >= ROB_STARS, 'los dos quedan buscados');
+    assert.equal(P3.wanted, 0, 'el que esta lejos no tiene nada que ver');
+    for (let f = 0; f < 90 && b.robbing; f++) paso();
+    assert.ok(!b.robbing && b.closed > 0, 'termino antes de ROB_TIME segundos');
+  });
 
   test('se suman jugadores hasta el maximo, cada uno con lo suyo', () => {
     startGame(CREW[0]);
@@ -1046,6 +1408,122 @@ describe('multijugador', () => {
     assert.equal(P2.hp, hp1, 'la bala propia no lastima al que la tiro');
   });
 
+  test('cada uno escucha lo que pasa cerca suyo', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    lejos(P2, AUDIO_R + 300);
+    for (let f = 0; f < 5; f++) update(1/60);
+    const heard = [], play = sound.play;
+    sound.play = function (name, x, y, k) { const a = play.call(this, name, x, y, k); heard.push({ name, a }); return a; };
+    try {
+      G.peds = []; G.cops = [];
+      P2.cool = 0; P2.wpn = 'pistola'; P2.ctl = { ...idleControls(), fire: true };
+      update(1/60);
+      const shot2 = heard.find(h => h.name === 'pistola');
+      assert.ok(shot2, 'el tiro del otro avisa que hubo un tiro');
+      assert.equal(shot2.a, null, 'pero en esta pantalla no se escucha: esta lejos');
+      heard.length = 0;
+      P2.ctl = idleControls();
+      G.me.wpn = 'pistola';
+      game.attack(G.me);
+      assert.ok(heard.some(h => h.name === 'pistola' && h.a && h.a.vol > 0.9), 'el tiro propio se escucha fuerte');
+      assert.equal(sfxFor(P2, 'guita'), null, 'los avisos del otro (guita, busqueda) no suenan aca');
+      assert.ok(sfxFor(G.me, 'guita'), 'los propios si');
+    } finally {
+      sound.play = play;
+    }
+  });
+
+  test('la radio suena en el auto del jugador de esta pantalla', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    for (let f = 0; f < 10; f++) update(1/60);
+    radio.update();
+    assert.equal(radio.station, -1, 'a pie no hay radio');
+    const [c1, c2] = G.cars.filter(c => c.ai && c.hp > 0);
+    P2.car = c2; c2.ai = false;
+    update(1/60); radio.update();
+    assert.equal(radio.station, -1, 'el otro sube a un auto: aca no suena nada');
+    G.me.car = c1; c1.ai = false;
+    update(1/60); radio.update();
+    assert.ok(radio.station >= 0, 'el local sube a un auto: prende la radio');
+    for (let i = 0; i <= STATIONS.length && radio.station >= 0; i++) radio.next();
+    assert.equal(radio.station, -1, 'R pasa por todas las emisoras hasta apagarla');
+    radio.next();
+    assert.equal(radio.station, 0, 'y vuelve a la primera');
+    game.exitCar(G.me);
+    radio.update();
+    assert.equal(radio.station, -1, 'al bajar se apaga');
+  });
+
+  test('los famosos aparecen cerca de un jugador sin que el otro los vea aparecer', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    lejos(P2, SIM_R * 2);
+    for (let f = 0; f < 5; f++) update(1/60);
+    G.peds = G.peds.filter(p => !p.famous);
+    G.me.famousT = 0; P2.famousT = 999;
+    for (let f = 0; f < 240 && !G.peds.some(p => p.famous); f++) { G.me.famousT = Math.min(G.me.famousT, 0); update(1/60); }
+    const fam = G.peds.find(p => p.famous);
+    assert.ok(fam, 'aparecio un famoso');
+    assert.ok(dist(fam, G.me) < SIM_R, 'cerca del jugador que le toco');
+    assert.ok(dist(fam, P2) > OFFSCREEN, 'fuera de la pantalla del otro');
+    // Uno solo de cada uno en todo el mapa
+    P2.famousT = 0;
+    for (let f = 0; f < 600; f++) { P2.famousT = Math.min(P2.famousT, 0); update(1/60); }
+    const ids = G.peds.filter(p => p.famous && p.hp > 0).map(p => p.famous.id);
+    assert.equal(new Set(ids).size, ids.length, 'no hay dos del mismo famoso: ' + ids);
+  });
+
+  test('el famoso inmortal acusa los tiros y no cae; el otro suelta balones de oro', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    for (let f = 0; f < 5; f++) update(1/60);
+    G.peds = []; G.cops = [];
+    const L = makeFamous(FAMOUS.find(f => f.immortal), G.me.x + 120, G.me.y);
+    G.peds.push(L);
+    for (let i = 0; i < 10; i++) game.hurt(L, 50, P2);
+    game.explode(L.x, L.y, 40, 200, P2);
+    assert.ok(L.hp > 0, 'no se lo puede bajar');
+    assert.ok(L.lineT > 0 && L.famous.hurt.includes(L.line), 'dice su frase: ' + L.line);
+
+    const M = makeFamous(FAMOUS.find(f => f.drop), G.me.x + 40, G.me.y);
+    G.peds.push(M);
+    const pk0 = G.pickups.length;
+    game.hurt(M, 999, P2);
+    const golds = G.pickups.slice(pk0).filter(pk => pk.kind === 'gold');
+    assert.equal(golds.length, M.famous.drop.n, 'suelta sus balones de oro');
+    // Se dibujan de dia y de noche, con los carteles de los famosos
+    for (const h of [0.5, 0]) { G.t = h * DAY; L.lineT = 1; render(); }
+    assert.ok(P2.wanted > 0, 'la busqueda es del que lo bajo');
+    // Los balones los levanta cualquiera: el local pasa por encima de uno
+    const m0 = G.me.money;
+    G.me.x = golds[0].x; G.me.y = golds[0].y;
+    update(1/60);
+    const got = G.me.money - m0;
+    assert.ok(got >= M.famous.drop.value && got % M.famous.drop.value === 0, 'cada balon vale guita: ' + got);
+  });
+
+  test('los famosos hablan al que se acerca y se van cuando nadie los ve', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    lejos(P2, SIM_R * 2);
+    for (let f = 0; f < 5; f++) update(1/60);
+    G.peds = []; G.cops = [];
+    const F = makeFamous(FAMOUS[0], P2.x + FAMOUS_TALK * 0.5, P2.y);
+    F.sped = 0;
+    G.peds.push(F);
+    update(1/60);
+    assert.ok(F.lineT > 0 && F.famous.near.includes(F.line), 'le habla al que se acerco (el remoto)');
+    F.life = 0;
+    update(1/60);
+    assert.ok(G.peds.includes(F), 'con un jugador mirando no se va');
+    F.x = G.me.x + SIM_R * 0.9; F.y = G.me.y;
+    P2.x = G.me.x; P2.y = G.me.y;
+    update(1/60);
+    assert.ok(!G.peds.includes(F), 'ya paseo y nadie lo ve: se va');
+  });
+
   test('con otros jugando, morir reaparece solo al muerto', () => {
     startGame(CREW[0]);
     const P2 = addPlayer(CREW[1]);
@@ -1089,5 +1567,251 @@ describe('multijugador', () => {
     assert.ok(G.me.car === car, 'el local sigue en su auto');
     assert.ok(P2.car !== car, 'el otro no se lo puede robar');
     assert.ok(driverOf(car) === G.me);
+  });
+});
+
+// Online: un host y un cliente, cada uno con su propia copia del juego, conectados por una
+// red de mentira en memoria (los mensajes pasan por JSON, como por WebRTC)
+describe('multijugador online', () => {
+  const C = new Function(js + `
+;return {G,net,world,buildCity,bakeGround,buildings,CREW,render,input,shop,villas,update,VERSION};`)();
+
+  // Red en memoria: cada pantalla es un nodo. Nada se entrega hasta pump(), como en la red de verdad.
+  const redLocal = () => {
+    const nodes = new Map(), q = [];
+    let n = 0;
+    const make = () => {
+      const id = 'peer' + (++n);
+      const t = { id, onMsg: null, onJoin: null, onLeave: null };
+      t.send = (type, data, to) => {
+        const raw = JSON.stringify(data);
+        for (const pid of nodes.keys()) if (pid !== id && (!to || to === pid)) q.push([pid, 'msg', type, JSON.parse(raw), id]);
+      };
+      t.leave = () => {
+        nodes.delete(id);
+        for (const pid of nodes.keys()) q.push([pid, 'leave', id]);
+      };
+      for (const pid of nodes.keys()) { q.push([pid, 'join', id]); q.push([id, 'join', pid]); }
+      nodes.set(id, t);
+      return t;
+    };
+    const pump = () => {
+      while (q.length) {
+        const [to, kind, a, b, c] = q.shift(), t = nodes.get(to);
+        if (!t) continue;
+        if (kind === 'join' && t.onJoin) t.onJoin(a);
+        if (kind === 'leave' && t.onLeave) t.onLeave(a);
+        if (kind === 'msg' && t.onMsg) t.onMsg(a, b, c);
+      }
+    };
+    return { make, pump, nodes };
+  };
+  const tick = () => new Promise(r => setImmediate(r));
+  const ciudad = b => JSON.stringify(b.map(o => [o.x | 0, o.y | 0, o.w | 0, o.h | 0]));
+
+  // Un frame de los dos lados: el host simula y manda la foto, el cliente la anima
+  const frame = red => {
+    update(1/60);
+    net.tick(1/60);
+    red.pump();
+    if (C.G.state === 'play') C.net.clientFrame(1/60);
+    else C.net.tick(1/60);
+    red.pump();
+  };
+
+  // Arma la sala y mete al cliente. Devuelve la red y el jugador del cliente en el host.
+  const conectar = async () => {
+    const red = redLocal();
+    for (const N of [net, C.net]) {
+      N.leave();
+      Object.assign(N, { role: null, hostId: null, myId: null, gone: false, ents: {}, onLost: null, onEnter: null });
+      N.makeTransport = red.make;
+    }
+    if (!buildings.length) { buildCity(); bakeGround(); }
+    startGame(CREW[0]);
+    await net.host('ABCDE');
+    const info = C.net.probe('ABCDE');
+    for (let i = 0; i < 5; i++) { await tick(); red.pump(); }
+    const d = await info;
+    if (world.seed !== C.world.seed) { C.buildCity(d.seed); C.bakeGround(); }
+    C.net.join(2);
+    red.pump();
+    for (let f = 0; f < 10; f++) frame(red);
+    const P2 = G.players.find(p => p.peer);
+    return { red, info: d, P2 };
+  };
+
+  test('el cliente arma la misma ciudad con la semilla del host y entra a la sala', async () => {
+    const { info, P2 } = await conectar();
+    assert.equal(info.seed, world.seed, 'el host pasa su semilla');
+    assert.equal(ciudad(C.buildings), ciudad(buildings), 'misma semilla, misma ciudad');
+    assert.equal(G.players.length, 2, 'el host suma al que entra');
+    assert.ok(P2 && P2.def === CREW[2], 'con el personaje que eligio');
+    assert.equal(C.G.state, 'play', 'el cliente ya esta jugando');
+    assert.equal(C.G.me.id, P2.id, 'el cliente es ese jugador');
+    assert.equal(C.G.players.length, 2, 'y ve a los dos');
+    assert.ok(C.G.cars.length > 5 && C.G.peds.length > 5, 've los autos y la gente de alrededor');
+    assert.ok(C.G.pickups.length === G.pickups.length, 've todos los fierros y la guita del mapa');
+    assert.equal(C.G.tranzas.length, G.tranzas.length, 'los tranzas son los mismos');
+    C.render();
+  });
+
+  test('el cliente se maneja con sus controles y ve lo que simula el host', async () => {
+    const { red, P2 } = await conectar();
+    let moved = 0;
+    for (const k of ['KeyD', 'KeyA', 'KeyS', 'KeyW']) {
+      const x0 = P2.x, y0 = P2.y;
+      C.input.keys[k] = true;
+      for (let f = 0; f < 25; f++) frame(red);
+      C.input.keys[k] = false;
+      moved = Math.max(moved, Math.hypot(P2.x - x0, P2.y - y0));
+    }
+    for (let f = 0; f < 30; f++) frame(red);
+    assert.ok(moved > 5, 'el host mueve al jugador del cliente: ' + moved.toFixed(1));
+    assert.ok(Math.hypot(C.G.me.x - P2.x, C.G.me.y - P2.y) < 3, 'y el cliente lo ve donde esta');
+    const H = G.players.find(p => p !== P2), h = C.G.players.find(p => p.id === H.id);
+    assert.ok(Math.hypot(h.x - H.x, h.y - H.y) < 3, 'el cliente ve al host donde esta');
+    assert.equal(G.me, H, 'los controles del cliente no mueven al host');
+    for (let f = 0; f < 60; f++) { frame(red); if (f % 20 === 0) C.render(); }
+    for (const o of C.G.cars.concat(C.G.peds, C.G.players)) assert.ok(Number.isFinite(o.x) && Number.isFinite(o.y), 'sin NaN en el cliente');
+  });
+
+  test('un toque corto llega aunque se suelte antes del frame', () => {
+    const P = { net: { ctl: idleControls(), tap: {} }, ctl: idleControls() };
+    net.role = 'host';
+    net.peers.set('x', { P, known: new Set(), ev: [] });
+    net.onHostMsg('ctl', packCtl({ ...idleControls(), use: true }), 'x');
+    net.onHostMsg('ctl', packCtl(idleControls()), 'x');
+    net.applyControls();
+    assert.ok(P.ctl.use, 'el toque se ve un frame');
+    net.applyControls();
+    assert.ok(!P.ctl.use, 'y despues se suelta');
+    net.peers.delete('x');
+    assert.deepEqual(unpackCtl(packCtl({ ...idleControls(), x: -1, y: 0.5, fire: true, slot: 3 })),
+      { ...idleControls(), x: -1, y: 0.5, fire: true, slot: 3 }, 'los controles van y vuelven iguales');
+  });
+
+  test('mensajes, temblor y efectos llegan a la pantalla del que corresponde', async () => {
+    const { red, P2 } = await conectar();
+    G.msg = '';
+    say('SOLO PARA EL CLIENTE', 2, P2);
+    game.shakeFor(P2, 5);
+    game.flashFor(P2, 0.6);
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.equal(C.G.msg, 'SOLO PARA EL CLIENTE', 'el mensaje llega al cliente');
+    assert.notEqual(G.msg, 'SOLO PARA EL CLIENTE', 'y no sale en la pantalla del host');
+    assert.ok(C.G.shake > 0 && C.G.flash > 0, 'tiembla y se ilumina la pantalla del cliente');
+    C.G.fx.length = 0;
+    game.explode(P2.x + 30, P2.y, 10, 0);
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(C.G.fx.length > 20, 'el cliente ve la explosion cerca suyo: ' + C.G.fx.length);
+  });
+
+  test('las compras del cliente las hace el host', async () => {
+    const { red, P2 } = await conectar();
+    const b = shops[0], d = b.door;
+    P2.x = d.x + d.ox; P2.y = d.y + d.oy; P2.car = null;
+    P2.money = 5000; P2.wanted = 0;
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(P2.nearShop, 'esta en la puerta de la armeria');
+    assert.ok(C.G.me.nearShop, 'y el cliente lo sabe (cartel para entrar)');
+    C.input.keys.KeyE = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = false;
+    assert.ok(C.G.shopOpen, 'la armeria se abre en la pantalla del cliente');
+    assert.ok(!G.shopOpen, 'y no en la del host');
+    const i = C.shop.items.findIndex(it => it.id === 'ak');
+    C.shop.buy(i);
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(P2.inv.ak > 0 && P2.money < 5000, 'el host le vende');
+    assert.ok(C.G.me.inv.ak > 0 && C.G.me.money === P2.money, 'el cliente ve el fierro y la guita');
+    assert.equal(C.G.me.inv.pistola, Infinity, 'la 9mm sigue con balas infinitas');
+    C.shop.close();
+  });
+
+  test('en el super el cliente compra y come, y lo hace el host', async () => {
+    const { red, P2 } = await conectar();
+    const b = supers.find(q => q.super === 'choto'), d = b.door;
+    P2.x = d.x + d.ox; P2.y = d.y + d.oy; P2.car = null;
+    P2.money = 1000; P2.wanted = 0; P2.hp = 20;
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(C.G.me.nearSuper, 'el cliente ve el cartel para entrar');
+    C.input.keys.KeyE = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = false;
+    assert.ok(C.G.shopOpen && C.shop.kind === 'choto', 'el CHOTO se abre en la pantalla del cliente');
+    assert.ok(!G.shopOpen, 'y no en la del host');
+    C.shop.buy(C.shop.items.findIndex(it => it.id === 'carne'));
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(P2.hp > 20 && P2.money < 1000, 'el host le vende y lo cura');
+    assert.equal(C.G.me.hp, Math.ceil(P2.hp), 'el cliente ve la vida');
+    // Si se va de la puerta, el host no le vende aunque el cliente lo pida
+    P2.x += CELL; const plata = P2.money;
+    for (let f = 0; f < 3; f++) frame(red);
+    C.net.buy('choto', 0);
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.equal(P2.money, plata, 'lejos del super no se compra');
+    C.shop.close();
+  });
+
+  test('el asalto lo arranca el cliente y ve la barra, la alarma y la persiana', async () => {
+    const { red, P2 } = await conectar();
+    const b = supers.find(q => q.super === 'noche'), d = { x: b.door.x + b.door.ox, y: b.door.y + b.door.oy };
+    game.resetSupers();
+    Object.assign(P2, d, { car: null, wanted: 0 });
+    for (let f = 0; f < 6; f++) frame(red);
+    C.input.keys.Space = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.Space = false;
+    assert.ok(b.robbing, 'el disparo del cliente arranca el asalto en el host');
+    for (let f = 0; f < 60; f++) { G.cops.length = 0; Object.assign(P2, d); frame(red); }
+    const cb = C.world.supers[supers.indexOf(b)];
+    assert.ok(cb.robbing && cb.robT > 0.5 && cb.alarm, 'el cliente ve el asalto y la alarma: ' + cb.robT);
+    assert.ok(C.G.me.wanted >= ROB_STARS, 'y sus estrellas');
+    for (let f = 0; f < 6 * 60 && b.robbing; f++) { G.cops.length = 0; Object.assign(P2, d); frame(red); }
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(cb.closed > 0 && !cb.robbing, 'y la persiana baja');
+    C.render();
+  });
+
+  test('las fotos son chicas y lo que no cambia se manda una vez', async () => {
+    const { red, P2 } = await conectar();
+    const peer = net.peers.get(P2.peer);
+    const a = JSON.stringify(net.snapshot({ ...peer, known: new Set() })).length;
+    const b = JSON.stringify(net.snapshot(peer)).length;
+    console.log('  foto entera: ' + (a / 1024).toFixed(1) + ' KB, despues: ' + (b / 1024).toFixed(1) + ' KB');
+    assert.ok(b < a, 'sin los colores y caras repetidos es mas chica');
+    assert.ok(b < 24 * 1024, 'una foto entra holgada (20 por segundo)');
+  });
+
+  test('si se va el cliente el host lo saca; si se va el host el cliente se entera', async () => {
+    let { red } = await conectar();
+    C.net.leave();
+    red.pump();
+    assert.equal(G.players.length, 1, 'el host sigue solo');
+    ({ red } = await conectar());
+    let lost = null;
+    C.net.onLost = m => { lost = m; };
+    net.leave();
+    red.pump();
+    assert.ok(lost, 'el cliente se entera de que se corto');
+    assert.equal(C.G.state, 'net', 'y deja de jugar');
+    net.role = null;
+  });
+
+  test('no entra a una sala llena ni con otra version', async () => {
+    const { red } = await conectar();
+    const hostId = [...red.nodes.keys()][0], no = [];
+    const t = red.make();
+    t.onMsg = (type, d) => { if (type === 'bienv') no.push(d.no); };
+    t.send('hola', { crew: 0, v: 'otra' }, hostId);
+    red.pump();
+    for (let i = G.players.length; i < MAX_PLAYERS; i++) addPlayer(CREW[0]);
+    t.send('hola', { crew: 0, v: C.VERSION }, hostId);
+    red.pump();
+    assert.deepEqual(no, ['VERSION', 'LLENA'], 'otra version y sala llena no entran');
+    assert.equal(G.players.length, MAX_PLAYERS);
+    net.leave();
+    net.role = null;
   });
 });
