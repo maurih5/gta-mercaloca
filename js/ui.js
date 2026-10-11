@@ -57,12 +57,51 @@ class UIManager {
 
     cardsEl.querySelectorAll('.card').forEach(el => {
       const choose = () => {
+        if (this.taken(+el.dataset.i)) {
+          this.selMsg(CREW[+el.dataset.i].name + ' YA ESTA EN LA SALA. ELEGI OTRO');
+          return;
+        }
         this.selIdx = +el.dataset.i;
         this.markSel();
         this.play();
       };
       el.onclick = choose;
     });
+  }
+
+  // Entrando a la sala de otro: los personajes que ya están adentro no se pueden elegir
+  taken(i) {
+    return this.mode === 'join' && (net.used || []).includes(i);
+  }
+
+  // Tacha los que están en uso y, si el elegido quedó tomado, pasa al primero libre
+  markTaken() {
+    const cardsEl = $('cards');
+    if (cardsEl) {
+      cardsEl.querySelectorAll('.card').forEach((el, i) => el.classList.toggle('taken', this.taken(i)));
+    }
+    if (this.taken(this.selIdx)) {
+      const free = CREW.findIndex((c, i) => !this.taken(i));
+      if (free >= 0) this.selIdx = free;
+    }
+    this.markSel();
+  }
+
+  // Próximo personaje libre para el lado d (+1 / -1)
+  stepSel(d) {
+    for (let n = 1; n <= CREW.length; n++) {
+      const i = (this.selIdx + d * n + CREW.length * n) % CREW.length;
+      if (!this.taken(i)) {
+        this.selIdx = i;
+        break;
+      }
+    }
+    this.markSel();
+  }
+
+  selMsg(t) {
+    const go = typeof document !== 'undefined' && document.querySelector && document.querySelector('#sel .go');
+    if (go) go.textContent = t;
   }
 
   markSel() {
@@ -74,7 +113,7 @@ class UIManager {
   }
 
   play() {
-    if (G.state !== 'sel') return;
+    if (G.state !== 'sel' || this.taken(this.selIdx)) return;
     G.state = 'go';
     this.fadeTo(() => {
       if (this.mode === 'join') {
@@ -261,14 +300,8 @@ class UIManager {
           this.joinTyped();
         }
       } else if (G.state === 'sel') {
-        if (e.code === 'ArrowRight' || e.code === 'KeyD') {
-          this.selIdx = (this.selIdx + 1) % CREW.length;
-          this.markSel();
-        }
-        if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
-          this.selIdx = (this.selIdx - 1 + CREW.length) % CREW.length;
-          this.markSel();
-        }
+        if (e.code === 'ArrowRight' || e.code === 'KeyD') this.stepSel(1);
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.stepSel(-1);
         if (e.code === 'Enter' || e.code === 'Space') {
           this.play();
         }
@@ -310,6 +343,14 @@ const salaLink = code => (typeof location !== 'undefined' ? location.origin + lo
 net.onEnter = () => {
   ui.show('');
   say('ESTAS EN LA SALA ' + net.code, 3);
+};
+// Eligiendo personaje para entrar: se actualizan los que están en uso
+net.onUsed = () => ui.markTaken();
+// Justo lo eligió otro: de vuelta a elegir
+net.onTaken = () => {
+  ui.show('sel');
+  ui.markTaken();
+  ui.selMsg('ESE PERSONAJE LO ACABA DE ELEGIR OTRO. ELEGI OTRO');
 };
 net.onLost = msg => {
   G.mapOpen = false;

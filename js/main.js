@@ -232,8 +232,9 @@ async function boot() {
       }
       if (news) ui.openNews(true);
     } else if (sala) {
-      // Directo a elegir personaje para entrar a la sala
+      // Directo a elegir personaje para entrar a la sala (sin los que ya están adentro)
       ui.mode = 'join';
+      ui.markTaken();
       G.state = 'sel';
       fadeTo(() => { show('sel'); ui.openNews(news); });
     } else {

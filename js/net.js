@@ -19,6 +19,7 @@ const NET_CTL = 1 / 10;                    // los controles se mandan al cambiar
 const NET_VIEW_X = 400, NET_VIEW_Y = 300;  // alrededor de cada jugador se manda todo (más que la pantalla)
 const NET_FIND = 25;                       // segundos buscando al host de la sala
 const NET_TIMEOUT = 10;                    // segundos sin fotos del host: se cortó
+const NET_ASK = 2;                         // eligiendo personaje para entrar: cada cuánto se pregunta cuáles quedan libres
 const NET_FX_MAX = 800;                    // tope de efectos por foto
 const NET_MSGS = ['quien', 'info', 'hola', 'bienv', 'chau', 'ctl', 'snap', 'compra'];
 const SALA_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -149,7 +150,7 @@ class NetManager {
   onHostMsg(type, d, from) {
     const peer = this.peers.get(from);
     if (type === 'quien') {
-      this.send('info', { seed: world.seed, v: VERSION, n: G.players.length, max: MAX_PLAYERS }, from);
+      this.send('info', { seed: world.seed, v: VERSION, n: G.players.length, max: MAX_PLAYERS, used: this.usedCrew() }, from);
     } else if (type === 'hola') {
       if (!peer) this.welcome(from, d || {});
     } else if (!peer) {
@@ -168,11 +169,18 @@ class NetManager {
     }
   }
 
+  // Los personajes que ya están en la sala (índices de CREW): no se pueden repetir
+  usedCrew() {
+    return G.players.map(q => CREW.indexOf(q.def));
+  }
+
   welcome(from, d) {
-    const no = d.v !== VERSION ? 'VERSION' : G.state !== 'play' ? 'CERRADA' : G.players.length >= MAX_PLAYERS ? 'LLENA' : null;
-    const P = no ? null : addPlayer(CREW[d.crew] || CREW[0]);
+    const def = CREW[d.crew] || CREW[0];
+    const no = d.v !== VERSION ? 'VERSION' : G.state !== 'play' ? 'CERRADA' : G.players.length >= MAX_PLAYERS ? 'LLENA'
+      : G.players.some(q => q.def === def) ? 'TOMADO' : null;
+    const P = no ? null : addPlayer(def);
     if (!P) {
-      this.send('bienv', { no: no || 'LLENA' }, from);
+      this.send('bienv', { no: no || 'LLENA', used: this.usedCrew() }, from);
       return;
     }
     P.peer = from;
@@ -249,6 +257,11 @@ class NetManager {
       this.out = [];
     } else if (this.client && G.state !== 'play') {
       this.watch(dt);
+      // Eligiendo personaje: cada tanto pregunta cuáles quedan libres
+      if (G.state === 'sel' && this.hostId && (this.askT = (this.askT || 0) - dt) <= 0) {
+        this.askT = NET_ASK;
+        this.send('quien', 1, this.hostId);
+      }
     }
   }
 
@@ -320,6 +333,7 @@ class NetManager {
             this.onClientMsg(type, d, from);
           } else if (type === 'info' && d) {
             this.hostId = from;
+            this.used = d.used || [];
             clearTimeout(timer);
             res(d);
           }
@@ -343,7 +357,17 @@ class NetManager {
 
   onClientMsg(type, d, from) {
     if (from !== this.hostId || this.gone) return;
-    if (type === 'bienv') {
+    if (type === 'info' && d) {
+      this.used = d.used || [];
+      if (this.onUsed) this.onUsed(this.used);
+    } else if (type === 'bienv') {
+      if (d.no === 'TOMADO') {
+        // Otro lo eligió justo antes: a elegir de nuevo, sin cortar
+        this.used = d.used || [];
+        G.state = 'sel';
+        if (this.onTaken) this.onTaken(this.used);
+        return;
+      }
       if (d.no) {
         this.lost({ VERSION: 'ESA SALA JUEGA OTRA VERSION DEL JUEGO', LLENA: 'LA SALA ESTA LLENA' }[d.no] || 'NO SE PUEDE ENTRAR AHORA');
         return;

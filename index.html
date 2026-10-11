@@ -58,6 +58,12 @@
   #sel .card:hover,#sel .card.sel{border-color:var(--gold);transform:translateY(-8px);
              box-shadow:0 14px 28px rgba(0,0,0,.8),0 0 24px rgba(232,181,58,.35)}
   #sel .card.sel .nm{color:var(--gold)}
+  /* Entrando a una sala: el personaje que ya está adentro no se puede repetir */
+  #sel .card{position:relative}
+  #sel .card.taken{cursor:not-allowed;transform:none;border-color:#2a2a2a;box-shadow:none}
+  #sel .card.taken img,#sel .card.taken .nm{filter:grayscale(1) brightness(.45)}
+  #sel .card.taken::after{content:'EN USO';position:absolute;top:44%;left:0;right:0;text-align:center;font-size:10px;
+             color:#fff;background:rgba(200,48,42,.85);padding:5px 0;letter-spacing:2px}
   #sel h3{position:absolute;top:6vh;font-size:min(4vw,24px);color:var(--gold);text-shadow:4px 4px 0 #000;letter-spacing:3px}
   #sel .go{margin-top:14px;font-size:10px;color:#bbb;letter-spacing:1px;text-align:center}
   #sel .btn-play-sel{margin-top:14px;font-size:14px;color:var(--gold);border:2px solid var(--gold);padding:10px 24px;background:rgba(0,0,0,0.6);cursor:pointer;transition:transform 0.1s}

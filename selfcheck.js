@@ -1696,7 +1696,7 @@ describe('multijugador', () => {
 // red de mentira en memoria (los mensajes pasan por JSON, como por WebRTC)
 describe('multijugador online', () => {
   const C = new Function(js + `
-;return {G,net,world,buildCity,bakeGround,buildings,CREW,render,input,shop,villas,update,VERSION};`)();
+;return {G,net,world,buildCity,bakeGround,buildings,CREW,render,input,shop,villas,update,VERSION,ui};`)();
 
   // Red en memoria: cada pantalla es un nodo. Nada se entrega hasta pump(), como en la red de verdad.
   const redLocal = () => {
@@ -1924,6 +1924,54 @@ describe('multijugador online', () => {
     assert.ok(cg.cooking && cg.portions === ASADO_PORCIONES && cg.t > 0, 'el cliente ve la parrilla prendida');
     assert.deepEqual(C.G.me.bag, {}, 'y la mochila sin la carne y el carbon');
     C.render();
+  });
+
+  // Arma la sala y deja al cliente eligiendo personaje (todavía sin entrar)
+  const eligiendo = async () => {
+    const red = redLocal();
+    for (const N of [net, C.net]) {
+      N.leave();
+      Object.assign(N, { role: null, hostId: null, myId: null, gone: false, ents: {}, onLost: null, onEnter: null, used: [] });
+      N.makeTransport = red.make;
+    }
+    if (!buildings.length) { buildCity(); bakeGround(); }
+    startGame(CREW[0]);
+    await net.host('ABCDE');
+    const info = C.net.probe('ABCDE');
+    for (let i = 0; i < 5; i++) { await tick(); red.pump(); }
+    const d = await info;
+    if (world.seed !== C.world.seed) { C.buildCity(d.seed); C.bakeGround(); }
+    C.ui.mode = 'join';
+    C.ui.selIdx = 0;
+    C.ui.markTaken();
+    C.G.state = 'sel';
+    return { red, info: d };
+  };
+
+  test('entrando a una sala no se puede elegir un personaje que ya esta adentro', async () => {
+    const { red, info } = await eligiendo();
+    assert.deepEqual(info.used, [0], 'el host avisa que su personaje esta en uso');
+    assert.ok(C.ui.taken(0) && !C.ui.taken(1), 'el del host sale tachado; los demas no');
+    assert.notEqual(C.ui.selIdx, 0, 'la seleccion salta al primero libre');
+    C.ui.selIdx = 0;
+    C.ui.play();
+    assert.equal(C.G.state, 'sel', 'con uno tomado no se entra');
+    C.ui.selIdx = 1;
+    C.ui.stepSel(-1);
+    assert.notEqual(C.ui.selIdx, 0, 'las flechas saltean los tomados');
+    // Mientras elige, entra otro: la lista se actualiza sola
+    addPlayer(CREW[3]);
+    for (let f = 0; f < 3 * 60; f++) { C.net.tick(1/60); red.pump(); }
+    assert.ok(C.net.used.includes(3) && C.ui.taken(3), 'el que entro mientras elegias tambien sale tachado');
+    // Si igual pide uno tomado (lo eligieron a la vez), el host no lo deja y vuelve a elegir
+    C.net.join(3);
+    for (let f = 0; f < 4; f++) { red.pump(); await tick(); }
+    assert.equal(G.players.length, 2, 'el host no lo suma');
+    assert.ok(C.G.state === 'sel' && !C.net.gone, 'el cliente vuelve a elegir, sin cortarse');
+    C.net.join(2);
+    for (let f = 0; f < 6; f++) { red.pump(); await tick(); }
+    assert.ok(G.players.some(q => q.def === CREW[2] && q.peer), 'con uno libre entra');
+    assert.equal(new Set(G.players.map(q => q.def)).size, G.players.length, 'nadie repetido');
   });
 
   test('las fotos son chicas y lo que no cambia se manda una vez', async () => {
