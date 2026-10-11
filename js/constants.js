@@ -115,6 +115,8 @@ const CASA_ROSADA_GUARDS = 3;
 
 // Mapa global (tecla M): rango y velocidad de zoom
 const MAP_MIN_ZOOM = 1, MAP_MAX_ZOOM = 8, MAP_ZOOM_RATE = 1.6;
+const MAP_PAN_RATE = 0.9;  // con las flechas, cuántas pantallas de mapa por segundo
+const MAP_LEG_W = 112;     // ancho del panel de referencias
 
 // Semaforos
 const LIGHT_CYCLE = 11, GREEN = 4.6, AMBER = 0.9;  // por eje: 4.6s verde, 0.9 amarillo, resto rojo

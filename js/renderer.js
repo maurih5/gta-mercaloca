@@ -2075,78 +2075,158 @@ class Renderer {
     ctx.fillRect(x - 1, y - 1, 3, 3);
   }
 
-  drawMap() {
-    if (!GROUND) return;
+  // ---- Mapa grande (M) ----
+
+  // Lo que va en el mapa, con su ícono. Las referencias salen de acá: solo aparece lo que hay.
+  mapItems() {
+    const P = G.me, it = [];
+    const add = (kind, x, y, extra) => it.push(Object.assign({ kind, x, y }, extra));
+    const mid = b => [b.x + b.w / 2, b.y + b.h / 2];
+    for (const pk of G.pickups) add(pk.kind === 'cash' || pk.kind === 'gold' ? 'guita' : pk.kind === 'weapon' ? 'fierro' : 'comida', pk.x, pk.y);
+    for (const g of parrillas) add(g.cooking ? 'asado' : 'parrilla', g.x, g.y);
+    for (const h of hospitals) add('hospital', ...mid(h));
+    for (const b of shops) add('armeria', b.door.x + b.door.ox, b.door.y + b.door.oy);
+    for (const b of supers) add(b.closed > 0 || b.robbing ? 'cerrado' : b.super === 'noche' ? 'noche' : 'choto', ...mid(b));
+    for (const cr of casaRosada) add('rosada', ...mid(cr));
+    if (obelisco) add('obelisco', ...mid(obelisco));
+    for (const t of G.tranzas) if (t.hp > 0) add(t.villa.angry > 0 ? 'tranzaMal' : 'tranza', t.x, t.y);
+    for (const c of G.cops) add('yuta', c.x, c.y);
+    for (const c of G.cars) if (c.chase && c.hp > 0) add('patrullero', c.x, c.y);
+    for (const f of G.peds) if (f.famous && f.hp > 0) add('famoso', f.x, f.y);
+    for (const q of G.players) if (q !== P && !q.dead) add('jugador', q.x, q.y, { q });
+    return it;
+  }
+
+  // Íconos de 9x9 con borde negro, que se leen sobre cualquier fondo
+  mapIcon(kind, x, y, q) {
     const ctx = this.ctx;
-    const P = G.me;
-    const viewW = clamp(WORLD / G.mapZoom, 40, WORLD);
-    const viewH = viewW * (RH / RW);
-    const sx = clamp(P.x - viewW / 2, 0, WORLD - viewW);
-    const sy = clamp(P.y - viewH / 2, 0, WORLD - viewH);
-    const k = RW / viewW;
-
-    ctx.fillStyle = 'rgba(0,0,0,.85)';
-    ctx.fillRect(0, 0, RW, RH);
-    ctx.drawImage(GROUND, sx, sy, viewW, viewH, 0, 0, RW, RH);
-
-    const dot = (e, col, sz = 2) => {
-      const x = (e.x - sx) * k, y = (e.y - sy) * k;
-      if (x < 0 || y < 0 || x > RW || y > RH) return;
+    x = Math.round(x);
+    y = Math.round(y);
+    const r = (col, a, b, w, h) => {
       ctx.fillStyle = col;
-      ctx.fillRect(px(x), px(y), sz, sz);
+      ctx.fillRect(x + a, y + b, w, h);
     };
-    for (const pk of G.pickups) dot(pk, pk.kind === 'cash' ? '#5ad25a' : pk.kind === 'gold' ? '#ffd34a' : '#ff5a5a');
-    for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
-    for (const b of supers) dot({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, '#ff6a5a', 3);
-    for (const g of parrillas) dot(g, g.cooking ? '#ff9a3a' : '#a8643a', 2);
-    for (const cr of casaRosada) dot({ x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }, '#ff8fc0', 3);
-    if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#e8f070', 4);
-    for (const c of G.cops) dot(c, '#4aa3ff');
-    for (const c of G.cars) if (c.chase && c.hp > 0) dot(c, '#2a6aff', 3);
-    for (const f of G.peds) {
-      if (!f.famous || f.hp <= 0) continue;
-      const x = (f.x - sx) * k, y = (f.y - sy) * k;
-      if (x >= 0 && y >= 0 && x <= RW && y <= RH) this.star(px(x), px(y));
+    const box = (bg) => { r('#000', -5, -5, 11, 11); r(bg, -4, -4, 9, 9); };
+    const cart = c => { r(c, -3, -2, 6, 3); r(c, -3, -3, 1, 1); r(c, -2, 2, 1, 1); r(c, 2, 2, 1, 1); };
+    switch (kind) {
+      case 'vos': {
+        const P = G.me;
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(x, y, 4.5, 0, TAU); ctx.fill();
+        ctx.fillStyle = '#ffd34a';
+        ctx.beginPath(); ctx.arc(x, y, 3.2, 0, TAU); ctx.fill();
+        if (P) {
+          ctx.strokeStyle = '#ffd34a';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(P.ang) * 8, y + Math.sin(P.ang) * 8); ctx.stroke();
+        }
+        break;
+      }
+      case 'jugador':
+        r('#000', -3, -3, 7, 7); r(q ? q.def.shirt : '#5ad25a', -2, -2, 5, 5);
+        break;
+      case 'hospital': box('#f4f4f4'); r('#d8342c', -1, -3, 3, 7); r('#d8342c', -3, -1, 7, 3); break;
+      case 'armeria': box('#e8892a'); r('#14100c', -3, -2, 7, 2); r('#14100c', -3, 0, 2, 3); break;
+      case 'choto': box('#c8302a'); cart('#fff'); break;
+      case 'noche': box('#2a4fa8'); cart('#ff6a5a'); break;
+      case 'cerrado': box('#5a5e64'); cart('#9aa0a6'); break;
+      case 'parrilla': box('#6a3a22'); r('#c8c8c8', -3, -1, 7, 1); r('#c8c8c8', -3, 1, 7, 1); r('#c8c8c8', -2, -3, 1, 6); r('#c8c8c8', 1, -3, 1, 6); break;
+      case 'asado': box('#2a1610'); r('#ff7a2a', -2, -1, 5, 4); r('#ffd34a', -1, -3, 3, 4); r('#fff2a0', 0, -1, 1, 2); break;
+      case 'rosada': box('#ff8fc0'); r('#fff', -3, 0, 7, 3); r('#fff', -2, -1, 5, 1); r('#fff', -1, -2, 3, 1); r('#ff8fc0', 0, 1, 1, 2); break;
+      case 'obelisco': box('#e8f070'); r('#14100c', 0, -3, 1, 7); r('#14100c', -1, 2, 3, 2); break;
+      case 'tranza': box('#7a3ab8'); r('#5ad266', -1, -3, 3, 6); r('#5ad266', -3, -1, 7, 2); break;
+      case 'tranzaMal': box('#d8302a'); r('#fff', -1, -3, 3, 4); r('#fff', -1, 2, 3, 1); break;
+      case 'famoso': this.star(x, y, (G.t * 4) % 2 < 1.4); break;
+      case 'yuta': r('#000', -2, -2, 5, 5); r('#4aa3ff', -1, -1, 3, 3); break;
+      case 'patrullero': r('#000', -3, -2, 7, 5); r('#2a6aff', -2, -1, 5, 3); r(Math.floor(G.t * 6) % 2 ? '#ff3a2a' : '#fff', -1, -1, 3, 1); break;
+      case 'guita': r('#000', -2, -2, 5, 4); r('#5ad25a', -1, -1, 3, 2); break;
+      case 'fierro': r('#000', -2, -2, 5, 4); r('#ffc84a', -1, -1, 3, 2); break;
+      case 'comida': r('#000', -2, -2, 5, 5); r('#ff5a5a', -1, -1, 3, 3); break;
     }
-    // Los otros jugadores, con el color de su remera
-    for (const q of G.players) {
-      if (q === P || q.dead) continue;
-      dot({ x: q.x - 2.5 / k, y: q.y - 2.5 / k }, '#000', 6);
-      dot({ x: q.x - 1.5 / k, y: q.y - 1.5 / k }, q.def.shirt, 4);
+  }
+
+  drawMap() {
+    if (!GROUND || !G.me) return;
+    const ctx = this.ctx;
+    const P = G.me, v = mapCtl.view(), { sx, sy, k, MW } = v;
+
+    ctx.fillStyle = '#05070a';
+    ctx.fillRect(0, 0, RW, RH);
+    ctx.drawImage(GROUND, sx, sy, v.viewW, v.viewH, 0, 0, MW, RH);
+
+    const items = this.mapItems();
+    const inView = (x, y, m = 0) => x >= -m && y >= -m && x <= MW + m && y <= RH + m;
+    // Nombres de las villas, para ubicarse
+    ctx.globalAlpha = 0.85;
+    for (const vl of villas) {
+      const x = ((vl.x0 + vl.x1) / 2 - sx) * k, y = (vl.y0 - sy) * k + 9; // arriba, para no tapar los íconos
+      if (inView(x, y, 40)) this.text(vl.name, x, y, vl.angry > 0 ? '#ff8a7a' : '#e0c0ff', 5, 'center');
+    }
+    ctx.globalAlpha = 1;
+    // Primero lo chico (guita, yuta), arriba los lugares
+    const order = ['guita', 'fierro', 'comida', 'yuta', 'parrilla', 'asado', 'tranza', 'tranzaMal', 'patrullero',
+      'cerrado', 'noche', 'choto', 'armeria', 'hospital', 'rosada', 'obelisco', 'famoso', 'jugador'];
+    for (const kind of order) {
+      for (const e of items) {
+        if (e.kind !== kind) continue;
+        const x = (e.x - sx) * k, y = (e.y - sy) * k;
+        if (inView(x, y)) this.mapIcon(kind, x, y, e.q);
+      }
     }
 
-    // Marcador del jugador: bien resaltado, con anillo pulsante y flecha de rumbo
+    // Vos: con anillo que late; si quedaste fuera de la vista, una flecha en el borde
     const cx = (P.x - sx) * k, cy = (P.y - sy) * k;
-    const now = (typeof performance !== 'undefined') ? performance.now() : 0;
-    const pulse = 4 + Math.sin(now / 180) * 1.6;
-    ctx.strokeStyle = 'rgba(255,211,74,.85)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(cx, cy, pulse + 4, 0, TAU);
-    ctx.stroke();
-    ctx.fillStyle = '#000';
-    ctx.beginPath();
-    ctx.arc(cx, cy, 4.5, 0, TAU);
-    ctx.fill();
-    ctx.fillStyle = '#ffd34a';
-    ctx.beginPath();
-    ctx.arc(cx, cy, 3.2, 0, TAU);
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(P.ang) * 10, cy + Math.sin(P.ang) * 10);
-    ctx.stroke();
-    ctx.strokeStyle = '#ffd34a';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.lineTo(cx + Math.cos(P.ang) * 10, cy + Math.sin(P.ang) * 10);
-    ctx.stroke();
+    if (inView(cx, cy)) {
+      const pulse = 4 + Math.sin(G.t * 6) * 1.6;
+      ctx.strokeStyle = 'rgba(255,211,74,.85)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, pulse + 4, 0, TAU);
+      ctx.stroke();
+      this.mapIcon('vos', cx, cy);
+    } else {
+      const ex = clamp(cx, 8, MW - 8), ey = clamp(cy, 18, RH - 20), a = Math.atan2(cy - ey, cx - ex);
+      ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.arc(ex, ey, 5.5, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#ffd34a';
+      ctx.beginPath();
+      ctx.moveTo(ex + Math.cos(a) * 5, ey + Math.sin(a) * 5);
+      ctx.lineTo(ex + Math.cos(a + 2.4) * 4, ey + Math.sin(a + 2.4) * 4);
+      ctx.lineTo(ex + Math.cos(a - 2.4) * 4, ey + Math.sin(a - 2.4) * 4);
+      ctx.fill();
+    }
 
-    this.text('MAPA', RW / 2, 12, '#ffd34a', 10, 'center');
-    this.text('M cerrar · +/- o rueda: zoom', RW / 2, RH - 10, '#ccc', 7, 'center');
+    this.text('MAPA', MW / 2, 12, '#ffd34a', 10, 'center');
+    const touch = typeof touchController !== 'undefined' && touchController.isTouch;
+    const help = touch ? ['ARRASTRA: mover · +/-: zoom', '⌖: volver a vos']
+      : ['FLECHAS o ARRASTRAR: mover · +/- o RUEDA: zoom', 'ESPACIO: volver a vos · L: referencias · M: cerrar'];
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    ctx.fillRect(0, RH - 21, MW, 21);
+    help.forEach((h, i) => this.text(h, MW / 2, RH - 12 + i * 8, '#ccc', 5, 'center'));
+
+    if (G.mapLegend) this.drawMapLegend(items);
+  }
+
+  // Referencias al costado, como en los GTA: solo lo que hay en el mapa
+  mapLegend(items) {
+    const have = new Set(items.map(e => e.kind));
+    have.add('vos');
+    return MAP_LEGEND.filter(([kind]) => have.has(kind));
+  }
+
+  drawMapLegend(items) {
+    const ctx = this.ctx, x0 = RW - MAP_LEG_W;
+    ctx.fillStyle = 'rgba(8,8,10,.92)';
+    ctx.fillRect(x0, 0, MAP_LEG_W, RH);
+    ctx.fillStyle = '#e8b53a';
+    ctx.fillRect(x0, 0, 1, RH);
+    this.text('REFERENCIAS', x0 + MAP_LEG_W / 2, 14, '#ffd34a', 6, 'center');
+    const rows = this.mapLegend(items), step = Math.min(13, (RH - 30) / rows.length);
+    rows.forEach(([kind, label], i) => {
+      const y = 30 + i * step;
+      this.mapIcon(kind, x0 + 12, y, kind === 'jugador' ? G.players.find(q => q !== G.me) : null);
+      this.text(label, x0 + 22, y + 2.5, '#e8e8e8', 5);
+    });
   }
 
   text(t, x, y, col = '#fff', size = 8, align = 'left') {
@@ -2537,5 +2617,38 @@ const drawCar = (c, night) => renderer.drawCar(c, night);
 const drawLights = night => renderer.drawLights(night);
 const drawRadar = () => renderer.drawRadar();
 const drawMap = () => renderer.drawMap();
+
+// Qué muestra cada ícono del mapa (en este orden van las referencias)
+const MAP_LEGEND = [
+  ['vos', 'VOS'], ['jugador', 'OTRO JUGADOR'], ['hospital', 'HOSPITAL'], ['armeria', 'ARMERIA'],
+  ['choto', 'SUPER CHOTO'], ['noche', 'SUPER NOCHE %'], ['cerrado', 'SUPER CERRADO'],
+  ['parrilla', 'PARRILLA'], ['asado', 'ASADO PRENDIDO'], ['rosada', 'CASA ROSADA'], ['obelisco', 'OBELISCO'],
+  ['tranza', 'TRANZA'], ['tranzaMal', 'TRANZA CALIENTE'], ['famoso', 'FAMOSO'], ['yuta', 'YUTA'],
+  ['patrullero', 'PATRULLERO'], ['guita', 'GUITA'], ['fierro', 'FIERRO'], ['comida', 'COMIDA'],
+];
+
+// Dónde mira el mapa: un centro (G.mapX/Y) que se mueve con flechas o arrastrando, el zoom,
+// y el ancho que deja el panel de referencias. Es vista local: solo de esta pantalla.
+const mapCtl = {
+  view() {
+    const MW = G.mapLegend ? RW - MAP_LEG_W : RW;
+    const viewW = clamp(WORLD / G.mapZoom, 40, WORLD), viewH = viewW * (RH / MW);
+    const sx = clamp(G.mapX - viewW / 2, Math.min(0, WORLD - viewW), Math.max(0, WORLD - viewW));
+    const sy = clamp(G.mapY - viewH / 2, Math.min(0, WORLD - viewH), Math.max(0, WORLD - viewH));
+    return { MW, viewW, viewH, sx, sy, k: MW / viewW };
+  },
+  // Centrado en el jugador
+  open() {
+    if (!G.me) return;
+    G.mapX = G.me.x;
+    G.mapY = G.me.y;
+  },
+  // Mover el centro (en unidades del mundo), sin salirse del mapa
+  pan(dx, dy) {
+    const v = this.view();
+    G.mapX = clamp(G.mapX + dx, Math.min(v.viewW / 2, WORLD / 2), Math.max(WORLD - v.viewW / 2, WORLD / 2));
+    G.mapY = clamp(G.mapY + dy, Math.min(v.viewH / 2, WORLD / 2), Math.max(WORLD - v.viewH / 2, WORLD / 2));
+  },
+};
 const text = (t, x, y, col, size, align) => renderer.text(t, x, y, col, size, align);
 const drawHUD = () => renderer.drawHUD();
