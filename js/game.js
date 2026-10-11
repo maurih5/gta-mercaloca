@@ -102,7 +102,7 @@ class Game {
     net.fx(['F', x, y, v]);
   }
 
-  // La armería y el tranza se abren en la pantalla del jugador que entró
+  // La armería, el tranza y los supers se abren en la pantalla del jugador que entró
   openShop(P, kind) {
     if (P === G.me) shop.open(kind);
     else net.to(P, ['shop', kind]);
@@ -122,6 +122,7 @@ class Game {
     G.me.y = s.y;
     this.snapCam();
     G.cars = [];
+    this.resetSupers();
     copNav.reset();
     G.peds = [];
     G.guards = [];
@@ -577,6 +578,101 @@ class Game {
     p.lineT = 2.6;
   }
 
+  // ---- Robo al super ----
+
+  // Disparar en la puerta: arranca el asalto (o te avisa que ya está cerrado)
+  robSuper(P, b) {
+    if (b.robbing) return; // ya lo están robando: se suma solo con quedarse en la puerta
+    if (b.closed > 0) {
+      this.say('CERRADO. YA LO ROBARON', 2.6, P);
+      return;
+    }
+    const d = b.door, dx = d.x + d.ox, dy = d.y + d.oy;
+    Object.assign(b, {
+      robbing: true, robT: 0, robIdle: 0, robbers: [], alarm: SUPER_ALARM, alarmT: 0,
+      witnesses: G.peds.filter(p => p.hp > 0 && !p.inside && Math.hypot(p.x - dx, p.y - dy) < ROB_WITNESS_R),
+    });
+    this.say('ESTO ES UN ASALTO! QUEDATE EN LA PUERTA', 2.6, P);
+    this.flashAt(dx, dy, 0.3);
+  }
+
+  // Todo lo que pasa en los supers: alarma, persiana, el asalto en curso y los testigos.
+  // Es mundo compartido: cualquier jugador en la puerta con el asalto en marcha se suma.
+  updateSupers(dt) {
+    for (const b of supers) {
+      const d = b.door, dx = d.x + d.ox, dy = d.y + d.oy;
+      b.closed = Math.max(0, (b.closed || 0) - dt);
+      if (b.alarm > 0) {
+        b.alarm -= dt;
+        b.alarmT -= dt;
+        if (b.alarmT <= 0) {
+          b.alarmT = 0.9;
+          sfx('alarma', dx, dy);
+        }
+      }
+      if (b.witnessT > 0) {
+        b.witnessT -= dt;
+        if (b.witnessT <= 0 && b.witnesses.some(p => p.hp > 0 && G.peds.includes(p))) {
+          for (const q of b.robbers) {
+            if (!G.players.includes(q)) continue;
+            this.wantUp(q, 1);
+            this.say('UN TESTIGO LLAMO A LA YUTA', 2.6, q);
+          }
+        }
+      }
+      if (!b.robbing) continue;
+
+      const here = G.players.filter(q => inPlay(q) && !q.car && Math.hypot(q.x - dx, q.y - dy) < ROB_R);
+      for (const q of here) {
+        if (b.robbers.includes(q)) continue;
+        b.robbers.push(q);
+        this.wantUp(q, ROB_STARS);
+      }
+      if (!here.length) {
+        b.robIdle += dt;
+        if (b.robIdle > ROB_GRACE) {
+          for (const q of b.robbers) this.say('SE CORTO EL ASALTO', 2.6, q);
+          this.endRobbery(b);
+        }
+        continue;
+      }
+      b.robIdle = 0;
+      b.robT += dt * here.length;
+      if (b.robT >= ROB_TIME) this.lootSuper(b);
+    }
+  }
+
+  // La caja vacía: los fajos saltan a la vereda y se los lleva el que los junta
+  lootSuper(b) {
+    const d = b.door, L = ROB_LOOT[b.super];
+    const ax = Math.sign(d.ox), ay = Math.sign(d.oy);
+    for (let i = 0; i < L.n; i++) {
+      const out = rnd(10, 26), side = rnd(-22, 22);
+      G.pickups.push({
+        x: d.x + ax * out + ay * side, y: d.y + ay * out + ax * side,
+        kind: 'cash', value: Math.round(rnd(L.v[0], L.v[1]) / 10) * 10, t: 0, drop: true,
+      });
+    }
+    const msg = b.super === 'lanus' ? 'LA CAJA ESTABA VACIA. YA LA ROBARON AYER' : 'CAJA VACIA! JUNTA LA GUITA Y RAJA';
+    for (const q of b.robbers) this.say(msg, 3, q);
+    boom(d.x + ax * 12, d.y + ay * 12, 10, '120,220,120');
+    b.witnessT = ROB_WITNESS;
+    this.endRobbery(b);
+  }
+
+  endRobbery(b) {
+    b.robbing = false;
+    b.robT = 0;
+    b.closed = SUPER_CLOSED;
+  }
+
+  // Partida nueva: los supers abiertos y sin alarma
+  resetSupers() {
+    for (const b of supers) {
+      Object.assign(b, { robbing: false, robT: 0, robIdle: 0, closed: 0, alarm: 0, witnessT: 0, robbers: [], witnesses: [] });
+    }
+  }
+
   // Cayó un famoso: suelta lo suyo y el que lo bajó se entera
   famousDown(e, by) {
     const d = e.famous.drop;
@@ -656,6 +752,7 @@ class Game {
     P.swing = Math.max(0, P.swing - rdt * 5);
     P.nearShop = null;
     P.nearTranza = null;
+    P.nearSuper = null;
     if (!P.dead) this.switchWeapon(P);
 
     // Fumarse un porro: F (o el botón 🌿)
@@ -775,6 +872,10 @@ class Game {
       for (const t of G.tranzas) {
         if (t.hp > 0 && t.villa.angry <= 0 && dist(t, P) < 16) P.nearTranza = t;
       }
+      for (const b of supers) {
+        const d = b.door;
+        if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearSuper = b;
+      }
 
       // Los menús (armería, tranza) se abren en la pantalla del que entró
       if (ctl.use && P.cool <= 0 && P.nearShop) {
@@ -785,6 +886,11 @@ class Game {
         P.cool = 0.4;
         P.nearTranza.ang = Math.atan2(P.y - P.nearTranza.y, P.x - P.nearTranza.x);
         this.openShop(P, 'tranza');
+      } else if (ctl.use && P.cool <= 0 && P.nearSuper) {
+        P.cool = 0.4;
+        if (P.nearSuper.robbing || P.nearSuper.closed > 0) this.say('CERRADO POR ROBO', 2.6, P);
+        else if (P.wanted >= 2) this.say('EL DE SEGURIDAD NO TE DEJA PASAR', 2.6, P);
+        else this.openShop(P, P.nearSuper.super);
       } else if (ctl.use && P.cool <= 0) {
         P.cool = 0.4;
         let best = null, bd = 26;
@@ -820,6 +926,7 @@ class Game {
     }
     P.cool -= rdt;
 
+    if (ctl.fire && !(P.prev && P.prev.fire) && P.nearSuper && !P.car && !P.dead) this.robSuper(P, P.nearSuper);
     if (ctl.fire && !P.dead && P.cool <= 0) this.attack(P);
   }
 
@@ -1100,6 +1207,7 @@ class Game {
     }
 
     this.updateFamous(dt);
+    this.updateSupers(dt);
 
     // Velocidad real de cada auto (cuánto se movió de verdad), para que nadie espere
     // atrás de uno que acelera contra una pared sin avanzar
@@ -1453,7 +1561,7 @@ class Game {
       const { p: P, d } = nearestPlayer(pk, inPlay);
       if (P && d < 12) {
         if (pk.kind === 'cash') {
-          const v = 150 + ((Math.random() * 8) | 0) * 50;
+          const v = pk.value || 150 + ((Math.random() * 8) | 0) * 50;
           P.money += v;
           this.say('+$' + v, 2.6, P);
         } else if (pk.kind === 'gold') {

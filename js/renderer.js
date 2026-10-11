@@ -9,6 +9,33 @@ const glowCache = {};
  * Ícono pixel art de un arma (o del chaleco), centrado en (x, y), de unos 24x12.
  * Se usa en el HUD, en los fierros tirados en la calle y en la armería.
  */
+// Comida: la de los pickups del piso y la que vende el super
+function foodIcon(g, id, x, y) {
+  const r = (col, a, b, w, h) => {
+    g.fillStyle = col;
+    g.fillRect(Math.round(x + a), Math.round(y + b), w, h);
+  };
+  if (id === 'pernil') {
+    r('#8a5a3a', -5, -4, 9, 8); r('#d99a68', -5, -4, 9, 5); r('#efe6d4', 3, 1, 3, 4);
+  } else if (id === 'choripan') {
+    r('#d8ad5f', -5, -3, 10, 6); r('#7a3a2a', -5, -1, 10, 3); r('#c9a227', -5, -1, 10, 1);
+  } else if (id === 'carne') {
+    r('#7a1e1e', -6, -3, 12, 7); r('#b83a34', -6, -3, 12, 4); r('#f0d8c8', -4, -2, 3, 1); r('#f0d8c8', 1, 0, 4, 1);
+  } else if (id === 'fideos') {
+    r('#e8e4d8', -4, -5, 8, 10); r('#2a4fa8', -4, -5, 8, 3); r('#e8c060', -2, 0, 4, 3);
+  } else if (id === 'galletitas') {
+    r('#c8302a', -6, -3, 12, 6); r('#e0b060', -4, -2, 3, 3); r('#e0b060', 0, -2, 3, 3); r('#9a2420', -6, 2, 12, 1);
+  } else {
+    // Mate con bombilla y yerba
+    r('#c8c8c8', -0.5, -7, 2, 6);
+    g.fillStyle = '#4a3524';
+    g.beginPath();
+    g.ellipse(x, y + 1, 4, 4.5, 0, 0, TAU);
+    g.fill();
+    r('#6b8a4a', -2.5, -1, 5, 2);
+  }
+}
+
 function weaponIcon(g, id, x, y) {
   const r = (col, a, b, w, h) => {
     g.fillStyle = col;
@@ -384,11 +411,120 @@ class Renderer {
       ctx.fillText('ARMAS', px(sx), px(sy + 2.5));
     }
 
+    if (b.super) this.drawSuperSign(b, rx, ry);
+    if (b.super && b.closed > 0 && b.door) {
+      // Persiana baja: chapa gris con canaletas
+      const d = b.door, dxp = d.x - G.cam.x, dyp = d.y - G.cam.y, hz = d.s === 'n' || d.s === 's';
+      ctx.fillStyle = '#8a8e94';
+      if (hz) ctx.fillRect(px(dxp - 9), px(dyp - 2.5), 18, 5);
+      else ctx.fillRect(px(dxp - 2.5), px(dyp - 9), 5, 18);
+      ctx.fillStyle = '#5c6066';
+      for (let i = -8; i < 9; i += 3) {
+        if (hz) ctx.fillRect(px(dxp + i), px(dyp - 2.5), 1, 5);
+        else ctx.fillRect(px(dxp - 2.5), px(dyp + i), 5, 1);
+      }
+    }
+
     if (b.H > 45) {
       const bl = Math.sin(G.t * 3.4) > 0;
       ctx.fillStyle = bl ? '#ff5a5a' : '#4a1212';
       ctx.fillRect(px(rx + b.w * 0.85), px(ry + b.h * 0.85), 3, 3);
     }
+  }
+
+  // Cartel del super en el techo. Al de Lanús se le cayó la O y quedó tirada al lado
+  drawSuperSign(b, rx, ry) {
+    const ctx = this.ctx, S = SUPERS.find(q => q.k === b.super), name = S.name;
+    const sx = rx + b.w / 2, sy = ry + b.h / 2, w = name.length * 8 + 10;
+    ctx.fillStyle = '#14100c';
+    ctx.fillRect(px(sx - w / 2 - 1), px(sy - 9), w + 2, 18);
+    ctx.fillStyle = S.sign;
+    ctx.fillRect(px(sx - w / 2), px(sy - 8), w, 16);
+    ctx.font = '8px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = S.ink;
+    ctx.fillText(name, px(sx), px(sy + 4));
+    if (b.alarm > 0) {
+      // Baliza de la alarma en la esquina del techo
+      const on = Math.floor(G.t * 6) % 2;
+      ctx.fillStyle = on ? '#ff3a2a' : '#5a1210';
+      ctx.fillRect(px(rx + b.w - 12), px(ry + 4), 7, 7);
+      if (on) {
+        ctx.fillStyle = 'rgba(255,60,40,.25)';
+        ctx.beginPath();
+        ctx.arc(rx + b.w - 8.5, ry + 7.5, 12, 0, TAU);
+        ctx.fill();
+      }
+    }
+    if (b.closed > 0) {
+      ctx.fillStyle = '#14100c';
+      ctx.fillRect(px(sx - 26), px(sy + 10), 52, 10);
+      this.text('CERRADO', sx, sy + 17.5, '#ffb04a', 5, 'center');
+    }
+    if (b.super === 'lanus') {
+      // la O tirada en el techo, torcida
+      ctx.strokeStyle = S.ink;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(sx + w / 2 + 6, sy + 11, 4, 2.6, 0.6, 0, TAU);
+      ctx.stroke();
+    }
+  }
+
+  // Changuito de super visto de arriba: canasto de alambre con la manija para atrás.
+  // Volcado: de costado, con las ruedas al aire.
+  drawChanguito(p) {
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x < -12 || y < -12 || x > RW + 12 || y > RH + 12) return;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(p.a);
+    ctx.fillStyle = 'rgba(0,0,0,.25)';
+    ctx.fillRect(-3, -2, 8, 6);
+    if (p.volcado) {
+      ctx.fillStyle = '#8c949c';
+      ctx.fillRect(-4, -2, 8, 4);
+      ctx.fillStyle = '#1a1a1c';
+      ctx.fillRect(-4, -3, 2, 1); ctx.fillRect(2, -3, 2, 1);
+    } else {
+      ctx.strokeStyle = '#a8b0b8';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-4, -3, 8, 6);
+      ctx.fillStyle = 'rgba(168,176,184,.35)';
+      ctx.fillRect(-4, -3, 8, 6);
+      ctx.fillStyle = '#c8302a';
+      ctx.fillRect(-6, -3, 2, 6);
+    }
+    ctx.restore();
+  }
+
+  // El perro del super de Lanús: duerme en la puerta y no se mueve por nada
+  drawPerro(p) {
+    const ctx = this.ctx;
+    const x = p.x - G.cam.x, y = p.y - G.cam.y;
+    if (x < -12 || y < -12 || x > RW + 12 || y > RH + 12) return;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(p.a);
+    ctx.fillStyle = 'rgba(0,0,0,.25)';
+    ctx.beginPath();
+    ctx.ellipse(1, 1.5, 5, 3, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = '#b08a5a';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 4.5, 2.6, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillRect(3, -2, 3, 3); // cabeza
+    ctx.fillStyle = '#7a5a34';
+    ctx.fillRect(4, -3, 1, 1); // oreja
+    ctx.fillRect(-6, 0, 2, 1); // cola
+    ctx.restore();
+    // Zzz que suben
+    const z = (G.t * 0.6 + p.x * 0.01) % 1;
+    ctx.globalAlpha = 1 - z;
+    this.text('z', x + 4 + z * 3, y - 5 - z * 8, '#e8e8e8', 4);
+    ctx.globalAlpha = 1;
   }
 
   drawPalm(p) {
@@ -1196,29 +1332,8 @@ class Renderer {
       ctx.fillRect(px(x - 5), px(y - 4), 10, 3);
       ctx.fillStyle = '#d8f0d8';
       ctx.fillRect(px(x - 2), px(y - 2), 4, 3);
-    } else if (pk.food === 'pernil') {
-      ctx.fillStyle = '#8a5a3a';
-      ctx.fillRect(px(x - 5), px(y - 4), 9, 8);
-      ctx.fillStyle = '#d99a68';
-      ctx.fillRect(px(x - 5), px(y - 4), 9, 5);
-      ctx.fillStyle = '#efe6d4';
-      ctx.fillRect(px(x + 3), px(y + 1), 3, 4);
-    } else if (pk.food === 'choripan') {
-      ctx.fillStyle = '#d8ad5f';
-      ctx.fillRect(px(x - 5), px(y - 3), 10, 6);
-      ctx.fillStyle = '#7a3a2a';
-      ctx.fillRect(px(x - 5), px(y - 1), 10, 3);
-      ctx.fillStyle = '#c9a227';
-      ctx.fillRect(px(x - 5), px(y - 1), 10, 1);
     } else {
-      ctx.fillStyle = '#c8c8c8';
-      ctx.fillRect(px(x - 0.5), px(y - 7), 2, 6);
-      ctx.fillStyle = '#4a3524';
-      ctx.beginPath();
-      ctx.ellipse(x, y + 1, 4, 4.5, 0, 0, TAU);
-      ctx.fill();
-      ctx.fillStyle = '#6b8a4a';
-      ctx.fillRect(px(x - 2.5), px(y - 1), 5, 2);
+      foodIcon(ctx, pk.food, x, y);
     }
   }
 
@@ -1830,12 +1945,12 @@ class Renderer {
       ECTX.drawImage(this.glow(gc[0], gc[1], gc[2], gsz), x - gsz / 2, y - gsz / 2);
       any = true;
     }
-    for (const b of shops) {
+    for (const b of shops.concat(supers.filter(q => !(q.closed > 0)))) {
       const d = b.door, x = d.x + d.ox - G.cam.x, y = d.y + d.oy - G.cam.y;
       if (x < -40 || y < -40 || x > RW + 40 || y > RH + 40) continue;
       const gsz = 48;
       ECTX.globalAlpha = (0.45 + Math.sin(G.t * 4) * 0.15) * Math.max(k, 0.5);
-      ECTX.drawImage(this.glow(255, 150, 50, gsz), x - gsz / 2, y - gsz / 2);
+      ECTX.drawImage(b.super ? this.glow(255, 90, 70, gsz) : this.glow(255, 150, 50, gsz), x - gsz / 2, y - gsz / 2);
       any = true;
     }
     if (night > 0.18 && this.drawBoatLights(k)) any = true; // luces de las lanchas
@@ -1865,6 +1980,7 @@ class Renderer {
     };
     for (const pk of G.pickups) dot(pk, { cash: '#5ad25a', gold: '#ffd34a', hp: '#ff5a5a', weapon: '#ffc84a' }[pk.kind] || '#ffffff');
     for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
+    for (const b of supers) dot({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, '#ff6a5a', 3);
     for (const cr of casaRosada) dot({ x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }, '#ff8fc0', 3);
     if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#e8f070', 3);
     for (const c of G.cops) dot(c, '#4aa3ff');
@@ -1930,6 +2046,7 @@ class Renderer {
     };
     for (const pk of G.pickups) dot(pk, pk.kind === 'cash' ? '#5ad25a' : pk.kind === 'gold' ? '#ffd34a' : '#ff5a5a');
     for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
+    for (const b of supers) dot({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, '#ff6a5a', 3);
     for (const cr of casaRosada) dot({ x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }, '#ff8fc0', 3);
     if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#e8f070', 4);
     for (const c of G.cops) dot(c, '#4aa3ff');
@@ -2065,11 +2182,28 @@ class Renderer {
     const h = Math.floor(dayT() * 24), mm = Math.floor(((dayT() * 24) % 1) * 60);
     this.text(String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0'), 7, 26, '#cfcfcf', 7);
 
-    if ((P.nearShop || P.nearTranza) && !G.shopOpen && !P.dead && !P.busted) {
+    if ((P.nearShop || P.nearTranza || P.nearSuper) && !G.shopOpen && !P.dead && !P.busted) {
       const bl = Math.floor(G.t * 3) % 2;
       const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
-      const what = P.nearShop ? 'ENTRAR A LA ARMERIA' : 'HABLAR CON EL TRANZA';
-      this.text(key + ': ' + what, RW / 2, RH - 34, bl ? '#ffb04a' : '#ffd34a', 7, 'center');
+      const what = P.nearShop ? 'ENTRAR A LA ARMERIA' : P.nearSuper ? 'ENTRAR AL SUPER' : 'HABLAR CON EL TRANZA';
+      const sup = P.nearSuper && supers.find(b => Math.hypot(b.door.x + b.door.ox - P.x, b.door.y + b.door.oy - P.y) < 16);
+      if (sup && (sup.closed > 0 || sup.robbing)) {
+        if (!sup.robbing) this.text('CERRADO POR ROBO', RW / 2, RH - 34, '#ff8a4a', 7, 'center');
+      } else {
+        this.text(key + ': ' + what + (sup ? ' - DISPARA: ASALTO' : ''), RW / 2, RH - 34, bl ? '#ffb04a' : '#ffd34a', 7, 'center');
+      }
+    }
+
+    // Asalto en curso: la barra de la caja para los que están en la puerta
+    for (const b of supers) {
+      if (!b.robbing || P.dead || P.car) continue;
+      if (Math.hypot(b.door.x + b.door.ox - P.x, b.door.y + b.door.oy - P.y) > ROB_R) continue;
+      const k2 = Math.min(1, b.robT / ROB_TIME), W = 120, X = RW / 2 - W / 2, Y = RH - 52;
+      this.text('VACIANDO LA CAJA', RW / 2, Y - 4, Math.floor(G.t * 4) % 2 ? '#ff6a5a' : '#ffd34a', 7, 'center');
+      ctx.fillStyle = '#000';
+      ctx.fillRect(X - 1, Y - 1, W + 2, 7);
+      ctx.fillStyle = '#5ad25a';
+      ctx.fillRect(X, Y, W * k2, 5);
     }
 
     // Porros en el bolsillo y tiempo de cámara lenta
@@ -2165,12 +2299,12 @@ class Renderer {
 
     for (const pk of G.pickups) this.drawPickup(pk);
 
-    // Marca en la vereda frente a cada armería
-    for (const b of shops) {
+    // Marca en la vereda frente a cada armería y cada super abierto
+    for (const b of shops.concat(supers.filter(q => !(q.closed > 0)))) {
       const d = b.door, x = d.x + d.ox - G.cam.x, y = d.y + d.oy - G.cam.y;
       if (x < -20 || y < -20 || x > RW + 20 || y > RH + 20) continue;
       const pulse = 6 + Math.sin(G.t * 4) * 1.5;
-      ctx.strokeStyle = 'rgba(255,170,60,.9)';
+      ctx.strokeStyle = b.super ? 'rgba(255,110,90,.9)' : 'rgba(255,170,60,.9)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.ellipse(x, y, pulse, pulse * 0.6, 0, 0, TAU);
@@ -2221,6 +2355,8 @@ class Renderer {
       else if (p.t === 'fogata') this.drawFogata(p, night);
       else if (p.t === 'muelle') this.drawMuelle(p);
       else if (p.t === 'gaviotas') this.drawGaviotas(p, night);
+      else if (p.t === 'changuito') this.drawChanguito(p);
+      else if (p.t === 'perro') this.drawPerro(p);
     }
     for (const l of lamps) this.drawLamp(l, night);
     for (const L of lights) if (L) this.drawTrafficLight(L);

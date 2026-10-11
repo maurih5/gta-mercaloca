@@ -5,6 +5,9 @@
 #   - js/constants.js: VERSION = '<version>' (el juego la muestra en pantalla).
 #   - index.html: cada <script src="js/...js?v=..."> pasa a ?v=<version>, para que el
 #     navegador no mezcle JS cacheado de otra versión.
+#   - js/novedades.js: las novedades que el juego muestra al arrancar, con los títulos
+#     de las PRs (ver novedades.js). Si se pasan NOVEDADES_PR y NOVEDADES_TITULO (la PR
+#     a dev que se está compilando), esa PR entra como novedad de esta versión.
 # Nada de esto se commitea: la versión publicada sale de los tags.
 set -euo pipefail
 
@@ -33,6 +36,11 @@ scripts=$(grep -oE 'src="js/[^"]+"' "$dest/index.html" || true)
 if grep -vF "?v=$version\"" <<<"$scripts"; then
   error "quedaron scripts sin la versión en index.html"
 fi
+
+(cd "$raiz" && node .github/scripts/novedades.js "$version" "${NOVEDADES_PR:-}" "${NOVEDADES_TITULO:-}") \
+  > "$dest/js/novedades.js"
+grep -q "^const NOVEDADES = " "$dest/js/novedades.js" || error "no se generó js/novedades.js"
+grep -qF 'src="js/novedades.js' "$dest/index.html" || error "index.html no carga js/novedades.js"
 
 for f in "$dest"/js/*.js; do node --check "$f"; done
 echo "✅ Sitio $version armado en $dest"

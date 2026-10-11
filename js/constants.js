@@ -257,6 +257,50 @@ const TRANZA_ITEMS = [
   {id:'uzi',     price:1100, ammo:60, refill:250,  desc:'Usada, pero anda. Sin preguntas.'},
   {id:'granada', price:950,  ammo:3,  refill:600,  desc:'Del deposito del fondo. No preguntes de donde.'},
 ];
+// Supermercados: la comida se come ahí nomás y cura (heal) en el momento.
+// El CHOTO tiene carne; el NOCHE % es más barato y no tiene. El CHOTO de Lanús
+// vende lo mismo que el CHOTO, pero la carne nunca llega (out).
+const CHOTO_ITEMS = [
+  {id:'carne',    price:260, heal:70, desc:'Vacio del bueno. Lo morfas ahi nomas, crudo.'},
+  {id:'pernil',   price:180, heal:45, desc:'Pernil de cumpleanos. Sin el cumpleanos.'},
+  {id:'choripan', price:120, heal:30, desc:'Chori con chimi. El del CHOTO, no el de la cancha.'},
+  {id:'mate',     price:60,  heal:15, desc:'Yerba, termo y bombilla. Te levanta.'},
+];
+const NOCHE_ITEMS = [
+  {id:'fideos',     price:70, heal:35, desc:'Monitos con manteca. Carne no hay, nunca hubo.'},
+  {id:'galletitas', price:40, heal:20, desc:'Paquete de criollitas, la mitad rotas.'},
+  {id:'mate',       price:35, heal:15, desc:'Yerba de marca propia. Tiene palos.'},
+];
+const LANUS_ITEMS = [
+  {id:'carne',    price:260, heal:70, out:true, desc:'HOY NO HAY CARNE. Ayer tampoco.'},
+  {id:'pernil',   price:180, heal:45, desc:'El ultimo que quedaba. Tiene una mordida.'},
+  {id:'choripan', price:120, heal:30, desc:'Lo hace el de seguridad en la puerta.'},
+  {id:'mate',     price:60,  heal:15, desc:'Lo tenes que cebar vos.'},
+];
+// Las cadenas: cartel del techo (al de Lanús se le cayó la O), colores de la fachada y del cartel, y dónde va cada
+// local (fracción del mapa; se convierte el edificio grande más cercano a ese punto).
+// El de Lanús va del otro lado del Riachuelo, como corresponde.
+const SUPERS = [
+  { k: 'choto', name: 'CHOTO', at: [0.30, 0.44], col: '#e8e0d4', roof: '#c8302a', sign: '#c8302a', ink: '#fff' },
+  { k: 'noche', name: 'NOCHE %', at: [0.22, 0.62], col: '#e4e6ec', roof: '#2a4fa8', sign: '#d8302a', ink: '#fff' },
+  { k: 'noche', name: 'NOCHE %', at: [0.86, 0.36], col: '#e4e6ec', roof: '#2a4fa8', sign: '#d8302a', ink: '#fff' },
+  { k: 'lanus', name: 'CH TO', at: [0.70, 0.86], col: '#d6cdbd', roof: '#a8342e', sign: '#a8342e', ink: '#f2e6d8' },
+];
+// Robo al super: se arranca disparando en la puerta y hay que quedarse ROB_TIME segundos
+// ahí (si roban dos, va el doble de rápido). Si nadie queda en la puerta ROB_GRACE
+// segundos, se corta. Después el local queda con la persiana baja SUPER_CLOSED segundos.
+// Los que vieron el robo (a ROB_WITNESS_R de la puerta), si siguen vivos ROB_WITNESS
+// segundos después, llaman a la yuta: una estrella más.
+const ROB_TIME = 4;
+const ROB_R = 22;
+const ROB_GRACE = 1.5;
+const ROB_STARS = 2;
+const SUPER_CLOSED = 90;
+const SUPER_ALARM = 12;
+const ROB_WITNESS = 6;
+const ROB_WITNESS_R = 110;
+// Botín: cuántos fajos salen de la caja y cuánto vale cada uno
+const ROB_LOOT = { choto: { n: 6, v: [250, 450] }, noche: { n: 4, v: [150, 300] }, lanus: { n: 1, v: [40, 40] } };
 const PORRO_MAX = 5;      // cuantos entran en el bolsillo
 const PORRO_TIME = 7;     // segundos de camara lenta
 const SLOWMO = 0.38;      // velocidad del mundo mientras dura

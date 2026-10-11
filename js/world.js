@@ -425,6 +425,7 @@ function rectHitsWater(x, y, w, h) {
     || inWater(x + w / 2, y + h / 2);
 }
 const shops = [];
+const supers = []; // supermercados (CHOTO, NOCHE %, CHOTO de Lanús)
 
 // Villas con su rectángulo en coordenadas del mundo (incluye las calles que las cruzan)
 const villas = VILLAS.map(v => ({
@@ -457,6 +458,7 @@ class World {
     this.casaRosada = casaRosada;
     this.cabildo = cabildo;
     this.shops = shops;
+    this.supers = supers;
     this.bgrid = null;
   }
 
@@ -585,6 +587,7 @@ class World {
       }
     }
     this.shops.length = 0;
+    this.supers.length = 0;
 
     let id = 0;
     for (let cy = 0; cy < GRID; cy++) {
@@ -1150,6 +1153,50 @@ class World {
       }
     }
 
+    // Supermercados: el edificio más grande cerca de cada punto, con la puerta a la calle.
+    // Se pintan con los colores de la cadena y quedan bajitos, como un super de barrio.
+    for (const S of SUPERS) {
+      const tx = S.at[0] * WORLD, ty = S.at[1] * WORLD;
+      let best = null, bs = -Infinity;
+      for (const b of this.buildings) {
+        const d = b.door;
+        if (!d || b.super || b.shop || b.hospital || b.villa || b.casaRosada || b.cabildo || b.ty.k === 'torre') continue;
+        if (!this.onRoad(d.x + d.ox * 4, d.y + d.oy * 4)) continue;
+        const dd = Math.hypot(b.x + b.w / 2 - tx, b.y + b.h / 2 - ty);
+        const score = b.w * b.h - dd * 12; // grande, pero que no se vaya lejos del punto
+        if (dd < CELL * 2.5 && score > bs) { bs = score; best = b; }
+      }
+      if (!best) continue;
+      Object.assign(best, {
+        super: S.k, col: S.col, roofCol: S.roof, H: Math.min(best.H, 20),
+        ty: BTYPE.find(t => t.k === 'local'), ac: true, tank: false,
+      });
+      this.supers.push(best);
+      this.superProps(best);
+    }
+  }
+
+  // Changuitos en la vereda del super, al costado de la puerta. En el de Lanús están
+  // tirados por cualquier lado, dados vuelta, y hay un perro durmiendo en la puerta.
+  superProps(b) {
+    const d = b.door, lanus = b.super === 'lanus';
+    const n = d.ox ? 0 : 1, ux = n, uy = 1 - n; // a lo largo de la fachada
+    const out = d.ox ? Math.sign(d.ox) : Math.sign(d.oy);
+    const ax = d.ox ? out : 0, ay = d.oy ? out : 0; // hacia la calle
+    const side = Math.min(lanus ? 5 : 3, Math.floor((d.ox ? b.h : b.w) / 2 / 8) - 1);
+    for (let i = 0; i < side; i++) {
+      const along = 14 + i * 7 + (lanus ? rnd(-3, 5) : 0);
+      const away = lanus ? rnd(4, 14) : 5;
+      const s = lanus && Math.random() < 0.5 ? -1 : 1;
+      this.props.push({
+        t: 'changuito',
+        x: d.x + ux * along * s + ax * away,
+        y: d.y + uy * along * s + ay * away,
+        a: lanus ? rnd(0, TAU) : Math.atan2(ay, ax),
+        volcado: lanus && (i === 0 || Math.random() < 0.6),
+      });
+    }
+    if (lanus) this.props.push({ t: 'perro', x: d.x + ax * 6 + ux * 3, y: d.y + ay * 6 + uy * 3, a: Math.atan2(uy, ux) });
   }
 
   // Índice espacial: edificios por celda de la grilla, para que las colisiones no recorran todo
