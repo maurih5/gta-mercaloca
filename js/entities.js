@@ -147,8 +147,15 @@ class EntityManager {
     const m = cop
       ? { k: 'patrol', w: 24, h: 11, cruise: 78 }
       : CARMODEL[(Math.random() * CARMODEL.length) | 0];
-    const ang = Math.round(rnd(0, 4)) * Math.PI / 2;
-    const L = laneSnap(x, y, ang);
+    // Para un lado al azar, pero que el carril caiga en una calle que existe: en una
+    // esquina con una calle cortada (por el río, en el borde) se pasaba a esa y el auto
+    // aparecía fuera del asfalto. Se prueban los cuatro sentidos, empezando por el sorteado.
+    const ang0 = Math.round(rnd(0, 4)) * Math.PI / 2;
+    let L = laneSnap(x, y, ang0);
+    for (let i = 1; i < 4 && !onRoad(L.x, L.y); i++) {
+      const L2 = laneSnap(x, y, ang0 + i * Math.PI / 2);
+      if (onRoad(L2.x, L2.y)) L = L2;
+    }
     return {
       kind: 'car',
       x: L.x,

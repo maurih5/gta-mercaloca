@@ -1571,6 +1571,7 @@ describe('multijugador', () => {
   test('las balas premian al que tiro y con PVP lastiman a los otros', () => {
     startGame(CREW[0]);
     const P2 = addPlayer(CREW[1]);
+    G.pickups = []; // que nadie junte un billete del piso: la guita tiene que ser solo la del tiro
     for (let f = 0; f < 10; f++) update(1/60);
     const ped = G.peds.find(p => p.hp > 0 && !p.inside);
     ped.hp = 1;
