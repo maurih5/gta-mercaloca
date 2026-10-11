@@ -150,10 +150,10 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
   - [x] Playas con gente, puestos, guardavidas, vóley y muelles
 - [x] Obelisco como landmark navegable (#33)
 - [x] Casa Rosada como landmark, con actividad de NPCs (#34)
-- [ ] Supermercado Coto (con carne) (#30)
-- [ ] Supermercado económico estilo Día (sin carne, más barato) (#31)
+- [x] Supermercado CHOTO, parodia de Coto (con carne) (#30)
+- [x] Supermercado económico NOCHE %, parodia de Día (sin carne, más barato) (#31)
 - [ ] Poder robar los supermercados: alarma, botín, testigos, respuesta policial (#32)
-- [ ] Supermercado de Lanús con detalle cómico distintivo (#35)
+- [x] CHOTO de Lanús: sin carne, cartel sin la O, changuitos dados vuelta y un perro durmiendo en la puerta (#35)
 - [ ] Casas personales personalizables: interior, guardado, mejoras (#28)
 - [ ] Autos personales: propiedad, guardado, personalización, recuperación (#29)
 - [ ] Bares como lugar social: pedidos, NPCs, minijuegos, reputación (#36)

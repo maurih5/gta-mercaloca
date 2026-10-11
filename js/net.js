@@ -213,7 +213,9 @@ class NetManager {
   sell(P, d) {
     const K = SHOP_KINDS[d.k];
     if (!K || !inPlay(P) || P.car) return;
-    const ok = d.k === 'armeria' ? P.nearShop && P.wanted < 2 : P.nearTranza;
+    const ok = d.k === 'armeria' ? P.nearShop && P.wanted < 2
+      : d.k === 'tranza' ? P.nearTranza
+      : P.nearSuper && P.nearSuper.super === d.k && P.wanted < 2;
     if (!ok) {
       this.to(P, ['sm', 'YA NO ESTAS EN EL LOCAL', true]);
       return;
@@ -281,7 +283,7 @@ class NetManager {
     const players = G.players.map(q => [
       q.id, CREW.indexOf(q.def), r1(q.x), r1(q.y), r2(q.ang), Math.ceil(q.hp), q.maxhp,
       q.car ? id(q.car) : 0, q.wpn, r2(q.muzzle), r2(q.swing),
-      (q.dead ? 1 : 0) | (q.busted ? 2 : 0) | (q.healing ? 4 : 0) | (q.nearShop ? 8 : 0) | (q.nearTranza ? 16 : 0),
+      (q.dead ? 1 : 0) | (q.busted ? 2 : 0) | (q.healing ? 4 : 0) | (q.nearShop ? 8 : 0) | (q.nearTranza ? 16 : 0) | (q.nearSuper ? 32 : 0),
       r1(q.bustT), r1(q.healT), q.money, q.wanted, Math.round(q.armor), q.porros, r1(q.slowmo), q.bustFine,
       q === P ? packInv(q.inv) : 0,
     ]);
@@ -484,6 +486,7 @@ class NetManager {
       q.healing = a[11] & 4 ? 1 : 0;
       q.nearShop = a[11] & 8 ? true : null;
       q.nearTranza = a[11] & 16 ? true : null;
+      q.nearSuper = a[11] & 32 ? true : null;
       q.bustT = a[12];
       q.healT = a[13];
       q.money = a[14];

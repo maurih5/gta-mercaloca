@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,shop,say,input,packCtl,unpackCtl};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,shop,say,input,packCtl,unpackCtl};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,shop,say,input,packCtl,unpackCtl} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,shop,say,input,packCtl,unpackCtl} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -155,6 +155,31 @@ describe('edificios', () => {
       assert.ok(buildings.includes(h), 'el hospital es un edificio real de la ciudad');
     }
     assert.ok(dist(hospitals[0], hospitals[1]) > CELL * 3, 'los hospitales tienen que estar lejos entre si: ' + dist(hospitals[0], hospitals[1]));
+  });
+
+  test('hay supers: un CHOTO, dos NOCHE % y el CHOTO de Lanus, con la puerta a la calle', () => {
+    const k = supers.map(b => b.super).sort();
+    assert.deepEqual(k, ['choto', 'lanus', 'noche', 'noche'], 'las cuatro sucursales: ' + k);
+    for (const b of supers) {
+      assert.ok(buildings.includes(b), 'el super es un edificio real de la ciudad');
+      assert.ok(!b.hospital && !b.shop && !b.villa && !b.casaRosada, 'no pisa otro lugar: ' + b.super);
+      const d = b.door;
+      assert.ok(onRoad(d.x + d.ox * 4, d.y + d.oy * 4), 'la puerta da a la calle: ' + b.super);
+    }
+    const noches = supers.filter(b => b.super === 'noche');
+    assert.ok(dist(noches[0], noches[1]) > CELL * 6, 'los dos NOCHE % no estan pegados');
+  });
+
+  test('el CHOTO de Lanus esta del otro lado del Riachuelo, con changuitos tirados y el perro', () => {
+    const L = supers.find(b => b.super === 'lanus'), lx = L.x + L.w / 2, ly = L.y + L.h / 2;
+    const cauce = riverCurve.filter(p => Math.abs(p.x - lx) < CELL * 2);
+    assert.ok(cauce.length && cauce.every(p => p.y < ly), 'queda al sur del rio');
+    const cerca = t => props.filter(p => p.t === t && Math.hypot(p.x - lx, p.y - ly) < Math.max(L.w, L.h));
+    assert.equal(cerca('perro').length, 1, 'hay un perro durmiendo en la puerta');
+    assert.ok(cerca('changuito').some(p => p.volcado), 'hay changuitos dados vuelta');
+    const C2 = supers.find(b => b.super === 'choto'), cx = C2.x + C2.w / 2, cy = C2.y + C2.h / 2;
+    assert.ok(props.filter(p => p.t === 'changuito' && Math.hypot(p.x - cx, p.y - cy) < Math.max(C2.w, C2.h)).every(p => !p.volcado),
+      'en el CHOTO normal estan en fila');
   });
 });
 
@@ -755,6 +780,49 @@ describe('simulacion', () => {
 });
 
 describe('jugador', () => {
+  test('en el super se compra comida que cura en el momento', () => {
+    startGame(CREW[0]);
+    const P = G.me, carne = CHOTO_ITEMS.find(it => it.id === 'carne');
+    P.money = 1000; P.hp = 20;
+    const r = shop.purchase(P, carne);
+    assert.ok(r && !r.bad, 'la vende');
+    assert.equal(P.hp, 20 + carne.heal, 'cura lo que dice');
+    assert.equal(P.money, 1000 - carne.price, 'la cobra');
+    P.hp = P.maxhp;
+    assert.ok(!shop.status(carne, P).can, 'lleno no se compra');
+    P.hp = 10; P.money = 5;
+    assert.ok(shop.purchase(P, carne).bad, 'sin guita no hay carne');
+    assert.equal(P.hp, 10, 'y no te cura');
+    P.money = 1000;
+    assert.ok(!NOCHE_ITEMS.some(it => it.id === 'carne'), 'el NOCHE % no tiene carne');
+    assert.ok(NOCHE_ITEMS.every(it => it.price < (CHOTO_ITEMS.find(c => c.id === it.id) || { price: Infinity }).price),
+      'lo que tienen los dos es mas barato en el NOCHE %');
+    const sinCarne = LANUS_ITEMS.find(it => it.id === 'carne');
+    assert.equal(shop.status(sinCarne, P).label, 'NO HAY', 'en Lanus nunca hay carne');
+    assert.equal(shop.purchase(P, sinCarne), null, 'y no te la venden');
+  });
+
+  test('en la puerta del super se entra con E, pero no con la yuta encima', () => {
+    startGame(CREW[0]);
+    const P = G.me, b = supers.find(q => q.super === 'noche'), d = b.door;
+    const abiertos = [], orig = game.openShop;
+    game.openShop = (Q, kind) => abiertos.push([Q, kind]);
+    try {
+      P.x = d.x + d.ox; P.y = d.y + d.oy;
+      P.wanted = 2;
+      input.keys.KeyE = true;
+      for (let f = 0; f < 3; f++) update(1/60);
+      assert.ok(P.nearSuper === b, 'sabe que esta en la puerta');
+      assert.equal(abiertos.length, 0, 'con la yuta encima no entra');
+      P.wanted = 0; P.cool = 0;
+      for (let f = 0; f < 3; f++) update(1/60);
+      assert.deepEqual(abiertos[0], [P, 'noche'], 'se abre el NOCHE %');
+    } finally {
+      input.keys.KeyE = false;
+      game.openShop = orig;
+    }
+  });
+
   test('arresto: secuencia completa', () => {
     startGame(CREW[0]);
     for(let f=0;f<120;f++) update(1/60);
@@ -1000,6 +1068,27 @@ describe('multijugador', () => {
   const alejarDeVillas = P => {
     for (let i = 0; i < 50 && villaAt(P.x, P.y); i++) { const s = freeRoadSpot(); P.x = s.x; P.y = s.y; }
   };
+
+  test('el super abre en la pantalla del que entra y la comida es de cada uno', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]), b = supers.find(q => q.super === 'choto'), d = b.door;
+    const abiertos = [], orig = game.openShop;
+    game.openShop = (Q, kind) => abiertos.push([Q, kind]);
+    try {
+      lejos(G.me, CELL * 3);
+      P2.x = d.x + d.ox; P2.y = d.y + d.oy; P2.wanted = 0; P2.cool = 0;
+      P2.ctl = { ...idleControls(), use: true };
+      update(1/60);
+      assert.ok(P2.nearSuper === b && !G.me.nearSuper, 'solo el de la puerta esta en el super');
+      assert.deepEqual(abiertos, [[P2, 'choto']], 'se le abre a el, no al local');
+    } finally {
+      game.openShop = orig;
+    }
+    G.me.hp = 30; P2.hp = 30; P2.money = 500;
+    shop.purchase(P2, CHOTO_ITEMS.find(it => it.id === 'choripan'));
+    assert.ok(P2.hp > 30 && P2.money < 500, 'el que compra come y paga');
+    assert.equal(G.me.hp, 30, 'al otro no le llega');
+  });
 
   test('se suman jugadores hasta el maximo, cada uno con lo suyo', () => {
     startGame(CREW[0]);
@@ -1432,6 +1521,31 @@ describe('multijugador online', () => {
     assert.ok(P2.inv.ak > 0 && P2.money < 5000, 'el host le vende');
     assert.ok(C.G.me.inv.ak > 0 && C.G.me.money === P2.money, 'el cliente ve el fierro y la guita');
     assert.equal(C.G.me.inv.pistola, Infinity, 'la 9mm sigue con balas infinitas');
+    C.shop.close();
+  });
+
+  test('en el super el cliente compra y come, y lo hace el host', async () => {
+    const { red, P2 } = await conectar();
+    const b = supers.find(q => q.super === 'choto'), d = b.door;
+    P2.x = d.x + d.ox; P2.y = d.y + d.oy; P2.car = null;
+    P2.money = 1000; P2.wanted = 0; P2.hp = 20;
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(C.G.me.nearSuper, 'el cliente ve el cartel para entrar');
+    C.input.keys.KeyE = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = false;
+    assert.ok(C.G.shopOpen && C.shop.kind === 'choto', 'el CHOTO se abre en la pantalla del cliente');
+    assert.ok(!G.shopOpen, 'y no en la del host');
+    C.shop.buy(C.shop.items.findIndex(it => it.id === 'carne'));
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(P2.hp > 20 && P2.money < 1000, 'el host le vende y lo cura');
+    assert.equal(C.G.me.hp, Math.ceil(P2.hp), 'el cliente ve la vida');
+    // Si se va de la puerta, el host no le vende aunque el cliente lo pida
+    P2.x += CELL; const plata = P2.money;
+    for (let f = 0; f < 3; f++) frame(red);
+    C.net.buy('choto', 0);
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.equal(P2.money, plata, 'lejos del super no se compra');
     C.shop.close();
   });
 
