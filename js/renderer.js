@@ -412,6 +412,18 @@ class Renderer {
     }
 
     if (b.super) this.drawSuperSign(b, rx, ry);
+    if (b.super && b.closed > 0 && b.door) {
+      // Persiana baja: chapa gris con canaletas
+      const d = b.door, dxp = d.x - G.cam.x, dyp = d.y - G.cam.y, hz = d.s === 'n' || d.s === 's';
+      ctx.fillStyle = '#8a8e94';
+      if (hz) ctx.fillRect(px(dxp - 9), px(dyp - 2.5), 18, 5);
+      else ctx.fillRect(px(dxp - 2.5), px(dyp - 9), 5, 18);
+      ctx.fillStyle = '#5c6066';
+      for (let i = -8; i < 9; i += 3) {
+        if (hz) ctx.fillRect(px(dxp + i), px(dyp - 2.5), 1, 5);
+        else ctx.fillRect(px(dxp - 2.5), px(dyp + i), 5, 1);
+      }
+    }
 
     if (b.H > 45) {
       const bl = Math.sin(G.t * 3.4) > 0;
@@ -432,6 +444,23 @@ class Renderer {
     ctx.textAlign = 'center';
     ctx.fillStyle = S.ink;
     ctx.fillText(name, px(sx), px(sy + 4));
+    if (b.alarm > 0) {
+      // Baliza de la alarma en la esquina del techo
+      const on = Math.floor(G.t * 6) % 2;
+      ctx.fillStyle = on ? '#ff3a2a' : '#5a1210';
+      ctx.fillRect(px(rx + b.w - 12), px(ry + 4), 7, 7);
+      if (on) {
+        ctx.fillStyle = 'rgba(255,60,40,.25)';
+        ctx.beginPath();
+        ctx.arc(rx + b.w - 8.5, ry + 7.5, 12, 0, TAU);
+        ctx.fill();
+      }
+    }
+    if (b.closed > 0) {
+      ctx.fillStyle = '#14100c';
+      ctx.fillRect(px(sx - 26), px(sy + 10), 52, 10);
+      this.text('CERRADO', sx, sy + 17.5, '#ffb04a', 5, 'center');
+    }
     if (b.super === 'lanus') {
       // la O tirada en el techo, torcida
       ctx.strokeStyle = S.ink;
@@ -1916,7 +1945,7 @@ class Renderer {
       ECTX.drawImage(this.glow(gc[0], gc[1], gc[2], gsz), x - gsz / 2, y - gsz / 2);
       any = true;
     }
-    for (const b of shops.concat(supers)) {
+    for (const b of shops.concat(supers.filter(q => !(q.closed > 0)))) {
       const d = b.door, x = d.x + d.ox - G.cam.x, y = d.y + d.oy - G.cam.y;
       if (x < -40 || y < -40 || x > RW + 40 || y > RH + 40) continue;
       const gsz = 48;
@@ -2157,7 +2186,24 @@ class Renderer {
       const bl = Math.floor(G.t * 3) % 2;
       const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
       const what = P.nearShop ? 'ENTRAR A LA ARMERIA' : P.nearSuper ? 'ENTRAR AL SUPER' : 'HABLAR CON EL TRANZA';
-      this.text(key + ': ' + what, RW / 2, RH - 34, bl ? '#ffb04a' : '#ffd34a', 7, 'center');
+      const sup = P.nearSuper && supers.find(b => Math.hypot(b.door.x + b.door.ox - P.x, b.door.y + b.door.oy - P.y) < 16);
+      if (sup && (sup.closed > 0 || sup.robbing)) {
+        if (!sup.robbing) this.text('CERRADO POR ROBO', RW / 2, RH - 34, '#ff8a4a', 7, 'center');
+      } else {
+        this.text(key + ': ' + what + (sup ? ' - DISPARA: ASALTO' : ''), RW / 2, RH - 34, bl ? '#ffb04a' : '#ffd34a', 7, 'center');
+      }
+    }
+
+    // Asalto en curso: la barra de la caja para los que están en la puerta
+    for (const b of supers) {
+      if (!b.robbing || P.dead || P.car) continue;
+      if (Math.hypot(b.door.x + b.door.ox - P.x, b.door.y + b.door.oy - P.y) > ROB_R) continue;
+      const k2 = Math.min(1, b.robT / ROB_TIME), W = 120, X = RW / 2 - W / 2, Y = RH - 52;
+      this.text('VACIANDO LA CAJA', RW / 2, Y - 4, Math.floor(G.t * 4) % 2 ? '#ff6a5a' : '#ffd34a', 7, 'center');
+      ctx.fillStyle = '#000';
+      ctx.fillRect(X - 1, Y - 1, W + 2, 7);
+      ctx.fillStyle = '#5ad25a';
+      ctx.fillRect(X, Y, W * k2, 5);
     }
 
     // Porros en el bolsillo y tiempo de cámara lenta
@@ -2253,8 +2299,8 @@ class Renderer {
 
     for (const pk of G.pickups) this.drawPickup(pk);
 
-    // Marca en la vereda frente a cada armería y cada super
-    for (const b of shops.concat(supers)) {
+    // Marca en la vereda frente a cada armería y cada super abierto
+    for (const b of shops.concat(supers.filter(q => !(q.closed > 0)))) {
       const d = b.door, x = d.x + d.ox - G.cam.x, y = d.y + d.oy - G.cam.y;
       if (x < -20 || y < -20 || x > RW + 20 || y > RH + 20) continue;
       const pulse = 6 + Math.sin(G.t * 4) * 1.5;

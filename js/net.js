@@ -215,7 +215,7 @@ class NetManager {
     if (!K || !inPlay(P) || P.car) return;
     const ok = d.k === 'armeria' ? P.nearShop && P.wanted < 2
       : d.k === 'tranza' ? P.nearTranza
-      : P.nearSuper && P.nearSuper.super === d.k && P.wanted < 2;
+      : P.nearSuper && P.nearSuper.super === d.k && P.wanted < 2 && !P.nearSuper.robbing && !(P.nearSuper.closed > 0);
     if (!ok) {
       this.to(P, ['sm', 'YA NO ESTAS EN EL LOCAL', true]);
       return;
@@ -297,6 +297,7 @@ class NetManager {
 
     return {
       t: r2(G.t), c: cars, p: peds, k: cops, z: tranzas, va: villas.map(v => r1(v.angry)),
+      sp: supers.map(b => [r1(b.robT || 0), Math.ceil(b.closed || 0), (b.robbing ? 1 : 0) | (b.alarm > 0 ? 2 : 0)]),
       b: bullets, g: nades, u: pickups, j: players, e: ev,
     };
   }
@@ -449,6 +450,10 @@ class NetManager {
       t.hp = a[4] ? 60 : 0;
     });
     s.va.forEach((v, i) => { if (villas[i]) villas[i].angry = v; });
+    (s.sp || []).forEach((a, i) => {
+      const b = supers[i];
+      if (b) Object.assign(b, { robT: a[0], closed: a[1], robbing: !!(a[2] & 1), alarm: a[2] & 2 ? 1 : 0 });
+    });
 
     G.bullets = this.sync('b', s.b, () => ({}), (b, a) => {
       b.x = a[1];

@@ -286,6 +286,21 @@ const SUPERS = [
   { k: 'noche', name: 'NOCHE %', at: [0.86, 0.36], col: '#e4e6ec', roof: '#2a4fa8', sign: '#d8302a', ink: '#fff' },
   { k: 'lanus', name: 'CH TO', at: [0.70, 0.86], col: '#d6cdbd', roof: '#a8342e', sign: '#a8342e', ink: '#f2e6d8' },
 ];
+// Robo al super: se arranca disparando en la puerta y hay que quedarse ROB_TIME segundos
+// ahí (si roban dos, va el doble de rápido). Si nadie queda en la puerta ROB_GRACE
+// segundos, se corta. Después el local queda con la persiana baja SUPER_CLOSED segundos.
+// Los que vieron el robo (a ROB_WITNESS_R de la puerta), si siguen vivos ROB_WITNESS
+// segundos después, llaman a la yuta: una estrella más.
+const ROB_TIME = 4;
+const ROB_R = 22;
+const ROB_GRACE = 1.5;
+const ROB_STARS = 2;
+const SUPER_CLOSED = 90;
+const SUPER_ALARM = 12;
+const ROB_WITNESS = 6;
+const ROB_WITNESS_R = 110;
+// Botín: cuántos fajos salen de la caja y cuánto vale cada uno
+const ROB_LOOT = { choto: { n: 6, v: [250, 450] }, noche: { n: 4, v: [150, 300] }, lanus: { n: 1, v: [40, 40] } };
 const PORRO_MAX = 5;      // cuantos entran en el bolsillo
 const PORRO_TIME = 7;     // segundos de camara lenta
 const SLOWMO = 0.38;      // velocidad del mundo mientras dura
