@@ -23,6 +23,10 @@ function foodIcon(g, id, x, y) {
     r('#7a1e1e', -6, -3, 12, 7); r('#b83a34', -6, -3, 12, 4); r('#f0d8c8', -4, -2, 3, 1); r('#f0d8c8', 1, 0, 4, 1);
   } else if (id === 'fideos') {
     r('#e8e4d8', -4, -5, 8, 10); r('#2a4fa8', -4, -5, 8, 3); r('#e8c060', -2, 0, 4, 3);
+  } else if (id === 'agua') {
+    r('#a8d8f0', -2, -6, 5, 12); r('#e8f6ff', -1, -5, 1, 9); r('#3a7ab8', -2, -7, 5, 2); r('#3a7ab8', -2, 0, 5, 2);
+  } else if (id === 'gaseosa') {
+    r('#3a1a12', -3, -6, 6, 12); r('#c8302a', -3, -2, 6, 4); r('#f0f0f0', -2, -1, 4, 1); r('#c8302a', -1, -8, 2, 2);
   } else if (id === 'galletitas') {
     r('#c8302a', -6, -3, 12, 6); r('#e0b060', -4, -2, 3, 3); r('#e0b060', 0, -2, 3, 3); r('#9a2420', -6, 2, 12, 1);
   } else {
@@ -2151,7 +2155,8 @@ class Renderer {
     const P = G.me;
     ctx.fillStyle = 'rgba(0,0,0,.42)';
     ctx.fillRect(0, 0, 118, 46);
-    ctx.fillRect(RW - 96, 0, 96, P.armor > 0 ? 51 : 45);
+    const needY = P.armor > 0 ? 50 : 44; // barras de hambre y sed, abajo de la vida
+    ctx.fillRect(RW - 96, 0, 96, needY + 9);
     this.text('$' + P.money, RW - 7, 13, '#7de07d', 9, 'right');
     for (let i = 0; i < 5; i++) {
       this.text('*', RW - 9 - i * 11, 28, i < P.wanted ? '#ffd34a' : '#35383d', 11, 'right');
@@ -2168,6 +2173,32 @@ class Renderer {
       ctx.fillRect(RW - 79, 42, 72, 6);
       ctx.fillStyle = '#5a8ad8';
       ctx.fillRect(RW - 78, 43, 70 * clamp(P.armor / 100, 0, 1), 4);
+    }
+    // Hambre (naranja) y sed (celeste): titilan cuando están bajas
+    const blink = Math.floor(G.t * 4) % 2;
+    [[P.food, '#e8a23a', RW - 79], [P.drink, '#4ab0e8', RW - 42]].forEach(([v, col, x]) => {
+      const k = clamp((v || 0) / 100, 0, 1);
+      ctx.fillStyle = 'rgba(0,0,0,.75)';
+      ctx.fillRect(x, needY, 35, 5);
+      ctx.fillStyle = v <= NEED_LOW && blink ? '#ff4a3a' : col;
+      ctx.fillRect(x + 1, needY + 1, 33 * k, 3);
+    });
+
+    // La mochila: lo que lleva para comer y tomar, con la cantidad
+    const bag = Object.keys(P.bag || {}).filter(k => P.bag[k] > 0);
+    if (bag.length) {
+      const by = P.porros > 0 || P.slowmo > 0 ? 70 : 54;
+      ctx.fillStyle = 'rgba(0,0,0,.42)';
+      ctx.fillRect(0, by - 8, 8 + bag.length * 22, 16);
+      bag.forEach((k, i) => {
+        const bx = 12 + i * 22;
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.scale(0.7, 0.7);
+        foodIcon(ctx, k, 0, 0);
+        ctx.restore();
+        this.text(String(P.bag[k]), bx + 6, by + 6, '#e8e8e8', 5);
+      });
     }
 
     // Arma en mano y balas
