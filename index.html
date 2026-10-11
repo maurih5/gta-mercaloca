@@ -276,7 +276,9 @@
   .news-list{overflow-y:auto;touch-action:pan-y;margin:14px 0;padding-right:4px}
   .news-v{font-size:9px;color:#9ad0ff;margin:14px 0 8px}
   .news-v:first-child{margin-top:0}
-  .news-it{font-size:8px;color:#ddd;line-height:1.7;padding-left:14px;text-indent:-14px;margin-bottom:6px}
+  .news-it{display:block;font-size:8px;color:#ddd;line-height:1.7;padding-left:14px;text-indent:-14px;margin-bottom:6px;
+           text-decoration:none;cursor:pointer}
+  a.news-it:hover{color:var(--gold);text-decoration:underline}
   .news-it::before{content:'> ';color:#666}
   .news-it.new{color:#fff}
   .news-it.new::before{content:'> ';color:var(--grove)}

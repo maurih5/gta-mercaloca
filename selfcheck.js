@@ -1030,7 +1030,12 @@ describe('novedades', () => {
       assert.equal(ui.openNews(true), true, 'desde el menu se abre igual');
       ui.closeNews(false);
       NOVEDADES.push({ v: '0.2.0', items: [{ pr: 97, t: 'Robar los supermercados' }, { pr: 96, t: 'Supermercados' }] });
-      assert.ok(ui.openNews() && ui.newsOpen, 'hay novedades: sale');
+      const links = [], orig = document.createElement;
+      document.createElement = tag => { const e = orig(tag); if (tag === 'a') links.push(e); return e; };
+      try { assert.ok(ui.openNews() && ui.newsOpen, 'hay novedades: sale'); } finally { document.createElement = orig; }
+      assert.deepEqual(links.map(l => [l.href, l.target]),
+        [['https://github.com/maurih5/gta-mercaloca/pull/97', '_blank'], ['https://github.com/maurih5/gta-mercaloca/pull/96', '_blank']],
+        'cada novedad abre su PR en otra pestania');
       ui.closeNews(false);
       assert.ok(ui.openNews(), 'cerrado sin el tilde, sale de nuevo la proxima');
       ui.closeNews(true);

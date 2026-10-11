@@ -9,6 +9,7 @@ const IMGS = {};
 // Novedades: se guarda la PR más nueva que el jugador ya vio y tildó "no volver a mostrar".
 // Mientras haya alguna más nueva, el cartel aparece al arrancar.
 const NEWS_KEY = 'mercaloca.novedades';
+const PR_URL = 'https://github.com/maurih5/gta-mercaloca/pull/'; // cada novedad abre su PR
 const newsMax = list => list.reduce((m, g) => g.items.reduce((m2, i) => Math.max(m2, i.pr), m), 0);
 const newsFresh = (list, seen) => newsMax(list) > seen;
 
@@ -149,8 +150,12 @@ class UIManager {
         for (const i of g.items) {
           // NUEVO: lo que no viste. La primera vez que entrás, solo lo de la última versión
           const fresh = seen ? i.pr > seen : g === NOVEDADES[0];
-          const it = document.createElement('div');
+          const it = document.createElement('a');
           it.className = 'news-it' + (fresh ? ' new' : '');
+          it.href = PR_URL + i.pr;
+          it.target = '_blank';
+          it.rel = 'noopener';
+          it.title = 'Ver la PR #' + i.pr + ' en GitHub';
           it.textContent = i.t;
           if (fresh) {
             const tag = document.createElement('b');
