@@ -221,6 +221,11 @@ class SoundManager {
       case 'porro':
         this.burst(d, t, { dur: 0.9, type: 'bandpass', f0: 1200, f1: 600, q: 1, vol: 0.25, attack: 0.3 });
         return 0.9;
+      case 'alarma': // la alarma del super: timbre de dos tonos
+        for (let i = 0; i < 4; i++) {
+          this.tone(d, t + i * 0.2, { dur: 0.18, f0: i % 2 ? 760 : 980, wave: 'square', vol: 0.16 });
+        }
+        return 0.8;
       case 'hospital':
         this.tone(d, t, { dur: 0.15, f0: 660, wave: 'triangle', vol: 0.25 });
         this.tone(d, t + 0.15, { dur: 0.15, f0: 880, wave: 'triangle', vol: 0.25 });
