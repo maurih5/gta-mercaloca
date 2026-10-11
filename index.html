@@ -266,6 +266,27 @@
   }
 
   /* Armería */
+  /* Novedades */
+  .news{position:fixed;inset:0;display:none;place-items:center;z-index:60;background:rgba(0,0,0,.7)}
+  .news.on{display:grid}
+  .news-panel{width:min(560px,94vw);max-height:88vh;display:flex;flex-direction:column;background:#0e0d0c;
+              border:3px solid var(--gold);padding:16px;box-shadow:0 12px 40px rgba(0,0,0,.8)}
+  .news-head{font-size:min(3.6vw,16px);color:var(--gold);text-shadow:3px 3px 0 #000;letter-spacing:2px}
+  .news-ver{font-size:8px;color:#8e8e8e;letter-spacing:0;margin-left:8px}
+  .news-list{overflow-y:auto;touch-action:pan-y;margin:14px 0;padding-right:4px}
+  .news-v{font-size:9px;color:#9ad0ff;margin:14px 0 8px}
+  .news-v:first-child{margin-top:0}
+  .news-it{font-size:8px;color:#ddd;line-height:1.7;padding-left:14px;text-indent:-14px;margin-bottom:6px}
+  .news-it::before{content:'> ';color:#666}
+  .news-it.new{color:#fff}
+  .news-it.new::before{content:'> ';color:var(--grove)}
+  .news-it b{font-weight:normal;font-size:6px;color:#000;background:var(--grove);padding:1px 3px;margin-left:6px;vertical-align:middle}
+  .news-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .news-hide{font-size:8px;color:#bbb;cursor:pointer;display:flex;align-items:center;gap:8px}
+  .news-hide input{width:16px;height:16px;accent-color:var(--gold);cursor:pointer;margin:0}
+  .news-close{font-family:inherit;font-size:10px;color:#000;background:var(--gold);border:2px solid #000;
+              padding:8px 18px;cursor:pointer}
+  .news-close:active{transform:scale(.94)}
   .shop{position:fixed;inset:0;display:none;place-items:center;z-index:48;background:rgba(0,0,0,.6)}
   .shop.on{display:grid}
   .shop-panel{width:min(560px,94vw);max-height:92vh;display:flex;flex-direction:column;background:#0e0d0c;
@@ -346,6 +367,7 @@
     <h2>SAN ANDREAS &mdash; GROVE ST. 4 LIFE</h2>
     <div class="mi sel" id="btnPlay">&gt; EMPEZAR PARTIDA</div>
     <div class="mi" id="btnOnline">&gt; JUGAR ONLINE</div>
+    <div class="mi" id="btnNews">&gt; NOVEDADES</div>
     <div class="hint">WASD / FLECHAS mover &nbsp;&middot;&nbsp; ESPACIO disparar &nbsp;&middot;&nbsp; E auto<br>
       SHIFT correr &nbsp;&middot;&nbsp; Q / 1-6 cambiar arma &nbsp;&middot;&nbsp; P pausa<br>
       E en la puerta de la armeria para comprar fierros &nbsp;&middot;&nbsp; F fumar<br>si te frenan con la yuta encima, vas preso</div>
@@ -419,6 +441,18 @@
   </div>
 </div>
 
+<!-- Novedades de la versión: aparece al arrancar si hay algo que no viste -->
+<div class="news" id="news">
+  <div class="news-panel">
+    <div class="news-head">NOVEDADES <span class="news-ver" id="news-ver"></span></div>
+    <div class="news-list" id="news-list"></div>
+    <div class="news-foot">
+      <label class="news-hide"><input type="checkbox" id="news-hide"> NO VOLVER A MOSTRAR</label>
+      <button class="news-close" id="news-close">DALE</button>
+    </div>
+  </div>
+</div>
+
 <!-- Armería -->
 <div class="shop" id="shop">
   <div class="shop-panel">
@@ -447,6 +481,7 @@
 <script src="js/game.js?v=20"></script>
 <script src="js/renderer.js?v=20"></script>
 <script src="js/net.js?v=20"></script>
+<script src="js/novedades.js?v=20"></script>
 <script src="js/ui.js?v=20"></script>
 <script src="js/shop.js?v=20"></script>
 <script src="js/touch.js?v=20"></script>

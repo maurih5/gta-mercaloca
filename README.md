@@ -225,6 +225,7 @@ Agregados a la dirección (por ejemplo `http://localhost:8000/?famoso=messi`):
 | Parámetro | Qué hace |
 | :--- | :--- |
 | `?play` | Arranca directo a jugar, sin menú |
+| `?novedades` | Abre el cartel de novedades aunque ya lo hayas tildado. Con datos de verdad: `node .github/scripts/novedades.js local > js/novedades.js` (no commitearlo) |
 | `?sala=7X9HJ` | Entra a esa sala online (es el link que se comparte) |
 | `?famoso=messi` | Arranca con ese famoso al lado (`listorti`, `messi`) |
 | `&h=22` | Hora del día (0-24) |

@@ -6,11 +6,18 @@ const $ = id => (typeof document !== 'undefined' ? document.getElementById(id) :
 
 const IMGS = {};
 
+// Novedades: se guarda la PR más nueva que el jugador ya vio y tildó "no volver a mostrar".
+// Mientras haya alguna más nueva, el cartel aparece al arrancar.
+const NEWS_KEY = 'mercaloca.novedades';
+const newsMax = list => list.reduce((m, g) => g.items.reduce((m2, i) => Math.max(m2, i.pr), m), 0);
+const newsFresh = (list, seen) => newsMax(list) > seen;
+
 class UIManager {
   constructor() {
     this.selIdx = 0;
     this.menuIdx = 0;
     this.mode = 'solo'; // 'solo' · 'host': crea una sala · 'join': entra a la de otro (?sala=)
+    this.newsOpen = false;
     this.initEvents();
     const vt = $('version-tag');
     if (vt) vt.textContent = VERSION;
@@ -109,6 +116,69 @@ class UIManager {
     if (b) b.style.display = back ? 'block' : 'none';
   }
 
+  // ---- Novedades ----
+
+  newsSeen() {
+    try {
+      return +localStorage.getItem(NEWS_KEY) || 0;
+    } catch (e) {
+      return 0; // sin localStorage (navegación privada, etc.): se muestra siempre
+    }
+  }
+
+  // Abre el cartel si hay algo que no viste (o siempre, con force: botón del menú, ?novedades)
+  openNews(force = false) {
+    const seen = this.newsSeen();
+    if (!force && !newsFresh(NOVEDADES, seen)) return false;
+    const list = $('news-list'), ver = $('news-ver'), hide = $('news-hide'), el = $('news');
+    if (ver) ver.textContent = VERSION;
+    if (hide) hide.checked = false;
+    if (list && typeof document !== 'undefined') {
+      list.innerHTML = '';
+      if (!NOVEDADES.length) {
+        const it = document.createElement('div');
+        it.className = 'news-it';
+        it.textContent = 'Todavia no hay novedades.';
+        list.appendChild(it);
+      }
+      for (const g of NOVEDADES) {
+        const v = document.createElement('div');
+        v.className = 'news-v';
+        v.textContent = 'VERSION ' + g.v;
+        list.appendChild(v);
+        for (const i of g.items) {
+          // NUEVO: lo que no viste. La primera vez que entrás, solo lo de la última versión
+          const fresh = seen ? i.pr > seen : g === NOVEDADES[0];
+          const it = document.createElement('div');
+          it.className = 'news-it' + (fresh ? ' new' : '');
+          it.textContent = i.t;
+          if (fresh) {
+            const tag = document.createElement('b');
+            tag.textContent = 'NUEVO';
+            it.appendChild(tag);
+          }
+          list.appendChild(it);
+        }
+      }
+      list.scrollTop = 0;
+    }
+    if (el) el.classList.add('on');
+    this.newsOpen = true;
+    return true;
+  }
+
+  // hide: el tilde de "no volver a mostrar"
+  closeNews(hide = !!($('news-hide') || {}).checked) {
+    const el = $('news');
+    if (hide) {
+      try {
+        localStorage.setItem(NEWS_KEY, String(Math.max(this.newsSeen(), newsMax(NOVEDADES))));
+      } catch (e) { /* no se puede guardar: vuelve a salir la próxima */ }
+    }
+    if (el) el.classList.remove('on');
+    this.newsOpen = false;
+  }
+
   markMenu() {
     if (typeof document === 'undefined') return;
     document.querySelectorAll('#menu .mi').forEach((el, i) => el.classList.toggle('sel', i === this.menuIdx));
@@ -157,12 +227,25 @@ class UIManager {
     if (typeof addEventListener === 'undefined') return;
 
     addEventListener('keydown', e => {
+      // Con las novedades abiertas, el teclado es solo para cerrarlas
+      if (this.newsOpen) {
+        if (e.code === 'Enter' || e.code === 'Escape' || e.code === 'Space') {
+          e.preventDefault();
+          this.closeNews();
+        }
+        return;
+      }
       if (G.state === 'menu') {
-        if (e.code === 'ArrowDown' || e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'KeyS') {
-          this.menuIdx = 1 - this.menuIdx;
+        const n = 3; // EMPEZAR · ONLINE · NOVEDADES
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+          this.menuIdx = (this.menuIdx + 1) % n;
+          this.markMenu();
+        } else if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+          this.menuIdx = (this.menuIdx + n - 1) % n;
           this.markMenu();
         } else if (e.code === 'Enter' || e.code === 'Space') {
           if (this.menuIdx === 1) this.toOnline();
+          else if (this.menuIdx === 2) this.openNews(true);
           else this.toSel('solo');
         }
       } else if (G.state === 'online') {
@@ -195,6 +278,8 @@ class UIManager {
         if (el) el.onclick = fn;
       };
       on('btnOnline', () => this.toOnline());
+      on('btnNews', () => this.openNews(true));
+      on('news-close', () => this.closeNews());
       on('btnHost', () => this.toSel('host'));
       on('btnJoin', () => this.joinTyped());
       on('btnOnlineBack', () => {
