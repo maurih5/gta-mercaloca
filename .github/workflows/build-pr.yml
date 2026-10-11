@@ -75,6 +75,7 @@ jobs:
             if (!aplica) core.notice(`PR a main desde '${pr.head.ref}': no genera release`);
 
             core.setOutput('numero', numero);
+            core.setOutput('titulo', pr.title);
             core.setOutput('head_sha', pr.head.sha);
             core.setOutput('base_ref', pr.base.ref);
             core.setOutput('tipo', tipo);
@@ -158,6 +159,11 @@ jobs:
       - name: Compilar
         if: steps.pr.outputs.aplica == 'true'
         shell: bash
+        env:
+          # La PR a dev entra en las novedades de su versión (la de dev -> main no: es la
+          # estable, que junta las de sus rc). Por env y no inline: el título es texto libre.
+          NOVEDADES_PR: ${{ steps.pr.outputs.base_ref == 'dev' && steps.pr.outputs.numero || '' }}
+          NOVEDADES_TITULO: ${{ steps.pr.outputs.base_ref == 'dev' && steps.pr.outputs.titulo || '' }}
         run: |
           set -euo pipefail
           mkdir -p artefacto

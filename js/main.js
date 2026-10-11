@@ -202,6 +202,8 @@ async function boot() {
 
   // ?play arranca directo a jugar; ?famoso=<id> también, con ese famoso al lado (para probarlo)
   const skip = !sala && /[?&](play|famoso)/.test(location.search);
+  // ?novedades: abre el cartel de novedades aunque ya lo hayas visto (para probarlo)
+  const news = /[?&]novedades/.test(location.search);
 
   setTimeout(() => {
     clearInterval(timer);
@@ -228,14 +230,15 @@ async function boot() {
         G.me.money = 4200;
         setTimeout(() => bust(), 400);
       }
+      if (news) ui.openNews(true);
     } else if (sala) {
       // Directo a elegir personaje para entrar a la sala
       ui.mode = 'join';
       G.state = 'sel';
-      fadeTo(() => show('sel'));
+      fadeTo(() => { show('sel'); ui.openNews(news); });
     } else {
       G.state = 'menu';
-      fadeTo(() => show('menu'));
+      fadeTo(() => { show('menu'); ui.openNews(news); });
     }
     requestAnimationFrame(frame);
   }, skip ? 0 : Math.max(0, 2600 - (performance.now() - t0)));

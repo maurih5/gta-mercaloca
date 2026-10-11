@@ -5,7 +5,7 @@ const { describe, test } = require('node:test');
 const fs = require('fs'), assert = require('assert');
 const scriptFiles = [
   'constants.js', 'utils.js', 'audio.js', 'songs.js', 'instruments.js', 'radio.js', 'input.js', 'world.js',
-  'entities.js', 'traffic.js', 'game.js', 'renderer.js', 'net.js', 'ui.js', 'shop.js'
+  'entities.js', 'traffic.js', 'game.js', 'renderer.js', 'net.js', 'novedades.js', 'ui.js', 'shop.js'
 ];
 let js = scriptFiles.map(f => fs.readFileSync(__dirname + '/js/' + f, 'utf8')).join('\n');
 
@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -1156,6 +1156,71 @@ describe('radio', () => {
     assert.deepEqual(bass.notes[0].slice(0, 3), [0, 1, 45]);
     assert.deepEqual(drums.notes[0].slice(0, 3), [1, 0.25, 'k']);
     assert.ok(compileSong(song).len > 0, 'el juego lo puede tocar');
+  });
+});
+
+describe('novedades', () => {
+  const nov = require('./.github/scripts/novedades.js');
+  const tag = (name, code, commit) => ({ name, code, commit });
+  const merge = (commit, pr, rama, titulo) => ({ commit, subject: 'Merge pull request #' + pr + ' from maurih5/' + rama, body: titulo });
+
+  test('arma las novedades por version con los titulos de las PRs', () => {
+    const tags = [tag('0.1.0-rc.1', 1, 'a'), tag('0.1.0-rc.2', 2, 'b'), tag('0.1.0', 3, 'c'),
+                  tag('0.2.0-rc.1', 4, 'd'), tag('0.2.0-rc.2', 5, 'e')];
+    const merges = [ // git log: lo más nuevo primero
+      merge('e', 97, 'feat/robo', 'docs(readme): roadmap al dia'),
+      merge('d', 96, 'feat/supers', 'feat(supers): supermercados CHOTO y NOCHE %'),
+      merge('c', 95, 'dev', 'Release 0.1.0'),
+      merge('b', 94, 'fix/x', 'fix(trafico): los autos no se traban'),
+      merge('a', 93, 'feat/y', 'multijugador online'),
+      merge('z', 90, 'feat/viejo', 'feat: de antes de los tags'),
+    ];
+    const r = nov.armar({ tags, merges, actual: { version: '0.2.0-rc.3', pr: '98', titulo: 'feat(supers)!: robar los supermercados' } });
+    assert.deepEqual(r, [
+      { v: '0.2.0', items: [{ pr: 98, t: 'Robar los supermercados' }, { pr: 96, t: 'Supermercados CHOTO y NOCHE %' }] },
+      { v: '0.1.0', items: [{ pr: 94, t: 'Los autos no se traban' }, { pr: 93, t: 'Multijugador online' }] },
+    ], 'las rc se juntan en su version; docs, releases y lo de antes de los tags no van');
+    const main = nov.armar({ tags, merges, actual: { version: '0.2.0' } });
+    assert.deepEqual(main[0].items.map(i => i.pr), [96], 'la estable muestra lo de sus rc');
+    assert.equal(nov.armar({ tags, merges, actual: { version: '0.2.0-rc.3', pr: '96', titulo: 'feat: otra vez' } })[0].items.length, 1,
+      'una PR no sale dos veces');
+  });
+
+  test('el archivo generado es JS que el juego puede cargar', () => {
+    const out = require('child_process').execFileSync('node', ['.github/scripts/novedades.js', '1.2.3-rc.1', '7', 'feat(x): algo'],
+      { cwd: __dirname, encoding: 'utf8' });
+    const lista = new Function(out + ';return NOVEDADES;')();
+    assert.ok(Array.isArray(lista) && lista[0].v === '1.2.3' && lista[0].items[0].t === 'Algo', 'la PR compilada esta arriba');
+  });
+
+  test('el cartel sale mientras haya algo que no viste, hasta tildar no volver a mostrar', () => {
+    const guardado = {};
+    global.localStorage = { getItem: k => (k in guardado ? guardado[k] : null), setItem: (k, v) => { guardado[k] = String(v); } };
+    NOVEDADES.length = 0;
+    try {
+      assert.equal(ui.openNews(), false, 'sin novedades no sale');
+      assert.equal(ui.openNews(true), true, 'desde el menu se abre igual');
+      ui.closeNews(false);
+      NOVEDADES.push({ v: '0.2.0', items: [{ pr: 97, t: 'Robar los supermercados' }, { pr: 96, t: 'Supermercados' }] });
+      const links = [], orig = document.createElement;
+      document.createElement = tag => { const e = orig(tag); if (tag === 'a') links.push(e); return e; };
+      try { assert.ok(ui.openNews() && ui.newsOpen, 'hay novedades: sale'); } finally { document.createElement = orig; }
+      assert.deepEqual(links.map(l => [l.href, l.target]),
+        [['https://github.com/maurih5/gta-mercaloca/pull/97', '_blank'], ['https://github.com/maurih5/gta-mercaloca/pull/96', '_blank']],
+        'cada novedad abre su PR en otra pestania');
+      ui.closeNews(false);
+      assert.ok(ui.openNews(), 'cerrado sin el tilde, sale de nuevo la proxima');
+      ui.closeNews(true);
+      assert.equal(guardado[NEWS_KEY], '97', 'se guarda hasta donde viste');
+      assert.equal(ui.openNews(), false, 'con el tilde no sale mas');
+      NOVEDADES.unshift({ v: '0.3.0', items: [{ pr: 101, t: 'Algo nuevo' }] });
+      assert.ok(ui.openNews(), 'sale una version con algo nuevo: vuelve a aparecer');
+      ui.closeNews(false);
+      assert.ok(newsFresh(NOVEDADES, 97) && !newsFresh(NOVEDADES, 101) && newsMax(NOVEDADES) === 101, 'helpers');
+    } finally {
+      NOVEDADES.length = 0;
+      delete global.localStorage;
+    }
   });
 });
 
