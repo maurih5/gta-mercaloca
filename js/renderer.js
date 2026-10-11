@@ -23,6 +23,11 @@ function foodIcon(g, id, x, y) {
     r('#7a1e1e', -6, -3, 12, 7); r('#b83a34', -6, -3, 12, 4); r('#f0d8c8', -4, -2, 3, 1); r('#f0d8c8', 1, 0, 4, 1);
   } else if (id === 'fideos') {
     r('#e8e4d8', -4, -5, 8, 10); r('#2a4fa8', -4, -5, 8, 3); r('#e8c060', -2, 0, 4, 3);
+  } else if (id === 'carbon') {
+    r('#6a5a44', -5, -5, 10, 11); r('#8a7a5e', -5, -5, 10, 2); r('#1a1a1c', -3, -1, 6, 4); r('#e8a23a', -1, 0, 2, 1);
+  } else if (id === 'asado' || id === 'crudo' || id === 'quemado') {
+    const c = { asado: ['#7a3a1e', '#a85a2e'], crudo: ['#9a2424', '#d05050'], quemado: ['#1e1612', '#3a2a1e'] }[id];
+    r(c[0], -6, -3, 12, 7); r(c[1], -6, -3, 12, 3); r('#d8d0c0', 3, 1, 3, 1);
   } else if (id === 'agua') {
     r('#a8d8f0', -2, -6, 5, 12); r('#e8f6ff', -1, -5, 1, 9); r('#3a7ab8', -2, -7, 5, 2); r('#3a7ab8', -2, 0, 5, 2);
   } else if (id === 'gaseosa') {
@@ -501,6 +506,38 @@ class Renderer {
       ctx.fillRect(-6, -3, 2, 6);
     }
     ctx.restore();
+  }
+
+  // Parrilla de plaza: base de ladrillo y la parrilla arriba. Prendida: brasas, los
+  // pedazos de carne (uno por porción) que se van dorando y quemando, y humo.
+  drawParrilla(g) {
+    const ctx = this.ctx;
+    const x = g.x - G.cam.x, y = g.y - G.cam.y;
+    if (x < -20 || y < -20 || x > RW + 20 || y > RH + 20) return;
+    ctx.fillStyle = 'rgba(0,0,0,.3)';
+    ctx.fillRect(px(x - 8), px(y - 3), 18, 9);
+    ctx.fillStyle = '#9a4a32';
+    ctx.fillRect(px(x - 9), px(y - 5), 18, 9);
+    ctx.fillStyle = '#b8603e';
+    ctx.fillRect(px(x - 9), px(y - 5), 18, 2);
+    ctx.fillStyle = g.cooking ? (Math.floor(G.t * 5) % 2 ? '#ff7a2a' : '#d84a1a') : '#2a2420';
+    ctx.fillRect(px(x - 7), px(y - 3), 14, 5);
+    ctx.fillStyle = '#5a5e64';
+    for (let i = -6; i <= 6; i += 2) ctx.fillRect(px(x + i), px(y - 3), 1, 5);
+    if (!g.cooking) return;
+    const k = clamp(g.t / ASADO_QUEMA, 0, 1), quema = clamp((g.t - ASADO_QUEMA) / (ASADO_CARBON - ASADO_QUEMA), 0, 1);
+    const col = quema > 0 ? mix('#7a3a1e', '#141010', quema) : mix('#c84a4a', '#7a3a1e', k);
+    for (let i = 0; i < g.portions; i++) {
+      ctx.fillStyle = col;
+      ctx.fillRect(px(x - 6 + i * 4.5), px(y - 2.5), 4, 3);
+    }
+    if (Math.random() < 0.08 + quema * 0.2) puff(g.x + rnd(-4, 4), g.y - 6, quema > 0.3 ? '50,50,50' : '210,210,210', 1, 9);
+    // Cómo va, para el que está al lado
+    const P = G.me;
+    if (P && dist(P, g) < 60) {
+      const lbl = g.t < ASADO_PUNTO ? ['CRUDO', '#ff8a8a'] : g.t < ASADO_QUEMA ? ['A PUNTO!', '#8ef08e'] : ['QUEMANDOSE', '#ff6a3a'];
+      this.text(lbl[0], x, y - 10, lbl[1], 5, 'center');
+    }
   }
 
   // El perro del super de Lanús: duerme en la puerta y no se mueve por nada
@@ -1957,6 +1994,15 @@ class Renderer {
       ECTX.drawImage(b.super ? this.glow(255, 90, 70, gsz) : this.glow(255, 150, 50, gsz), x - gsz / 2, y - gsz / 2);
       any = true;
     }
+    for (const g of parrillas) {
+      if (!g.cooking) continue;
+      const x = g.x - G.cam.x, y = g.y - G.cam.y;
+      if (x < -40 || y < -40 || x > RW + 40 || y > RH + 40) continue;
+      const gsz = 40;
+      ECTX.globalAlpha = (0.5 + Math.sin(G.t * 7 + g.x) * 0.12) * Math.max(k, 0.4);
+      ECTX.drawImage(this.glow(255, 120, 40, gsz), x - gsz / 2, y - gsz / 2);
+      any = true;
+    }
     if (night > 0.18 && this.drawBoatLights(k)) any = true; // luces de las lanchas
 
     ECTX.globalAlpha = 1;
@@ -1985,6 +2031,7 @@ class Renderer {
     for (const pk of G.pickups) dot(pk, { cash: '#5ad25a', gold: '#ffd34a', hp: '#ff5a5a', weapon: '#ffc84a' }[pk.kind] || '#ffffff');
     for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
     for (const b of supers) dot({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, '#ff6a5a', 3);
+    for (const g of parrillas) dot(g, g.cooking ? '#ff9a3a' : '#a8643a', 2);
     for (const cr of casaRosada) dot({ x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }, '#ff8fc0', 3);
     if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#e8f070', 3);
     for (const c of G.cops) dot(c, '#4aa3ff');
@@ -2051,6 +2098,7 @@ class Renderer {
     for (const pk of G.pickups) dot(pk, pk.kind === 'cash' ? '#5ad25a' : pk.kind === 'gold' ? '#ffd34a' : '#ff5a5a');
     for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
     for (const b of supers) dot({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, '#ff6a5a', 3);
+    for (const g of parrillas) dot(g, g.cooking ? '#ff9a3a' : '#a8643a', 2);
     for (const cr of casaRosada) dot({ x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }, '#ff8fc0', 3);
     if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#e8f070', 4);
     for (const c of G.cops) dot(c, '#4aa3ff');
@@ -2213,6 +2261,12 @@ class Renderer {
     const h = Math.floor(dayT() * 24), mm = Math.floor(((dayT() * 24) % 1) * 60);
     this.text(String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0'), 7, 26, '#cfcfcf', 7);
 
+    if (P.nearGrill && !P.nearShop && !P.nearSuper && !G.shopOpen && !P.dead && !P.busted && !P.car) {
+      const g = parrillas.find(q => dist(q, P) < GRILL_R);
+      const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
+      const what = g && g.cooking ? 'SACAR UNA PORCION' : 'PRENDER EL ASADO (CARNE + CARBON)';
+      this.text(key + ': ' + what, RW / 2, RH - 34, Math.floor(G.t * 3) % 2 ? '#ffb04a' : '#ffd34a', 7, 'center');
+    }
     if ((P.nearShop || P.nearTranza || P.nearSuper) && !G.shopOpen && !P.dead && !P.busted) {
       const bl = Math.floor(G.t * 3) % 2;
       const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
@@ -2389,6 +2443,7 @@ class Renderer {
       else if (p.t === 'changuito') this.drawChanguito(p);
       else if (p.t === 'perro') this.drawPerro(p);
     }
+    for (const g of parrillas) this.drawParrilla(g);
     for (const l of lamps) this.drawLamp(l, night);
     for (const L of lights) if (L) this.drawTrafficLight(L);
 

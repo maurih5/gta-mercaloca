@@ -63,7 +63,7 @@ class ShopManager {
   // Qué se puede hacer con cada ítem según lo que ya tiene el jugador.
   // La ventana es del jugador local (G.me); en red la compra la hace el host (purchase)
   status(it, P = G.me) {
-    if (FOOD[it.id]) {
+    if (inBag(it.id)) {
       if (it.out) return { can: false, label: 'NO HAY' };
       const n = P.bag[it.id] || 0;
       return game.bagCount(P) >= BAG_MAX
@@ -108,7 +108,7 @@ class ShopManager {
     if (!st || !st.can) return null;
     if (P.money < st.price) return { msg: 'NO TE ALCANZA LA GUITA', bad: true };
     P.money -= st.price;
-    if (FOOD[it.id]) {
+    if (inBag(it.id)) {
       P.bag[it.id] = (P.bag[it.id] || 0) + 1;
       return { msg: 'A LA MOCHILA (' + game.bagCount(P) + '/' + BAG_MAX + '). C PARA COMERLO' };
     }
@@ -150,7 +150,7 @@ class ShopManager {
       icon.width = 28;
       icon.height = 16;
       icon.className = 'shop-icon';
-      if (FOOD[it.id]) foodIcon(icon.getContext('2d'), it.id, 14, 8);
+      if (inBag(it.id)) foodIcon(icon.getContext('2d'), it.id, 14, 8);
       else weaponIcon(icon.getContext('2d'), it.id, 14, 8);
 
       const info = document.createElement('div');

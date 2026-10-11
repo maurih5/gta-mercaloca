@@ -123,6 +123,7 @@ class Game {
     this.snapCam();
     G.cars = [];
     this.resetSupers();
+    for (const g of parrillas) Object.assign(g, { cooking: false, t: 0, portions: 0, owner: null });
     copNav.reset();
     G.peds = [];
     G.guards = [];
@@ -613,8 +614,8 @@ class Game {
   }
 
   eat(P, id = this.bestBite(P)) {
-    if (!Object.keys(P.bag).some(k => P.bag[k] > 0)) {
-      this.say('LA MOCHILA ESTA VACIA. PASA POR UN SUPER', 2.2, P);
+    if (!Object.keys(P.bag).some(k => FOOD[k] && P.bag[k] > 0)) {
+      this.say('NO TENES NADA PARA COMER. PASA POR UN SUPER', 2.2, P);
       return false;
     }
     const F = FOOD[id];
@@ -636,6 +637,53 @@ class Game {
     let n = 0;
     for (const k in P.bag) n += P.bag[k];
     return n;
+  }
+
+  // ---- Asado ----
+
+  // E en la parrilla: si está apagada, se prende con carne y carbón de la mochila; si hay
+  // asado, se lleva una porción (cruda, a punto o quemada según cuánto lleva)
+  useGrill(P, g) {
+    if (!g.cooking) {
+      if (!(P.bag.carne > 0) || !(P.bag.carbon > 0)) {
+        this.say('PARA EL ASADO: CARNE DEL CHOTO Y CARBON', 2.6, P);
+        return false;
+      }
+      for (const k of ['carne', 'carbon']) if (--P.bag[k] <= 0) delete P.bag[k];
+      Object.assign(g, { cooking: true, t: 0, portions: ASADO_PORCIONES, owner: P });
+      puff(g.x, g.y - 4, '200,200,200', 6, 12);
+      this.say('A LA PARRILLA! VOLVE A PUNTO, NO TE COLGUES', 2.8, P);
+      return true;
+    }
+    if (this.bagCount(P) >= BAG_MAX) {
+      this.say('NO TE ENTRA EN LA MOCHILA', 2, P);
+      return false;
+    }
+    const q = g.t < ASADO_PUNTO ? 'crudo' : g.t < ASADO_QUEMA ? 'asado' : 'quemado';
+    P.bag[q] = (P.bag[q] || 0) + 1;
+    g.portions--;
+    sfxFor(P, 'comida');
+    this.say('TE LLEVASTE ' + FOOD_NAME[q] + (g.portions ? ' (QUEDAN ' + g.portions + ')' : ''), 2.4, P);
+    if (g.owner && g.owner !== P && G.players.includes(g.owner)) this.say('TE ESTAN COMIENDO EL ASADO!', 2.6, g.owner);
+    if (g.portions <= 0) Object.assign(g, { cooking: false, t: 0, owner: null });
+    return true;
+  }
+
+  // El asado se va haciendo solo: avisos al dueño cuando está a punto y cuando se quema
+  updateGrills(dt) {
+    for (const g of parrillas) {
+      if (!g.cooking) continue;
+      const t0 = g.t;
+      g.t += dt;
+      const P = G.players.includes(g.owner) ? g.owner : null;
+      if (t0 < ASADO_PUNTO && g.t >= ASADO_PUNTO) this.say('EL ASADO ESTA A PUNTO!', 3, P);
+      if (t0 < ASADO_QUEMA && g.t >= ASADO_QUEMA) this.say('SE TE QUEMA EL ASADO!', 3, P);
+      if (g.t >= ASADO_CARBON) {
+        puff(g.x, g.y - 4, '40,40,40', 10, 18);
+        this.say('SE HIZO CARBON. NO QUEDO NADA', 3, P);
+        Object.assign(g, { cooking: false, t: 0, portions: 0, owner: null });
+      }
+    }
   }
 
   // ---- Robo al super ----
@@ -815,6 +863,7 @@ class Game {
     P.nearShop = null;
     P.nearTranza = null;
     P.nearSuper = null;
+    P.nearGrill = null;
     if (!P.dead) this.switchWeapon(P);
 
     if (!P.dead) this.updateNeeds(P, dt);
@@ -943,6 +992,9 @@ class Game {
         const d = b.door;
         if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearSuper = b;
       }
+      for (const g of parrillas) {
+        if (dist(g, P) < GRILL_R) P.nearGrill = g;
+      }
 
       // Los menús (armería, tranza) se abren en la pantalla del que entró
       if (ctl.use && P.cool <= 0 && P.nearShop) {
@@ -958,6 +1010,9 @@ class Game {
         if (P.nearSuper.robbing || P.nearSuper.closed > 0) this.say('CERRADO POR ROBO', 2.6, P);
         else if (P.wanted >= 2) this.say('EL DE SEGURIDAD NO TE DEJA PASAR', 2.6, P);
         else this.openShop(P, P.nearSuper.super);
+      } else if (ctl.use && P.cool <= 0 && P.nearGrill) {
+        P.cool = 0.4;
+        this.useGrill(P, P.nearGrill);
       } else if (ctl.use && P.cool <= 0) {
         P.cool = 0.4;
         let best = null, bd = 26;
@@ -1275,6 +1330,7 @@ class Game {
 
     this.updateFamous(dt);
     this.updateSupers(dt);
+    this.updateGrills(dt);
 
     // Velocidad real de cada auto (cuánto se movió de verdad), para que nadie espere
     // atrás de uno que acelera contra una pared sin avanzar

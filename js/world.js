@@ -426,6 +426,7 @@ function rectHitsWater(x, y, w, h) {
 }
 const shops = [];
 const supers = []; // supermercados (CHOTO, NOCHE %, CHOTO de Lanús)
+const parrillas = []; // parrillas de las plazas y los potreros: ahí se hace el asado
 
 // Villas con su rectángulo en coordenadas del mundo (incluye las calles que las cruzan)
 const villas = VILLAS.map(v => ({
@@ -459,6 +460,7 @@ class World {
     this.cabildo = cabildo;
     this.shops = shops;
     this.supers = supers;
+    this.parrillas = parrillas;
     this.bgrid = null;
   }
 
@@ -588,6 +590,7 @@ class World {
     }
     this.shops.length = 0;
     this.supers.length = 0;
+    this.parrillas.length = 0;
 
     let id = 0;
     for (let cy = 0; cy < GRID; cy++) {
@@ -1173,6 +1176,14 @@ class World {
       });
       this.supers.push(best);
       this.superProps(best);
+    }
+
+    // Parrillas: en una de cada tres plazas, más o menos, y siempre en el potrero de la villa
+    for (const pk of this.props) {
+      if (pk.t !== 'park' || (!pk.villa && Math.random() > 0.35)) continue;
+      const x = pk.x + pk.w * rnd(0.3, 0.7), y = pk.y + pk.h * rnd(0.28, 0.4);
+      if (inWater(x, y) || this.hitBuilding(x, y, 10)) continue;
+      this.parrillas.push({ x, y, t: 0, cooking: false, portions: 0, owner: null });
     }
   }
 

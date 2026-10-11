@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -168,6 +168,15 @@ describe('edificios', () => {
     }
     const noches = supers.filter(b => b.super === 'noche');
     assert.ok(dist(noches[0], noches[1]) > CELL * 6, 'los dos NOCHE % no estan pegados');
+  });
+
+  test('hay parrillas en las plazas y en los potreros de las villas', () => {
+    assert.ok(parrillas.length >= 6, 'parrillas: ' + parrillas.length);
+    assert.ok(parrillas.filter(g => villaAt(g.x, g.y)).length >= 2, 'el potrero de cada villa tiene la suya');
+    for (const g of parrillas) {
+      assert.ok(!inWater(g.x, g.y) && !hitBuilding(g.x, g.y, 6), 'parrilla en un lugar libre');
+      assert.ok(inPark(g.x, g.y), 'en una plaza o un potrero');
+    }
   });
 
   test('el CHOTO de Lanus esta del otro lado del Riachuelo, con changuitos tirados y el perro', () => {
@@ -803,7 +812,8 @@ describe('jugador', () => {
     assert.ok(!NOCHE_ITEMS.some(it => it.id === 'carne'), 'el NOCHE % no tiene carne');
     assert.ok(NOCHE_ITEMS.every(it => it.price < (CHOTO_ITEMS.find(c => c.id === it.id) || { price: Infinity }).price),
       'lo que tienen los dos es mas barato en el NOCHE %');
-    assert.ok(CHOTO_ITEMS.concat(NOCHE_ITEMS, LANUS_ITEMS).every(it => FOOD[it.id]), 'todo lo del super se come o se toma');
+    assert.ok(CHOTO_ITEMS.concat(NOCHE_ITEMS, LANUS_ITEMS).every(it => FOOD[it.id] || it.id === 'carbon'),
+      'todo lo del super se come o se toma (salvo el carbon, que es para el asado)');
     const sinCarne = LANUS_ITEMS.find(it => it.id === 'carne');
     assert.equal(shop.status(sinCarne, P).label, 'NO HAY', 'en Lanus nunca hay carne');
     assert.equal(shop.purchase(P, sinCarne), null, 'y no te la venden');
@@ -962,6 +972,38 @@ describe('jugador', () => {
     assert.ok(!b.robbing && b.closed > 0, 'termina');
     assert.ok(fajos(b).length <= ROB_LOOT.lanus.n, 'un fajito y gracias');
     assert.ok(ROB_LOOT.lanus.v[1] < ROB_LOOT.noche.v[0], 'menos que en cualquier otro');
+  });
+
+  test('el asado: carne y carbon a la parrilla, y sale crudo, a punto o quemado', () => {
+    startGame(CREW[0]);
+    const P = G.me, g = parrillas.find(q => !villaAt(q.x, q.y)) || parrillas[0];
+    Object.assign(P, { x: g.x, y: g.y + 10 });
+    P.bag = { carne: 1 };
+    assert.equal(game.useGrill(P, g), false, 'sin carbon no prende');
+    P.bag = { carne: 1, carbon: 1 };
+    input.keys.KeyE = true;
+    update(1/60);
+    input.keys.KeyE = false;
+    assert.ok(P.nearGrill === g && g.cooking, 'E en la parrilla prende el asado');
+    assert.deepEqual(P.bag, {}, 'se usa la carne y el carbon');
+    assert.equal(g.portions, ASADO_PORCIONES, 'salen ' + ASADO_PORCIONES + ' porciones');
+    game.useGrill(P, g);
+    assert.equal(P.bag.crudo, 1, 'sacado enseguida esta crudo');
+    game.updateGrills(ASADO_PUNTO);
+    game.useGrill(P, g);
+    assert.equal(P.bag.asado, 1, 'a tiempo sale a punto');
+    game.updateGrills(ASADO_QUEMA - ASADO_PUNTO);
+    game.useGrill(P, g);
+    assert.equal(P.bag.quemado, 1, 'tarde sale quemado');
+    assert.ok(!g.cooking, 'sin porciones la parrilla queda libre');
+    assert.ok(FOOD.asado.food > FOOD.crudo.food && FOOD.asado.food > FOOD.quemado.food, 'a punto llena mas');
+    // Si nadie lo saca, se hace carbon
+    P.bag = { carne: 1, carbon: 1 };
+    game.useGrill(P, g);
+    game.updateGrills(ASADO_CARBON + 0.1);
+    assert.ok(!g.cooking && g.portions === 0, 'olvidado, se hace carbon');
+    P.bag = { carbon: 1 }; P.food = 10;
+    assert.equal(game.eat(P), false, 'el carbon no se come');
   });
 
   test('en la puerta del super se entra con E, pero no con la yuta encima', () => {
@@ -1321,6 +1363,22 @@ describe('multijugador', () => {
     update(1/60);
     assert.ok(P2.food > 40 && !P2.bag.choripan, 'come el que aprieta C');
     assert.ok(G.me.food <= 50, 'el otro sigue con su hambre');
+  });
+
+  test('el asado de uno se lo puede comer otro', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]), g = parrillas[0];
+    Object.assign(G.me, { x: g.x, y: g.y + 10, bag: { carne: 1, carbon: 1 } });
+    game.useGrill(G.me, g);
+    game.updateGrills(ASADO_PUNTO + 1);
+    assert.ok(G.msg.includes('A PUNTO'), 'al que lo prendio le avisan que esta a punto');
+    Object.assign(P2, { x: g.x + 4, y: g.y + 10, bag: {} });
+    P2.cool = 0;
+    P2.ctl = { ...idleControls(), use: true };
+    update(1/60);
+    assert.equal(P2.bag.asado, 1, 'el otro se lleva una porcion');
+    assert.ok(G.msg.includes('TE ESTAN COMIENDO'), 'y al dueño le avisan');
+    assert.ok(!G.me.bag.asado, 'el dueño no recibe nada por eso');
   });
 
   test('dos roban el mismo super: va el doble de rapido y los dos quedan buscados', () => {
@@ -1829,6 +1887,24 @@ describe('multijugador online', () => {
     for (let f = 0; f < 6 * 60 && b.robbing; f++) { G.cops.length = 0; Object.assign(P2, d); frame(red); }
     for (let f = 0; f < 4; f++) frame(red);
     assert.ok(cb.closed > 0 && !cb.robbing, 'y la persiana baja');
+    C.render();
+  });
+
+  test('el cliente prende el asado y ve como se hace', async () => {
+    const { red, P2 } = await conectar();
+    const g = parrillas[1] || parrillas[0], i = parrillas.indexOf(g);
+    for (const q of parrillas) Object.assign(q, { cooking: false, t: 0, portions: 0, owner: null });
+    Object.assign(P2, { x: g.x, y: g.y + 10, car: null, bag: { carne: 1, carbon: 1 } });
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(C.G.me.nearGrill, 'el cliente sabe que esta en la parrilla');
+    C.input.keys.KeyE = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = false;
+    assert.ok(g.cooking && g.owner === P2, 'el host prende el asado del cliente');
+    for (let f = 0; f < 4; f++) frame(red);
+    const cg = C.world.parrillas[i];
+    assert.ok(cg.cooking && cg.portions === ASADO_PORCIONES && cg.t > 0, 'el cliente ve la parrilla prendida');
+    assert.deepEqual(C.G.me.bag, {}, 'y la mochila sin la carne y el carbon');
     C.render();
   });
 

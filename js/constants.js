@@ -277,10 +277,26 @@ const FOOD = {
   mate:       { food: 0,  drink: 30, heal: 10 },
   agua:       { food: 0,  drink: 50, heal: 0 },
   gaseosa:    { food: 5,  drink: 35, heal: 0 },
+  asado:      { food: 100, drink: 0, heal: 60 }, // sacado a punto
+  crudo:      { food: 35, drink: 0,  heal: 5 },
+  quemado:    { food: 30, drink: 0,  heal: 5 },
 };
+// Lo que entra en la mochila: lo que se come y el carbón para el asado
+const inBag = id => !!FOOD[id] || id === 'carbon';
+
+// Asado: en las parrillas de las plazas, con carne y carbón de la mochila (E). Se saca
+// con E de a una porción: antes de ASADO_PUNTO segundos sale crudo, hasta ASADO_QUEMA a
+// punto y después quemado; pasado ASADO_CARBON se hace carbón y no queda nada. Las
+// porciones se las lleva cualquiera que esté en la parrilla: si te descuidás, te lo comen.
+const ASADO_PUNTO = 25;
+const ASADO_QUEMA = 45;
+const ASADO_CARBON = 75;
+const ASADO_PORCIONES = 3;
+const GRILL_R = 18;
 
 const FOOD_NAME = { carne: 'UN VACIO', pernil: 'UN PERNIL', choripan: 'UN CHORI', fideos: 'UNOS FIDEOS',
-  galletitas: 'UNAS CRIOLLITAS', mate: 'UNOS MATES', agua: 'UN AGUA', gaseosa: 'UNA CHOCA-COLA' };
+  galletitas: 'UNAS CRIOLLITAS', mate: 'UNOS MATES', agua: 'UN AGUA', gaseosa: 'UNA CHOCA-COLA',
+  asado: 'UN ASADO A PUNTO', crudo: 'UN ASADO CRUDO', quemado: 'UN ASADO QUEMADO' };
 
 // Supermercados: lo que se compra va a la mochila. El CHOTO tiene carne; el NOCHE % es
 // más barato y no tiene. El CHOTO de Lanús vende lo mismo que el CHOTO, pero la carne
@@ -292,6 +308,7 @@ const CHOTO_ITEMS = [
   {id:'mate',     price:60,  desc:'Yerba, termo y bombilla. Saca la sed y te levanta.'},
   {id:'agua',     price:40,  desc:'Agua mineral. La de la canilla no la tomes.'},
   {id:'gaseosa',  price:70,  desc:'Choca-Cola de dos litros y cuarto. Caliente.'},
+  {id:'carbon',   price:90,  desc:'Bolsa de carbon. Con carne, a la parrilla de la plaza.'},
 ];
 const NOCHE_ITEMS = [
   {id:'fideos',     price:70, desc:'Monitos con manteca. Carne no hay, nunca hubo.'},
@@ -299,6 +316,7 @@ const NOCHE_ITEMS = [
   {id:'mate',       price:35, desc:'Yerba de marca propia. Tiene palos.'},
   {id:'agua',       price:25, desc:'Agua marca NOCHE. Sabe a agua, por suerte.'},
   {id:'gaseosa',    price:45, desc:'Cola marca NOCHE. Sin gas desde el 2019.'},
+  {id:'carbon',     price:60, desc:'Carbon humedo. Prende, pero cuesta.'},
 ];
 const LANUS_ITEMS = [
   {id:'carne',    price:260, out:true, desc:'HOY NO HAY CARNE. Ayer tampoco.'},
