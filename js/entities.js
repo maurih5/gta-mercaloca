@@ -41,6 +41,7 @@ class EntityManager {
       nearShop: null,
       nearTranza: null,
       nearSuper: null,
+      nearGrill: null,
       zone: null,
       slowmo: 0,
       high: 0,
