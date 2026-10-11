@@ -27,6 +27,9 @@ class EntityManager {
       armor: 0,
       swing: 0,
       porros: 0,
+      food: 100,       // hambre: 100 lleno, 0 muerto de hambre
+      drink: 100,      // sed
+      bag: {},         // mochila: comida y bebida por id (FOOD)
       money: 0,
       wanted: 0,
       wantCool: 0,

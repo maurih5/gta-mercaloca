@@ -23,7 +23,7 @@ const NET_FX_MAX = 800;                    // tope de efectos por foto
 const NET_MSGS = ['quien', 'info', 'hola', 'bienv', 'chau', 'ctl', 'snap', 'compra'];
 const SALA_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const SALA_LEN = 5;
-const CTL_KEYS = ['run', 'fire', 'use', 'next', 'porro', 'respawn'];
+const CTL_KEYS = ['run', 'fire', 'use', 'next', 'porro', 'respawn', 'eat'];
 const NET_CTL_OLD = 0.6;                   // controles sin renovar: el jugador se queda quieto
 
 const newSalaCode = () => Array.from({ length: SALA_LEN }, () => SALA_ABC[(Math.random() * SALA_ABC.length) | 0]).join('');
@@ -286,6 +286,7 @@ class NetManager {
       (q.dead ? 1 : 0) | (q.busted ? 2 : 0) | (q.healing ? 4 : 0) | (q.nearShop ? 8 : 0) | (q.nearTranza ? 16 : 0) | (q.nearSuper ? 32 : 0),
       r1(q.bustT), r1(q.healT), q.money, q.wanted, Math.round(q.armor), q.porros, r1(q.slowmo), q.bustFine,
       q === P ? packInv(q.inv) : 0,
+      Math.round(q.food), Math.round(q.drink), q === P ? q.bag : 0,
     ]);
 
     // Los efectos de lejos no le interesan (salvo las manchas, que quedan en el piso)
@@ -501,6 +502,9 @@ class NetManager {
       q.slowmo = a[18];
       q.bustFine = a[19];
       if (a[20]) q.inv = unpackInv(a[20]);
+      q.food = a[21];
+      q.drink = a[22];
+      if (a[23]) q.bag = a[23];
     });
 
     const me = G.players.find(q => q.id === this.myId) || null;

@@ -196,7 +196,7 @@ class Game {
     Object.assign(P, {
       x: s.x, y: s.y, hp: P.maxhp, dead: false, car: null, cool: 0.5,
       inv: { pistola: Infinity }, wpn: 'pistola', armor: 0,
-      wanted: 0, wantCool: 0, slowmo: 0,
+      wanted: 0, wantCool: 0, slowmo: 0, food: 80, drink: 80, bag: {},
     });
     if (P === G.me) this.snapCam();
     this.say('DE VUELTA EN EL BARRIO', 2.6, P);
@@ -230,7 +230,9 @@ class Game {
     P.hp = P.maxhp;
     P.car = null;
     P.cool = 0.5;
-    // En la comisaria te sacan los fierros y el chaleco
+    // En la comisaria te sacan los fierros y el chaleco, y te dan un mate cocido
+    P.food = Math.max(P.food, 50);
+    P.drink = Math.max(P.drink, 50);
     P.inv = { pistola: Infinity };
     P.wpn = 'pistola';
     P.armor = 0;
@@ -578,6 +580,64 @@ class Game {
     p.lineT = 2.6;
   }
 
+  // ---- Hambre y sed ----
+
+  // Bajan solas; en 0 se pierde vida de a poco y, bien comido y tomado, la vida sube
+  updateNeeds(P, dt) {
+    const f0 = P.food, d0 = P.drink;
+    P.food = Math.max(0, P.food - HUNGER_RATE * dt);
+    P.drink = Math.max(0, P.drink - THIRST_RATE * dt);
+    // Avisos al cruzar el umbral (una vez por bajada)
+    if (f0 > NEED_LOW && P.food <= NEED_LOW) this.say('TENES HAMBRE. C PARA COMER', 2.6, P);
+    if (d0 > NEED_LOW && P.drink <= NEED_LOW) this.say('TENES SED. C PARA TOMAR ALGO', 2.6, P);
+    if ((f0 > 0 && P.food <= 0) || (d0 > 0 && P.drink <= 0)) {
+      this.say(P.food <= 0 ? 'TE ESTAS MURIENDO DE HAMBRE' : 'TE ESTAS MURIENDO DE SED', 3, P);
+    }
+    if (P.food <= 0 || P.drink <= 0) P.hp -= NEED_HURT * dt;
+    else if (P.food > NEED_GOOD && P.drink > NEED_GOOD && P.hp < P.maxhp) {
+      P.hp = Math.min(P.maxhp, P.hp + NEED_REGEN * dt);
+    }
+  }
+
+  // Lo que más le sirve ahora de lo que tiene en la mochila (null si nada le sirve)
+  bestBite(P) {
+    let best = null, bs = 0;
+    for (const id in P.bag) {
+      const F = FOOD[id];
+      if (!F || !(P.bag[id] > 0)) continue;
+      const s = Math.min(F.food, 100 - P.food) + Math.min(F.drink, 100 - P.drink)
+        + Math.min(F.heal, P.maxhp - P.hp) * 0.5;
+      if (s > bs) { bs = s; best = id; }
+    }
+    return best;
+  }
+
+  eat(P, id = this.bestBite(P)) {
+    if (!Object.keys(P.bag).some(k => P.bag[k] > 0)) {
+      this.say('LA MOCHILA ESTA VACIA. PASA POR UN SUPER', 2.2, P);
+      return false;
+    }
+    const F = FOOD[id];
+    if (!F || !(P.bag[id] > 0)) {
+      this.say('ESTAS LLENO', 1.8, P);
+      return false;
+    }
+    if (--P.bag[id] <= 0) delete P.bag[id];
+    P.food = Math.min(100, P.food + F.food);
+    P.drink = Math.min(100, P.drink + F.drink);
+    P.hp = Math.min(P.maxhp, P.hp + F.heal);
+    sfxFor(P, 'comida');
+    this.say((F.drink > F.food ? 'TE TOMASTE ' : 'TE COMISTE ') + (FOOD_NAME[id] || id.toUpperCase()), 2, P);
+    return true;
+  }
+
+  // Cuántas cosas lleva en la mochila
+  bagCount(P) {
+    let n = 0;
+    for (const k in P.bag) n += P.bag[k];
+    return n;
+  }
+
   // ---- Robo al super ----
 
   // Disparar en la puerta: arranca el asalto (o te avisa que ya está cerrado)
@@ -738,6 +798,8 @@ class Game {
       P.healT += dt;
       if (P.healT > HOSPITAL_TIME) {
         P.hp = P.maxhp;
+        P.food = Math.max(P.food, 60); // suero y un sanguchito de miga
+        P.drink = Math.max(P.drink, 60);
         P.healing = 0;
         sfxFor(P, 'hospital');
         this.say('LISTO. A LA CALLE.', 2.6, P);
@@ -754,6 +816,11 @@ class Game {
     P.nearTranza = null;
     P.nearSuper = null;
     if (!P.dead) this.switchWeapon(P);
+
+    if (!P.dead) this.updateNeeds(P, dt);
+
+    // Comer o tomar algo de la mochila: C (o el botón 🍖)
+    if (ctl.eat && !P.prev.eat && !P.dead) this.eat(P);
 
     // Fumarse un porro: F (o el botón 🌿)
     if (ctl.porro && !P.prev.porro && !P.dead) {
@@ -1571,8 +1638,12 @@ class Game {
           this.giveWeapon(P, pk.w, pk.ammo);
           this.say(WEAPONS[pk.w].melee ? WEAPONS[pk.w].name : WEAPONS[pk.w].short + ' +' + pk.ammo, 2.6, P);
         } else {
-          const heal = FOOD_HEAL[pk.food] || 35;
+          const heal = FOOD_HEAL[pk.food] || 35, F = FOOD[pk.food];
           P.hp = Math.min(P.maxhp, P.hp + heal);
+          if (F) {
+            P.food = Math.min(100, P.food + F.food);
+            P.drink = Math.min(100, P.drink + F.drink);
+          }
           this.say('+' + heal + ' VIDA (' + pk.food.toUpperCase() + ')', 2.6, P);
         }
         sfxFor(P, { cash: 'guita', gold: 'guita', weapon: 'arma' }[pk.kind] || 'comida');

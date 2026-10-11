@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -780,26 +780,84 @@ describe('simulacion', () => {
 });
 
 describe('jugador', () => {
-  test('en el super se compra comida que cura en el momento', () => {
+  test('en el super se compra a la mochila y se come con C', () => {
     startGame(CREW[0]);
     const P = G.me, carne = CHOTO_ITEMS.find(it => it.id === 'carne');
-    P.money = 1000; P.hp = 20;
+    P.money = 1000; P.hp = 20; P.food = 10;
     const r = shop.purchase(P, carne);
     assert.ok(r && !r.bad, 'la vende');
-    assert.equal(P.hp, 20 + carne.heal, 'cura lo que dice');
+    assert.equal(P.bag.carne, 1, 'va a la mochila');
     assert.equal(P.money, 1000 - carne.price, 'la cobra');
-    P.hp = P.maxhp;
-    assert.ok(!shop.status(carne, P).can, 'lleno no se compra');
-    P.hp = 10; P.money = 5;
+    assert.equal(P.hp, 20, 'no se come sola');
+    input.keys.KeyC = true;
+    update(1/60);
+    input.keys.KeyC = false;
+    assert.ok(!P.bag.carne, 'C se la come');
+    assert.ok(P.food >= 10 + FOOD.carne.food - 1 && P.hp >= 20 + FOOD.carne.heal - 1, 'llena y cura: ' + P.food + ' ' + P.hp);
+    P.bag = { agua: BAG_MAX };
+    assert.equal(shop.status(carne, P).label, 'MOCHILA LLENA', 'en la mochila entran ' + BAG_MAX + ' cosas');
+    P.bag = {}; P.money = 5;
     assert.ok(shop.purchase(P, carne).bad, 'sin guita no hay carne');
-    assert.equal(P.hp, 10, 'y no te cura');
+    assert.ok(!P.bag.carne, 'y no te la dan');
     P.money = 1000;
     assert.ok(!NOCHE_ITEMS.some(it => it.id === 'carne'), 'el NOCHE % no tiene carne');
     assert.ok(NOCHE_ITEMS.every(it => it.price < (CHOTO_ITEMS.find(c => c.id === it.id) || { price: Infinity }).price),
       'lo que tienen los dos es mas barato en el NOCHE %');
+    assert.ok(CHOTO_ITEMS.concat(NOCHE_ITEMS, LANUS_ITEMS).every(it => FOOD[it.id]), 'todo lo del super se come o se toma');
     const sinCarne = LANUS_ITEMS.find(it => it.id === 'carne');
     assert.equal(shop.status(sinCarne, P).label, 'NO HAY', 'en Lanus nunca hay carne');
     assert.equal(shop.purchase(P, sinCarne), null, 'y no te la venden');
+  });
+
+  test('hambre y sed: bajan solas, en cero lastiman y bien comido la vida sube', () => {
+    startGame(CREW[0]);
+    const P = G.me;
+    assert.ok(P.food === 100 && P.drink === 100, 'arranca lleno');
+    const quieto = () => { G.cops.length = 0; P.wanted = 0; };
+    for (let f = 0; f < 600; f++) { quieto(); update(1/60); }
+    assert.ok(P.food < 100 && P.drink < P.food, 'bajan, la sed mas rapido: ' + P.food.toFixed(1) + ' ' + P.drink.toFixed(1));
+    P.food = 0; P.hp = 50;
+    for (let f = 0; f < 120; f++) { quieto(); P.food = 0; update(1/60); }
+    assert.ok(P.hp < 50 - NEED_HURT * 1.5, 'muerto de hambre se pierde vida: ' + P.hp.toFixed(1));
+    P.food = P.drink = 100; P.hp = 50;
+    for (let f = 0; f < 120; f++) { quieto(); update(1/60); }
+    assert.ok(P.hp > 50 + NEED_REGEN * 1.5, 'bien comido la vida sube: ' + P.hp.toFixed(1));
+    P.food = 0; P.drink = 0; P.hp = 2;
+    for (let f = 0; f < 600 && !P.dead; f++) { quieto(); update(1/60); }
+    assert.ok(P.dead, 'de hambre y sed uno se muere');
+  });
+
+  test('C come lo que mas hace falta: con sed toma, con hambre come', () => {
+    startGame(CREW[0]);
+    const P = G.me;
+    P.bag = { agua: 1, pernil: 1 };
+    P.food = 90; P.drink = 10;
+    assert.equal(game.bestBite(P), 'agua', 'con sed, el agua');
+    game.eat(P);
+    assert.ok(P.drink >= 60 && P.bag.pernil === 1 && !P.bag.agua, 'se toma el agua y guarda el pernil');
+    P.food = 10;
+    game.eat(P);
+    assert.ok(P.food >= 55 && !P.bag.pernil, 'despues se come el pernil');
+    assert.equal(game.eat(P), false, 'con la mochila vacia no hay nada');
+    P.bag = { agua: 1 }; P.food = P.drink = 100; P.hp = P.maxhp;
+    assert.equal(game.eat(P), false, 'lleno no se come');
+    assert.equal(P.bag.agua, 1, 'y no se gasta');
+  });
+
+  test('al morir se pierde la mochila; el hospital y la comisaria te dan de comer', () => {
+    startGame(CREW[0]);
+    const P = G.me, P2 = addPlayer(CREW[1]);
+    P.bag = { agua: 2 }; P.food = P.drink = 5;
+    P.hp = 30; P.healing = 1; P.healT = HOSPITAL_TIME;
+    update(1/60);
+    assert.ok(P.food >= 59 && P.drink >= 59, 'en el hospital te dan un sanguchito');
+    P2.bag = { carne: 1 }; P2.food = 3;
+    game.respawn(P2);
+    assert.deepEqual(P2.bag, {}, 'al morir se pierde la mochila');
+    assert.ok(P2.food === 80, 'y volves con algo en la panza');
+    P.food = P.drink = 5; P.busted = 1; P.bustT = 3.3;
+    update(1/60);
+    assert.ok(P.food >= 49 && P.drink >= 49, 'en la comisaria te dan un mate cocido');
   });
 
   // Robo al super: helpers. La yuta se saca de encima en cada frame para que no te arresten
@@ -1069,6 +1127,7 @@ describe('jugador', () => {
     for(let f=0;f<10;f++) update(1/60);
     for(const food of FOODS){
       G.me.hp = 10;
+      G.me.food = G.me.drink = 50; // ni hambre ni bien comido: la vida no sube sola
       const pk = G.pickups[0];
       Object.assign(pk, { x: G.me.x, y: G.me.y, kind: 'hp', food, t: 0 });
       update(1/60);
@@ -1253,10 +1312,15 @@ describe('multijugador', () => {
     } finally {
       game.openShop = orig;
     }
-    G.me.hp = 30; P2.hp = 30; P2.money = 500;
+    P2.money = 500;
     shop.purchase(P2, CHOTO_ITEMS.find(it => it.id === 'choripan'));
-    assert.ok(P2.hp > 30 && P2.money < 500, 'el que compra come y paga');
-    assert.equal(G.me.hp, 30, 'al otro no le llega');
+    assert.ok(P2.bag.choripan === 1 && P2.money < 500, 'el que compra se lo lleva y paga');
+    assert.ok(!G.me.bag.choripan, 'al otro no le llega');
+    G.me.food = 50; P2.food = 10;
+    P2.ctl = { ...idleControls(), eat: true };
+    update(1/60);
+    assert.ok(P2.food > 40 && !P2.bag.choripan, 'come el que aprieta C');
+    assert.ok(G.me.food <= 50, 'el otro sigue con su hambre');
   });
 
   test('dos roban el mismo super: va el doble de rapido y los dos quedan buscados', () => {
@@ -1725,8 +1789,20 @@ describe('multijugador online', () => {
     assert.ok(!G.shopOpen, 'y no en la del host');
     C.shop.buy(C.shop.items.findIndex(it => it.id === 'carne'));
     for (let f = 0; f < 6; f++) frame(red);
-    assert.ok(P2.hp > 20 && P2.money < 1000, 'el host le vende y lo cura');
+    assert.ok(P2.bag.carne === 1 && P2.money < 1000, 'el host le vende a la mochila');
+    assert.equal(C.G.me.bag.carne, 1, 'el cliente ve su mochila');
+    C.shop.close();
+    P2.food = 10;
+    for (let f = 0; f < 3; f++) frame(red);
+    C.input.keys.KeyC = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyC = false;
+    for (let f = 0; f < 3; f++) frame(red);
+    assert.ok(P2.food > 60 && !P2.bag.carne, 'C en el cliente: el host lo hace comer');
+    assert.ok(C.G.me.food > 60 && !C.G.me.bag.carne, 'y el cliente ve la panza llena y la mochila vacia');
     assert.equal(C.G.me.hp, Math.ceil(P2.hp), 'el cliente ve la vida');
+    Object.assign(P2, { x: d.x + d.ox, y: d.y + d.oy });
+    for (let f = 0; f < 3; f++) frame(red);
     // Si se va de la puerta, el host no le vende aunque el cliente lo pida
     P2.x += CELL; const plata = P2.money;
     for (let f = 0; f < 3; f++) frame(red);

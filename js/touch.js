@@ -228,6 +228,16 @@ class TouchController {
       () => {}
     );
 
+    // Comer o tomar algo de la mochila
+    bindBtn(
+      'btn-eat',
+      () => {
+        keys.KeyC = true;
+        setTimeout(() => { keys.KeyC = false; }, 150);
+      },
+      () => {}
+    );
+
     // Fumar porro
     bindBtn(
       'btn-porro',
