@@ -37,6 +37,7 @@ class EntityManager {
       healT: 0,
       nearShop: null,
       nearTranza: null,
+      nearSuper: null,
       zone: null,
       slowmo: 0,
       high: 0,
