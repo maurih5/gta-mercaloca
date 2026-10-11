@@ -28,6 +28,9 @@ const G = {
   paused: false,
   mapOpen: false,
   mapZoom: MAP_MIN_ZOOM,
+  mapX: 0,          // centro del mapa (se mueve con flechas o arrastrando)
+  mapY: 0,
+  mapLegend: true,  // las referencias al costado (L)
   flash: 0,
   shopOpen: false,
   tranzas: [],

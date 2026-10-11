@@ -276,6 +276,7 @@ class TouchController {
     // Zoom del mapa (mismo mecanismo que las teclas +/-)
     bindBtn('btn-zoom-in', () => { keys.Equal = true; }, () => { keys.Equal = false; });
     bindBtn('btn-zoom-out', () => { keys.Minus = true; }, () => { keys.Minus = false; });
+    bindBtn('btn-map-center', () => mapCtl.open(), () => {});
 
     // Botón manual de toggle en pantalla
     if (this.toggleBtn) {

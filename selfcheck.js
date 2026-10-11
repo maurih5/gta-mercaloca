@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -1275,6 +1275,68 @@ describe('radio', () => {
     assert.deepEqual(bass.notes[0].slice(0, 3), [0, 1, 45]);
     assert.deepEqual(drums.notes[0].slice(0, 3), [1, 0.25, 'k']);
     assert.ok(compileSong(song).len > 0, 'el juego lo puede tocar');
+  });
+});
+
+describe('mapa', () => {
+  test('se abre centrado en vos y se mueve sin salirse del mundo', () => {
+    startGame(CREW[0]);
+    const P = G.me;
+    Object.assign(P, { x: WORLD * 0.4, y: WORLD * 0.6 });
+    G.mapZoom = 4;
+    mapCtl.open();
+    assert.ok(G.mapX === P.x && G.mapY === P.y, 'arranca en el jugador');
+    const v0 = mapCtl.view();
+    assert.ok(Math.abs(v0.sx + v0.viewW / 2 - P.x) < 1, 'el jugador queda en el medio');
+    mapCtl.pan(500, -300);
+    assert.ok(G.mapX === P.x + 500 && G.mapY === P.y - 300, 'se desplaza');
+    mapCtl.pan(-WORLD * 3, -WORLD * 3);
+    const v1 = mapCtl.view();
+    assert.ok(v1.sx === 0 && v1.sy === 0, 'no se va mas alla del borde');
+    mapCtl.pan(WORLD * 3, WORLD * 3);
+    const v2 = mapCtl.view();
+    assert.ok(Math.abs(v2.sx + v2.viewW - WORLD) < 1 && Math.abs(v2.sy + v2.viewH - WORLD) < 1, 'ni del otro');
+    assert.equal(v2.MW, RW - MAP_LEG_W, 'el panel de referencias le saca lugar');
+    G.mapLegend = false;
+    assert.equal(mapCtl.view().MW, RW, 'sin referencias, el mapa ocupa todo');
+    G.mapLegend = true;
+    G.mapZoom = 1;
+  });
+
+  test('las referencias muestran solo lo que hay en el mapa', () => {
+    startGame(CREW[0]);
+    G.cars.forEach(c => { c.chase = false; });
+    G.cops.length = 0;
+    const leg = () => renderer.mapLegend(renderer.mapItems()).map(r => r[0]);
+    const l1 = leg();
+    for (const k of ['vos', 'hospital', 'armeria', 'choto', 'noche', 'parrilla', 'rosada', 'obelisco', 'tranza'])
+      assert.ok(l1.includes(k), 'siempre estan los lugares: ' + k);
+    for (const k of ['jugador', 'patrullero', 'yuta', 'asado', 'cerrado'])
+      assert.ok(!l1.includes(k), 'no figura lo que no hay: ' + k);
+    addPlayer(CREW[1]);
+    G.cars[0].chase = true;
+    supers[0].closed = 30;
+    Object.assign(parrillas[0], { cooking: true, t: 1, portions: 3 });
+    const l2 = leg();
+    for (const k of ['jugador', 'patrullero', 'cerrado', 'asado']) assert.ok(l2.includes(k), 'aparece cuando hay: ' + k);
+    supers[0].closed = 0;
+    Object.assign(parrillas[0], { cooking: false, t: 0, portions: 0 });
+  });
+
+  test('el mapa se dibuja con y sin referencias, y con el jugador fuera de la vista', () => {
+    startGame(CREW[0]);
+    G.mapOpen = true;
+    for (const leg of [true, false]) {
+      G.mapLegend = leg;
+      mapCtl.open();
+      render();
+      G.mapZoom = 8;
+      mapCtl.pan(WORLD, WORLD); // lejos del jugador: flecha en el borde
+      render();
+      G.mapZoom = 1;
+    }
+    G.mapOpen = false;
+    G.mapLegend = true;
   });
 });
 
