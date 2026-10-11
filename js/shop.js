@@ -1,10 +1,13 @@
 /* =========================================================================
-   GTA MERCALOCA - Tiendas: armería (fierros, balas, chaleco) y tranza de la villa
+   GTA MERCALOCA - Tiendas: armería (fierros, balas, chaleco), tranza de la villa y supers
    ========================================================================= */
 
 const SHOP_KINDS = {
   armeria: { title: 'FIERROS DEL BARRIO', sub: 'ARMERIA · sin preguntas, sin factura', items: SHOP_ITEMS },
   tranza:  { title: 'EL TRANZA', sub: 'BUNKER · pagas y te vas, no hagas lio', items: TRANZA_ITEMS },
+  choto:   { title: 'CHOTO', sub: 'SUPERMERCADO · yo te conozco', items: CHOTO_ITEMS, super: true },
+  noche:   { title: 'NOCHE %', sub: 'SUPERMERCADO · precios bajos, gondolas vacias', items: NOCHE_ITEMS, super: true },
+  lanus:   { title: 'CHOTO LANUS', sub: 'SUCURSAL LANUS · hoy no hay carne (de nuevo)', items: LANUS_ITEMS, super: true },
 };
 
 class ShopManager {
@@ -43,6 +46,7 @@ class ShopManager {
     const el = $('shop');
     if (el) {
       el.classList.toggle('tranza', kind === 'tranza');
+      el.classList.toggle('super', !!K.super);
       el.classList.add('on');
     }
   }
@@ -59,6 +63,12 @@ class ShopManager {
   // Qué se puede hacer con cada ítem según lo que ya tiene el jugador.
   // La ventana es del jugador local (G.me); en red la compra la hace el host (purchase)
   status(it, P = G.me) {
+    if (it.heal) {
+      if (it.out) return { can: false, label: 'NO HAY' };
+      return P.hp >= P.maxhp
+        ? { can: false, label: 'ESTAS LLENO' }
+        : { can: true, price: it.price, label: '$' + it.price };
+    }
     if (it.id === 'porro') {
       return P.porros >= PORRO_MAX
         ? { can: false, label: 'BOLSILLO LLENO' }
@@ -97,6 +107,11 @@ class ShopManager {
     if (!st || !st.can) return null;
     if (P.money < st.price) return { msg: 'NO TE ALCANZA LA GUITA', bad: true };
     P.money -= st.price;
+    if (it.heal) {
+      P.hp = Math.min(P.maxhp, P.hp + it.heal);
+      sfxFor(P, 'comida');
+      return { msg: '+' + it.heal + ' VIDA. PROVECHO' };
+    }
     if (it.id === 'porro') {
       P.porros++;
       return { msg: 'UNO MAS AL BOLSILLO. APRETA F PARA FUMAR' };
@@ -125,7 +140,7 @@ class ShopManager {
     list.innerHTML = '';
     this.items.forEach((it, i) => {
       const st = this.status(it);
-      const name = WEAPONS[it.id] ? WEAPONS[it.id].name : it.id.toUpperCase();
+      const name = WEAPONS[it.id] ? WEAPONS[it.id].name : it.id.toUpperCase() + (it.heal ? ' +' + it.heal + ' VIDA' : '');
       const row = document.createElement('div');
       row.className = 'shop-row' + (i === this.sel ? ' sel' : '') + (st.can ? '' : ' off');
 
@@ -133,7 +148,8 @@ class ShopManager {
       icon.width = 28;
       icon.height = 16;
       icon.className = 'shop-icon';
-      weaponIcon(icon.getContext('2d'), it.id, 14, 8);
+      if (it.heal) foodIcon(icon.getContext('2d'), it.id, 14, 8);
+      else weaponIcon(icon.getContext('2d'), it.id, 14, 8);
 
       const info = document.createElement('div');
       info.className = 'shop-info';

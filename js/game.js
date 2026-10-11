@@ -102,7 +102,7 @@ class Game {
     net.fx(['F', x, y, v]);
   }
 
-  // La armería y el tranza se abren en la pantalla del jugador que entró
+  // La armería, el tranza y los supers se abren en la pantalla del jugador que entró
   openShop(P, kind) {
     if (P === G.me) shop.open(kind);
     else net.to(P, ['shop', kind]);
@@ -656,6 +656,7 @@ class Game {
     P.swing = Math.max(0, P.swing - rdt * 5);
     P.nearShop = null;
     P.nearTranza = null;
+    P.nearSuper = null;
     if (!P.dead) this.switchWeapon(P);
 
     // Fumarse un porro: F (o el botón 🌿)
@@ -775,6 +776,10 @@ class Game {
       for (const t of G.tranzas) {
         if (t.hp > 0 && t.villa.angry <= 0 && dist(t, P) < 16) P.nearTranza = t;
       }
+      for (const b of supers) {
+        const d = b.door;
+        if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearSuper = b;
+      }
 
       // Los menús (armería, tranza) se abren en la pantalla del que entró
       if (ctl.use && P.cool <= 0 && P.nearShop) {
@@ -785,6 +790,10 @@ class Game {
         P.cool = 0.4;
         P.nearTranza.ang = Math.atan2(P.y - P.nearTranza.y, P.x - P.nearTranza.x);
         this.openShop(P, 'tranza');
+      } else if (ctl.use && P.cool <= 0 && P.nearSuper) {
+        P.cool = 0.4;
+        if (P.wanted >= 2) this.say('EL DE SEGURIDAD NO TE DEJA PASAR', 2.6, P);
+        else this.openShop(P, P.nearSuper.super);
       } else if (ctl.use && P.cool <= 0) {
         P.cool = 0.4;
         let best = null, bd = 26;
