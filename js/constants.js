@@ -332,10 +332,18 @@ const LANUS_ITEMS = [
 // El de Lanús va del otro lado del Riachuelo, como corresponde.
 // Estadios: parodias de las canchas de verdad, con los colores de cada club. Cada uno ocupa
 // una manzana entera, la libre más cercana a "at" (celda de la grilla): LA CHOCOLATERA del
-// lado de La Boca, pegada al Riachuelo; EL MONUMENTAZO en el norte.
+// lado de La Boca, pegada al Riachuelo (y le falta una tribuna); EL MONUMENTAZO en el norte;
+// y en Avellaneda, del otro lado del Riachuelo, los dos vecinos a una cuadra.
+// pattern: cómo se pintan las tribunas y el trapo (franja, banda, liso, bastones)
 const STADIUMS = [
-  { k: 'boca', name: 'LA CHOCOLATERA', club: 'BOCA JUNIORES', at: [14, 14], c1: '#123f8c', c2: '#f3b229', wall: '#0e3270' },
-  { k: 'river', name: 'EL MONUMENTAZO', club: 'RIVER PLATO', at: [11, 2], c1: '#f2f2f2', c2: '#e4002b', wall: '#c9c9c9' },
+  { k: 'boca', name: 'LA CHOCOLATERA', club: 'BOCA JUNIORES', at: [14, 14], c1: '#123f8c', c2: '#f3b229', wall: '#0e3270',
+    pattern: 'franja', missing: true },
+  { k: 'river', name: 'EL MONUMENTAZO', club: 'RIVER PLATO', at: [11, 2], c1: '#f2f2f2', c2: '#e4002b', wall: '#c9c9c9',
+    pattern: 'banda' },
+  { k: 'inde', name: 'LOS DEUDORES DE AMERICA', club: 'DEPENDIENTE', at: [17, 19], c1: '#d8141c', c2: '#ffffff', wall: '#a80e14',
+    pattern: 'liso' },
+  { k: 'racing', name: 'EL TERMO', club: 'RASIN CLUB', at: [18, 19], c1: '#7cc4ef', c2: '#ffffff', wall: '#7a7e84',
+    pattern: 'bastones', round: true },
 ];
 
 // Respeto, por jugador. Rangos (desde cuánto respeto) y cuánto da o saca cada cosa.
@@ -356,10 +364,14 @@ const RANK_CALM = 3;         // desde CAPO, un tranza lastimado no prende la vil
 // Barras: paran en la puerta de su estadio con el trapo colgado. Si se lo robás, te salen a
 // buscar; si lo aguantás TRAPO_TIME segundos es tuyo, y vuelve a colgarse a los TRAPO_BACK.
 const BARRAS = [
-  { k: 'boca', name: 'LA DOCENA', stadium: 'boca', shirt: '#123f8c', pants: '#0e2a5c', band: '#f3b229', n: 7,
+  { k: 'boca', name: 'LA DOCENA', short: 'LA DOCENA', stadium: 'boca', shirt: '#123f8c', pants: '#0e2a5c', band: '#f3b229', n: 7,
     chant: ['DALE CHOCO, DALE CHOCO!', 'LA DOCENA NO SE VA!', 'DE LA BOCA SOMOS NOSOTROS!'] },
-  { k: 'river', name: 'LOS BORRACHOS DEL TABLERO', stadium: 'river', shirt: '#f2f2f2', pants: '#1a1a1a', band: '#e4002b', n: 7,
+  { k: 'river', name: 'LOS BORRACHOS DEL TABLERO', short: 'LOS BORRACHOS', stadium: 'river', shirt: '#f2f2f2', pants: '#1a1a1a', band: '#e4002b', n: 7,
     chant: ['VAMOS RIVER PLATO!', 'EL MAS GRANDE, PAPA!', 'LOS BORRACHOS ESTAN ACA!'] },
+  { k: 'inde', name: 'LOS DIABLITOS', short: 'LOS DIABLITOS', stadium: 'inde', shirt: '#d8141c', pants: '#1a1a1a', band: '#ffffff', n: 6,
+    chant: ['ROJO, ROJO, PAGA LO QUE DEBE!', 'DE AVELLANEDA SOMOS!', 'EL DIABLO NO SE VA!'] },
+  { k: 'racing', name: 'LA GUARDIA IMPERFECTA', short: 'LA GUARDIA', stadium: 'racing', shirt: '#7cc4ef', pants: '#1a1a1a', band: '#ffffff', n: 6,
+    chant: ['LA ACADEMIA, PAPA!', 'CEBATE UN MATE EN EL TERMO!', 'SOMOS EL PRIMER GRANDE!'] },
 ];
 const TRAPO_TIME = 60;
 const TRAPO_BACK = 180;

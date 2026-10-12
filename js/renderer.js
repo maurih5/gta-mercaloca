@@ -442,38 +442,77 @@ class Renderer {
     }
   }
 
-  // Estadio visto de arriba: tribunas con los colores del club (Boca: azul con la franja
-  // amarilla; River: blanco con la banda roja cruzada), la cancha con sus líneas, las
-  // torres de luz en las esquinas y el nombre sobre la tribuna de la puerta.
+  // Estadio visto de arriba: tribunas con los colores del club, la cancha con sus líneas,
+  // las torres de luz y el nombre sobre la tribuna de la puerta. Cada club a su manera:
+  // Boca con la franja amarilla y sin una tribuna (solo los palcos), River con la banda roja
+  // cruzada, Independiente todo rojo y Racing redondo, con bastones celestes y blancos.
   drawStadium(b, rx, ry) {
     const ctx = this.ctx, S = STADIUMS.find(q => q.k === b.stadium);
     const w = b.w, h = b.h, m = Math.min(w, h) * 0.2;
-    ctx.fillStyle = S.c1;
-    ctx.fillRect(px(rx), px(ry), px(w), px(h));
-    // Gradas: escalones más oscuros hacia la cancha
-    ctx.fillStyle = 'rgba(0,0,0,.12)';
-    for (let i = 1; i < 4; i++) ctx.strokeRect(rx + i * m / 4, ry + i * m / 4, w - i * m / 2, h - i * m / 2);
+    // La cancha (en Boca se corre: del lado que falta la tribuna hay solo palcos)
+    const miss = S.missing ? m * 0.65 : 0;
+    const fx = rx + m, fy = ry + m, fw = w - 2 * m + miss, fh = h - 2 * m;
     ctx.save();
-    ctx.beginPath();
-    ctx.rect(rx, ry, w, h);
-    ctx.rect(rx + m, ry + m, w - 2 * m, h - 2 * m);
-    ctx.clip('evenodd');
-    ctx.fillStyle = S.c2;
-    if (b.stadium === 'river') {
-      // La banda roja, de punta a punta en diagonal
-      ctx.beginPath();
-      ctx.moveTo(rx, ry + h * 0.18);
-      ctx.lineTo(rx + w * 0.18, ry);
-      ctx.lineTo(rx + w, ry + h * 0.82);
-      ctx.lineTo(rx + w * 0.82, ry + h);
-      ctx.closePath();
-      ctx.fill();
+    if (S.round) {
+      // El termo: redondo, con gajos celestes y blancos
+      const cx = rx + w / 2, cy = ry + h / 2, R = Math.min(w, h) / 2;
+      ctx.fillStyle = '#8a8e94'; // explanada de cemento en las esquinas
+      ctx.fillRect(px(rx), px(ry), px(w), px(h));
+      ctx.fillStyle = S.c1;
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill();
+      ctx.fillStyle = S.c2;
+      for (let i = 0; i < 16; i += 2) {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, R, (i / 16) * TAU, ((i + 1) / 16) * TAU);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(0,0,0,.18)';
+      for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.arc(cx, cy, R - i * m / 4, 0, TAU); ctx.stroke(); }
+      ctx.strokeStyle = '#2a2d33';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, R - 0.5, 0, TAU); ctx.stroke();
+      ctx.lineWidth = 1;
     } else {
-      ctx.fillRect(px(rx), px(ry + h * 0.4), px(w), px(h * 0.2)); // la franja amarilla
+      ctx.fillStyle = S.c1;
+      ctx.fillRect(px(rx), px(ry), px(w), px(h));
+      ctx.strokeStyle = 'rgba(0,0,0,.12)';
+      for (let i = 1; i < 4; i++) ctx.strokeRect(rx + i * m / 4, ry + i * m / 4, w - i * m / 2, h - i * m / 2);
+      ctx.beginPath();
+      ctx.rect(rx, ry, w, h);
+      ctx.rect(fx, fy, fw, fh);
+      ctx.clip('evenodd');
+      ctx.fillStyle = S.c2;
+      if (S.pattern === 'banda') {
+        ctx.beginPath();
+        ctx.moveTo(rx, ry + h * 0.18); ctx.lineTo(rx + w * 0.18, ry);
+        ctx.lineTo(rx + w, ry + h * 0.82); ctx.lineTo(rx + w * 0.82, ry + h);
+        ctx.closePath();
+        ctx.fill();
+      } else if (S.pattern === 'franja') {
+        ctx.fillRect(px(rx), px(ry + h * 0.4), px(w), px(h * 0.2));
+      } else {
+        // Liso: una línea blanca finita en el borde de cada tribuna
+        ctx.strokeStyle = S.c2;
+        ctx.strokeRect(rx + 2.5, ry + 2.5, w - 5, h - 5);
+      }
     }
     ctx.restore();
+    if (S.missing) {
+      // El lado sin tribuna: la fila chata de palcos y el cartel del chiste
+      const px0 = fx + fw, pw = rx + w - px0;
+      ctx.fillStyle = '#d8d0c0';
+      ctx.fillRect(px(px0), px(ry), px(pw), px(h));
+      ctx.fillStyle = '#5a5e64';
+      for (let yy = ry + 3; yy < ry + h - 4; yy += 6) ctx.fillRect(px(px0 + 1.5), px(yy), px(pw - 3), 4);
+      ctx.save();
+      ctx.translate(px0 + pw / 2 + 1.5, ry + h / 2);
+      ctx.rotate(Math.PI / 2);
+      this.text('ACA VA UNA TRIBUNA', 0, 0, '#ffd34a', 4, 'center');
+      ctx.restore();
+    }
     // La cancha
-    const fx = rx + m, fy = ry + m, fw = w - 2 * m, fh = h - 2 * m;
     ctx.fillStyle = '#3f8f3a';
     ctx.fillRect(px(fx), px(fy), px(fw), px(fh));
     ctx.fillStyle = '#4a9c44';
@@ -491,19 +530,22 @@ class Renderer {
     ctx.strokeRect(fx + fw * 0.3, fy + 3, fw * 0.4, fh * 0.12);
     ctx.strokeRect(fx + fw * 0.3, fy + fh - 3 - fh * 0.12, fw * 0.4, fh * 0.12);
     // Torres de luz
-    for (const [cx2, cy2] of [[rx + 3, ry + 3], [rx + w - 6, ry + 3], [rx + 3, ry + h - 6], [rx + w - 6, ry + h - 6]]) {
+    const lights = S.round
+      ? [[rx + w * 0.15, ry + h * 0.15], [rx + w * 0.85 - 4, ry + h * 0.15], [rx + w * 0.15, ry + h * 0.85 - 4], [rx + w * 0.85 - 4, ry + h * 0.85 - 4]]
+      : [[rx + 3, ry + 3], [rx + w - 6, ry + 3], [rx + 3, ry + h - 6], [rx + w - 6, ry + h - 6]];
+    for (const [cx2, cy2] of lights) {
       ctx.fillStyle = '#2a2d33';
       ctx.fillRect(px(cx2), px(cy2), 4, 4);
       ctx.fillStyle = darkness() > 0.3 ? '#fff6c8' : '#b8bcc4';
       ctx.fillRect(px(cx2 + 1), px(cy2 + 1), 2, 2);
     }
     // Nombre sobre la tribuna de la puerta
-    const nw = S.name.length * 5 + 8;
+    const nw = S.name.length * 5 + 8, ny = ry + h - m * 0.75;
     ctx.fillStyle = '#14100c';
-    ctx.fillRect(px(rx + w / 2 - nw / 2 - 1), px(ry + h - m * 0.75 - 1), nw + 2, 10);
-    ctx.fillStyle = b.stadium === 'river' ? S.c2 : S.c1;
-    ctx.fillRect(px(rx + w / 2 - nw / 2), px(ry + h - m * 0.75), nw, 8);
-    this.text(S.name, rx + w / 2, ry + h - m * 0.75 + 6.5, b.stadium === 'river' ? '#fff' : S.c2, 5, 'center');
+    ctx.fillRect(px(rx + w / 2 - nw / 2 - 1), px(ny - 1), nw + 2, 10);
+    ctx.fillStyle = S.pattern === 'banda' ? S.c2 : S.round ? '#3a7ab8' : S.c1;
+    ctx.fillRect(px(rx + w / 2 - nw / 2), px(ny), nw, 8);
+    this.text(S.name, rx + w / 2, ny + 6.5, S.pattern === 'franja' ? S.c2 : '#fff', 5, 'center');
   }
 
   // Un trapo con los colores del club: Boca azul con la franja amarilla, River blanco con
@@ -521,10 +563,16 @@ class Renderer {
     ctx.fillStyle = B.shirt;
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = B.band;
-    if (k === 'river') {
+    const pat = STADIUMS.find(q => q.k === B.stadium).pattern;
+    if (pat === 'banda') {
       ctx.beginPath();
       ctx.moveTo(0, 0); ctx.lineTo(w * 0.3, 0); ctx.lineTo(w, h * 0.7); ctx.lineTo(w, h); ctx.lineTo(w * 0.7, h); ctx.lineTo(0, h * 0.3);
       ctx.fill();
+    } else if (pat === 'bastones') {
+      for (let i = 1; i < 6; i += 2) ctx.fillRect(w * i / 6, 0, w / 6, h);
+    } else if (pat === 'liso') {
+      ctx.fillRect(0, 0, w, h * 0.15); // ribete blanco arriba y abajo
+      ctx.fillRect(0, h * 0.85, w, h * 0.15);
     } else {
       ctx.fillRect(0, h * 0.35, w, h * 0.3);
     }
@@ -2198,12 +2246,12 @@ class Renderer {
     for (const b of shops) add('armeria', b.door.x + b.door.ox, b.door.y + b.door.oy);
     for (const b of supers) add(b.closed > 0 || b.robbing ? 'cerrado' : b.super === 'noche' ? 'noche' : 'choto', ...mid(b));
     for (const cr of casaRosada) add('rosada', ...mid(cr));
-    for (const b of stadiums) add(b.stadium, ...mid(b));
+    for (const b of stadiums) add('st_' + b.stadium, ...mid(b));
     if (obelisco) add('obelisco', ...mid(obelisco));
     for (const t of G.tranzas) if (t.hp > 0) add(t.villa.angry > 0 ? 'tranzaMal' : 'tranza', t.x, t.y);
     for (const B of G.barras) {
       const at = B.trapo === 'hung' ? B.flag : B.trapo === 'carried' && B.by ? B.by : null;
-      if (at) add(B.def.k === 'boca' ? 'trapoBoca' : 'trapoRiver', at.x, at.y);
+      if (at) add('tr_' + B.def.k, at.x, at.y);
     }
     for (const h of G.hinchas) if (h.hp > 0 && h.barra.angry > 0) add('hincha', h.x, h.y);
     for (const c of G.cops) add('yuta', c.x, c.y);
@@ -2224,6 +2272,28 @@ class Renderer {
     };
     const box = (bg) => { r('#000', -5, -5, 11, 11); r(bg, -4, -4, 9, 9); };
     const cart = c => { r(c, -3, -2, 6, 3); r(c, -3, -3, 1, 1); r(c, -2, 2, 1, 1); r(c, 2, 2, 1, 1); };
+    // Estadios: un cuadrito con los colores del club, a su manera
+    if (kind.startsWith('st_')) {
+      const S = STADIUMS.find(q => 'st_' + q.k === kind);
+      box(S.c1);
+      if (S.pattern === 'franja') r(S.c2, -4, -1, 9, 3);
+      else if (S.pattern === 'banda') for (let i = -4; i <= 3; i++) r(S.c2, i, i - 1, 2, 2);
+      else if (S.pattern === 'bastones') for (let i = -3; i <= 3; i += 2) r(S.c2, i, -4, 1, 9);
+      else { r(S.c2, -2, -2, 5, 5); r(S.c1, -1, -1, 3, 3); }
+      return;
+    }
+    // Trapos: un banderín con los colores de la barra
+    if (kind.startsWith('tr_')) {
+      const B = BARRAS.find(q => 'tr_' + q.k === kind), S = STADIUMS.find(q => q.k === B.stadium);
+      r('#000', -4, -4, 1, 9); r('#000', -3, -5, 8, 6);
+      r(B.shirt, -2, -4, 6, 4);
+      if (S.pattern === 'franja') r(B.band, -2, -3, 6, 1);
+      else if (S.pattern === 'banda') { r(B.band, -2, -4, 2, 2); r(B.band, 0, -3, 2, 2); r(B.band, 2, -2, 2, 2); }
+      else if (S.pattern === 'bastones') { r(B.band, -1, -4, 1, 4); r(B.band, 1, -4, 1, 4); r(B.band, 3, -4, 1, 4); }
+      else r(B.band, -2, -4, 6, 1);
+      r('#c8b89a', -3, -4, 1, 8);
+      return;
+    }
     switch (kind) {
       case 'vos': {
         const P = G.me;
@@ -2248,21 +2318,6 @@ class Renderer {
       case 'cerrado': box('#5a5e64'); cart('#9aa0a6'); break;
       case 'parrilla': box('#6a3a22'); r('#c8c8c8', -3, -1, 7, 1); r('#c8c8c8', -3, 1, 7, 1); r('#c8c8c8', -2, -3, 1, 6); r('#c8c8c8', 1, -3, 1, 6); break;
       case 'asado': box('#2a1610'); r('#ff7a2a', -2, -1, 5, 4); r('#ffd34a', -1, -3, 3, 4); r('#fff2a0', 0, -1, 1, 2); break;
-      case 'boca': box('#123f8c'); r('#f3b229', -4, -1, 9, 3); break;
-      case 'river': {
-        box('#f2f2f2');
-        for (let i = -4; i <= 3; i++) r('#e4002b', i, i - 1, 2, 2); // la banda cruzada
-        break;
-      }
-      case 'trapoBoca': case 'trapoRiver': {
-        const B = BARRAS[kind === 'trapoBoca' ? 0 : 1];
-        r('#000', -4, -4, 1, 9); r('#000', -3, -5, 8, 6);
-        r(B.shirt, -2, -4, 6, 4);
-        if (kind === 'trapoBoca') r(B.band, -2, -3, 6, 1); else { r(B.band, -2, -4, 2, 2); r(B.band, 0, -3, 2, 2); r(B.band, 2, -2, 2, 2); }
-        r('#c8b89a', -3, -4, 1, 8);
-        break;
-      }
-      case 'hincha': r('#000', -2, -2, 5, 5); r('#ff3a2a', -1, -1, 3, 3); break;
       case 'rosada': box('#ff8fc0'); r('#fff', -3, 0, 7, 3); r('#fff', -2, -1, 5, 1); r('#fff', -1, -2, 3, 1); r('#ff8fc0', 0, 1, 1, 2); break;
       case 'obelisco': box('#e8f070'); r('#14100c', 0, -3, 1, 7); r('#14100c', -1, 2, 3, 2); break;
       case 'tranza': box('#7a3ab8'); r('#5ad266', -1, -3, 3, 6); r('#5ad266', -3, -1, 7, 2); break;
@@ -2296,7 +2351,8 @@ class Renderer {
     ctx.globalAlpha = 1;
     // Primero lo chico (guita, yuta), arriba los lugares
     const order = ['guita', 'fierro', 'comida', 'hincha', 'yuta', 'parrilla', 'asado', 'tranza', 'tranzaMal', 'patrullero',
-      'cerrado', 'noche', 'choto', 'armeria', 'hospital', 'boca', 'river', 'rosada', 'obelisco', 'trapoBoca', 'trapoRiver', 'famoso', 'jugador'];
+      'cerrado', 'noche', 'choto', 'armeria', 'hospital', ...STADIUMS.map(S => 'st_' + S.k), 'rosada', 'obelisco',
+      ...BARRAS.map(B => 'tr_' + B.k), 'famoso', 'jugador'];
     for (const kind of order) {
       for (const e of items) {
         if (e.kind !== kind) continue;
@@ -2793,8 +2849,8 @@ const drawMap = () => renderer.drawMap();
 const MAP_LEGEND = [
   ['vos', 'VOS'], ['jugador', 'OTRO JUGADOR'], ['hospital', 'HOSPITAL'], ['armeria', 'ARMERIA'],
   ['choto', 'SUPER CHOTO'], ['noche', 'SUPER NOCHE %'], ['cerrado', 'SUPER CERRADO'],
-  ['parrilla', 'PARRILLA'], ['asado', 'ASADO PRENDIDO'], ['boca', 'LA CHOCOLATERA'], ['river', 'EL MONUMENTAZO'],
-  ['trapoBoca', 'TRAPO DE LA DOCENA'], ['trapoRiver', 'TRAPO DE LOS BORRACHOS'], ['hincha', 'BARRA CALIENTE'],
+  ['parrilla', 'PARRILLA'], ['asado', 'ASADO PRENDIDO'], ...STADIUMS.map(S => ['st_' + S.k, S.name]),
+  ...BARRAS.map(B => ['tr_' + B.k, 'TRAPO DE ' + B.short]), ['hincha', 'BARRA CALIENTE'],
   ['rosada', 'CASA ROSADA'], ['obelisco', 'OBELISCO'],
   ['tranza', 'TRANZA'], ['tranzaMal', 'TRANZA CALIENTE'], ['famoso', 'FAMOSO'], ['yuta', 'YUTA'],
   ['patrullero', 'PATRULLERO'], ['guita', 'GUITA'], ['fierro', 'FIERRO'], ['comida', 'COMIDA'],
