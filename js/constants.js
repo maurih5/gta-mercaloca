@@ -44,6 +44,17 @@ const MARGIN = 8;
 const AVENUE_ROAD = 108;
 const AVENUE_LANE = AVENUE_ROAD * 0.24;
 
+// Carriles, medidos desde el eje de la calle. La vereda ocupa SIDEWALK px de cada
+// borde de la franja, así que el asfalto de cada mano va de la raya del medio al cordón
+// y el auto va centrado ahí (pegado al cordón, los anchos se subían a la vereda).
+const LANE_OFF = (ROAD / 2 - SIDEWALK) / 2 + 0.5;
+// Avenida: medio cantero, cordón, la raya entre los dos carriles de cada mano y el
+// centro de cada carril (0 el de adentro, 1 el de la vereda)
+const AVE_MEDIAN = AVENUE_LANE * 0.85 / 2;
+const AVE_CURB = AVENUE_ROAD / 2 - SIDEWALK;
+const AVE_DIVIDER = (AVE_MEDIAN + AVE_CURB) / 2;
+const AVE_LANES = [(AVE_MEDIAN + AVE_DIVIDER) / 2, (AVE_DIVIDER + AVE_CURB) / 2];
+
 // Rotonda del obelisco: radio del anillo de circulacion y de la isla peatonal central
 const ROTONDA_R = 58;
 const ROTONDA_ISLAND_R = 26;

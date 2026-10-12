@@ -191,6 +191,15 @@ class SoundManager {
         this.burst(d, t + 0.06, { dur: 0.25, type: 'highpass', f0: 4000, f1: 2500, vol: v * 0.3 }); // vidrios
         return 0.4;
       }
+      case 'bocina': { // k: cuánto la aprieta (s)
+        const dur = clamp(k || 0.6, 0.25, 1.4) * 0.6;
+        this.tone(d, t, { dur, f0: 392 * r, wave: 'square', vol: 0.16, attack: 0.01 });
+        this.tone(d, t, { dur, f0: 494 * r, wave: 'square', vol: 0.12, attack: 0.01 });
+        return dur;
+      }
+      case 'frenada': // gomas chillando contra el asfalto
+        this.burst(d, t, { dur: 0.55, type: 'bandpass', f0: 1500 * r, f1: 1100, q: 7, vol: 0.32, attack: 0.03 });
+        return 0.55;
       case 'puerta': // subir o bajar del auto
         this.tone(d, t, { dur: 0.1, f0: 110, f1: 60, vol: 0.6 });
         this.burst(d, t, { dur: 0.06, f0: 800, vol: 0.3 });

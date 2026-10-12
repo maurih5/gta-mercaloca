@@ -1156,6 +1156,8 @@ class World {
           y: cy * CELL + ROAD / 2,
           phase: ((cx + cy) % 2) * (LIGHT_CYCLE / 2) + ((cx * 7 + cy * 3) % 5),
           off: !!this.villaAt(cx * CELL + ROAD / 2, cy * CELL + ROAD / 2), // en la villa no hay semáforos
+          // Por donde pasa la Diagonal: una tercera fase, con las dos calles en rojo
+          diag: inDiagonalBand(cx * CELL + roadWidthCol(cx) / 2, cy * CELL + roadWidthRow(cy) / 2),
         });
       }
     }
@@ -1906,7 +1908,7 @@ class World {
         RL(a, b, L + SW - 1, L + SW);
         RL(a, b, L + W - SW, L + W - SW + 1);
         g.fillStyle = 'rgba(0,0,0,.10)'; // huellas de las ruedas
-        for (const o of br.avenue ? [-45, -24, 24, 45] : [-13, 13]) {
+        for (const o of br.avenue ? [-AVE_LANES[1], -AVE_LANES[0], AVE_LANES[0], AVE_LANES[1]] : [-LANE_OFF, LANE_OFF]) {
           RL(a, b, mid + o - 4, mid + o - 2);
           RL(a, b, mid + o + 2, mid + o + 4);
         }
@@ -1918,8 +1920,8 @@ class World {
           g.fillStyle = 'rgba(232,232,224,.8)';
           for (let u = a + 4; u < b - 9; u += 16) {
             if (inCross(u) || inCross(u + 9)) continue;
-            R(u, u + 9, mid - AVENUE_LANE * 1.4 - 1, mid - AVENUE_LANE * 1.4 + 1);
-            R(u, u + 9, mid + AVENUE_LANE * 1.4 - 1, mid + AVENUE_LANE * 1.4 + 1);
+            R(u, u + 9, mid - AVE_DIVIDER - 1, mid - AVE_DIVIDER + 1);
+            R(u, u + 9, mid + AVE_DIVIDER - 1, mid + AVE_DIVIDER + 1);
           }
           const hw = S.k === 'atirantado' ? 5 : 3;
           g.fillStyle = 'rgba(0,0,0,.35)';
@@ -1980,8 +1982,8 @@ class World {
         if (this.onRoad(rx + rw / 2, y) && (y % CELL) > rw && !noRoadPaint(rx + rw / 2, y) && !this.villaAt(rx + rw / 2, y)) {
           if (!isAveCol) g.fillRect(rx + rw / 2 - 1, y, 2, 9); // avenida: sin raya al medio, va el cantero
           if (isAveCol) {
-            g.fillRect(rx + rw / 2 - 1 - AVENUE_LANE * 1.4, y, 2, 9);
-            g.fillRect(rx + rw / 2 - 1 + AVENUE_LANE * 1.4, y, 2, 9);
+            g.fillRect(rx + rw / 2 - 1 - AVE_DIVIDER, y, 2, 9);
+            g.fillRect(rx + rw / 2 - 1 + AVE_DIVIDER, y, 2, 9);
           }
         }
       }
@@ -1989,8 +1991,8 @@ class World {
         if (this.onRoad(x, ry + rh / 2) && (x % CELL) > rh && !noRoadPaint(x, ry + rh / 2) && !this.villaAt(x, ry + rh / 2)) {
           if (!isAveRow) g.fillRect(x, ry + rh / 2 - 1, 9, 2);
           if (isAveRow) {
-            g.fillRect(x, ry + rh / 2 - 1 - AVENUE_LANE * 1.4, 9, 2);
-            g.fillRect(x, ry + rh / 2 - 1 + AVENUE_LANE * 1.4, 9, 2);
+            g.fillRect(x, ry + rh / 2 - 1 - AVE_DIVIDER, 9, 2);
+            g.fillRect(x, ry + rh / 2 - 1 + AVE_DIVIDER, 9, 2);
           }
         }
       }
@@ -1999,7 +2001,7 @@ class World {
     // Bulevar central: cantero verde arbolado en el medio de la avenida (como la 9 de Julio real)
     {
       const midX = PLAZA_CX * CELL + AVENUE_ROAD / 2, midY = PLAZA_CY * CELL + AVENUE_ROAD / 2;
-      const MW = AVENUE_LANE * 0.85;
+      const MW = AVE_MEDIAN * 2;
       const medianOk = (x, y) => {
         if (bridgeAt(x, y)) return false; // sobre el puente no hay cantero
         if (obelisco) {
@@ -2208,12 +2210,16 @@ class World {
     return d > ROTONDA_ISLAND_R && d < ROTONDA_R;
   }
 
+  // Estado del semáforo para el eje horizontal (horiz true), el vertical (false) o la
+  // Diagonal ('d'). Cada fase dura medio ciclo; donde pasa la Diagonal hay tres fases.
   lightState(L, horiz) {
     if (L.off) return 'verde';
     const time = (typeof G !== 'undefined' && G.t !== undefined) ? G.t : 0;
-    const t = ((time + L.phase) % LIGHT_CYCLE + LIGHT_CYCLE) % LIGHT_CYCLE;
-    const half = LIGHT_CYCLE / 2;
-    const mine = horiz ? t : (t + half) % LIGHT_CYCLE;
+    const half = LIGHT_CYCLE / 2, n = L.diag ? 3 : 2, cyc = half * n;
+    const slot = horiz === 'd' ? 2 : horiz ? 0 : 1;
+    if (slot >= n) return 'rojo';
+    const t = ((time + L.phase) % cyc + cyc) % cyc;
+    const mine = ((t - slot * half) % cyc + cyc) % cyc;
     if (mine < GREEN) return 'verde';
     if (mine < GREEN + AMBER) return 'amarillo';
     return 'rojo';
@@ -2353,14 +2359,14 @@ class World {
     const idx = clamp(Math.round(((horiz ? y : x) - ROAD / 2) / CELL), 0, GRID - 1);
     const isAve = idx === (horiz ? PLAZA_CY : PLAZA_CX);
     const roadW = isAve ? AVENUE_ROAD : ROAD;
-    const LANE = isAve ? AVENUE_LANE : ROAD * 0.24;
-    const extra = isAve ? LANE * 1.4 * laneBias : 0;
+    // laneBias en la avenida: 0 el carril de adentro, 1 el de la vereda
+    const LANE = isAve ? AVE_LANES[laneBias > 0.5 ? 1 : 0] : LANE_OFF;
     if (horiz) {
       const cy2 = idx * CELL + roadW / 2;
-      return { x, y: cy2 + (Math.cos(ang) > 0 ? LANE + extra : -LANE - extra), ang: Math.cos(ang) > 0 ? 0 : Math.PI };
+      return { x, y: cy2 + (Math.cos(ang) > 0 ? LANE : -LANE), ang: Math.cos(ang) > 0 ? 0 : Math.PI };
     }
     const cx2 = idx * CELL + roadW / 2;
-    return { x: cx2 + (Math.sin(ang) > 0 ? -LANE - extra : LANE + extra), y, ang: Math.sin(ang) > 0 ? Math.PI / 2 : -Math.PI / 2 };
+    return { x: cx2 + (Math.sin(ang) > 0 ? -LANE : LANE), y, ang: Math.sin(ang) > 0 ? Math.PI / 2 : -Math.PI / 2 };
   }
 
   nearestDoor(x, y, maxD) {
