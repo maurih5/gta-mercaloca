@@ -296,11 +296,14 @@ class NetManager {
     const players = G.players.map(q => [
       q.id, CREW.indexOf(q.def), r1(q.x), r1(q.y), r2(q.ang), Math.ceil(q.hp), q.maxhp,
       q.car ? id(q.car) : 0, q.wpn, r2(q.muzzle), r2(q.swing),
-      (q.dead ? 1 : 0) | (q.busted ? 2 : 0) | (q.healing ? 4 : 0) | (q.nearShop ? 8 : 0) | (q.nearTranza ? 16 : 0) | (q.nearSuper ? 32 : 0) | (q.nearGrill ? 64 : 0),
+      (q.dead ? 1 : 0) | (q.busted ? 2 : 0) | (q.healing ? 4 : 0) | (q.nearShop ? 8 : 0) | (q.nearTranza ? 16 : 0) | (q.nearSuper ? 32 : 0) | (q.nearGrill ? 64 : 0) | (q.nearTrapo ? 128 : 0),
       r1(q.bustT), r1(q.healT), q.money, q.wanted, Math.round(q.armor), q.porros, r1(q.slowmo), q.bustFine,
       q === P ? packInv(q.inv) : 0,
       Math.round(q.food), Math.round(q.drink), q === P ? q.bag : 0,
+      q.respect || 0, q.trapo ? G.barras.indexOf(q.trapo) + 1 : 0, r1(q.trapoT || 0),
     ]);
+    // Los hinchas: como la yuta, en el radar y el mapa de todos
+    const hinchas = G.hinchas.filter(h => h.hp > 0).map(h => [id(h), r1(h.x), r1(h.y), r2(h.ang), G.barras.indexOf(h.barra), r2(h.swing || 0)]);
 
     // Los efectos de lejos no le interesan (salvo las manchas, que quedan en el piso)
     const R = Math.max(NET_VIEW_X, AUDIO_R) * 1.4;
@@ -311,6 +314,8 @@ class NetManager {
 
     return {
       t: r2(G.t), c: cars, p: peds, k: cops, z: tranzas, va: villas.map(v => r1(v.angry)),
+      ba: G.barras.map(B => [B.trapo === 'hung' ? 0 : B.trapo === 'carried' ? 1 : 2, B.angry > 0 ? 1 : 0]),
+      hi: hinchas,
       pa: parrillas.map(g => [r1(g.t), g.cooking ? g.portions : 0]),
       sp: supers.map(b => [r1(b.robT || 0), Math.ceil(b.closed || 0), (b.robbing ? 1 : 0) | (b.alarm > 0 ? 2 : 0)]),
       b: bullets, g: nades, u: pickups, j: players, e: ev,
@@ -377,6 +382,8 @@ class NetManager {
       Object.assign(G, { cars: [], peds: [], cops: [], bullets: [], nades: [], pickups: [], fx: [], smoke: [], players: [], me: null });
       G.tranzas = [];
       for (const v of villas) v.spots.forEach((sp, i) => G.tranzas.push(makeTranza(v, sp, i)));
+      G.barras = makeBarras();
+      G.hinchas = [];
       this.ents = {};
     } else if (type === 'snap' && this.myId !== null) {
       this.applySnap(d);
@@ -476,6 +483,15 @@ class NetManager {
       t.hp = a[4] ? 60 : 0;
     });
     s.va.forEach((v, i) => { if (villas[i]) villas[i].angry = v; });
+    (s.ba || []).forEach((a, i) => {
+      const B = G.barras[i];
+      if (B) Object.assign(B, { trapo: ['hung', 'carried', 'gone'][a[0]], angry: a[1] ? 1 : 0 });
+    });
+    G.hinchas = this.sync('h', s.hi || [], a => ({ kind: 'hincha', r: 5, hp: HINCHA_HP, walk: 0, swing: 0,
+      face: 'ped' + (a[0] % 4), barra: G.barras[a[4]] || G.barras[0] }), (h, a) => {
+      this.aim(h, a[1], a[2], a[3]);
+      h.swing = a[5];
+    });
     (s.pa || []).forEach((a, i) => {
       const g = parrillas[i];
       if (g) Object.assign(g, { t: a[0], portions: a[1], cooking: a[1] > 0 });
@@ -523,6 +539,7 @@ class NetManager {
       q.nearTranza = a[11] & 16 ? true : null;
       q.nearSuper = a[11] & 32 ? true : null;
       q.nearGrill = a[11] & 64 ? true : null;
+      q.nearTrapo = a[11] & 128 ? true : null;
       q.bustT = a[12];
       q.healT = a[13];
       q.money = a[14];
@@ -535,6 +552,9 @@ class NetManager {
       q.food = a[21];
       q.drink = a[22];
       if (a[23]) q.bag = a[23];
+      q.respect = a[24] || 0;
+      q.trapo = (a[25] && G.barras[a[25] - 1]) || null;
+      q.trapoT = a[26] || 0;
     });
 
     const me = G.players.find(q => q.id === this.myId) || null;
