@@ -157,8 +157,8 @@ describe('edificios', () => {
     assert.ok(dist(hospitals[0], hospitals[1]) > CELL * 3, 'los hospitales tienen que estar lejos entre si: ' + dist(hospitals[0], hospitals[1]));
   });
 
-  test('estan LA CHOCOLATERA y EL MONUMENTAZO, cada uno en su manzana', () => {
-    assert.deepEqual(stadiums.map(b => b.stadium).sort(), ['boca', 'river'], 'los dos estadios');
+  test('estan las canchas de los cuatro grandes, cada una en su manzana', () => {
+    assert.deepEqual(stadiums.map(b => b.stadium).sort(), ['boca', 'inde', 'racing', 'river'], 'los cuatro estadios');
     for (const b of stadiums) {
       assert.ok(buildings.includes(b) && b.w > CELL * 0.55 && b.h > CELL * 0.55, 'ocupa la manzana: ' + b.stadium);
       assert.ok(!buildings.some(o => o !== b && o.x < b.x + b.w && o.x + o.w > b.x && o.y < b.y + b.h && o.y + o.h > b.y),
@@ -169,9 +169,12 @@ describe('edificios', () => {
     const boca = stadiums.find(b => b.stadium === 'boca'), river = stadiums.find(b => b.stadium === 'river');
     assert.ok(distToRiver(boca.x + boca.w / 2, boca.y + boca.h / 2) < CELL * 4, 'LA CHOCOLATERA cerca del Riachuelo');
     assert.ok(river.y < WORLD / 3, 'EL MONUMENTAZO en el norte');
+    const inde = stadiums.find(b => b.stadium === 'inde'), racing = stadiums.find(b => b.stadium === 'racing');
+    assert.ok(dist(inde, racing) < CELL * 1.5, 'en Avellaneda, los vecinos a una cuadra');
+    assert.ok(inde.y > boca.y && racing.y > boca.y, 'del otro lado del Riachuelo');
     assert.ok(!supers.concat(hospitals, shops).some(b => b.stadium), 'ni super, ni hospital, ni armeria adentro');
     const leg = renderer.mapLegend(renderer.mapItems()).map(r => r[0]);
-    assert.ok(leg.includes('boca') && leg.includes('river'), 'en las referencias del mapa');
+    assert.ok(STADIUMS.every(S => leg.includes('st_' + S.k)), 'en las referencias del mapa');
   });
 
   test('hay supers: un CHOTO, dos NOCHE % y el CHOTO de Lanus, con la puerta a la calle', () => {

@@ -332,10 +332,18 @@ const LANUS_ITEMS = [
 // El de Lanús va del otro lado del Riachuelo, como corresponde.
 // Estadios: parodias de las canchas de verdad, con los colores de cada club. Cada uno ocupa
 // una manzana entera, la libre más cercana a "at" (celda de la grilla): LA CHOCOLATERA del
-// lado de La Boca, pegada al Riachuelo; EL MONUMENTAZO en el norte.
+// lado de La Boca, pegada al Riachuelo (y le falta una tribuna); EL MONUMENTAZO en el norte;
+// y en Avellaneda, del otro lado del Riachuelo, los dos vecinos a una cuadra.
+// pattern: cómo se pintan las tribunas y el trapo (franja, banda, liso, bastones)
 const STADIUMS = [
-  { k: 'boca', name: 'LA CHOCOLATERA', club: 'BOCA JUNIORES', at: [14, 14], c1: '#123f8c', c2: '#f3b229', wall: '#0e3270' },
-  { k: 'river', name: 'EL MONUMENTAZO', club: 'RIVER PLATO', at: [11, 2], c1: '#f2f2f2', c2: '#e4002b', wall: '#c9c9c9' },
+  { k: 'boca', name: 'LA CHOCOLATERA', club: 'BOCA JUNIORES', at: [14, 14], c1: '#123f8c', c2: '#f3b229', wall: '#0e3270',
+    pattern: 'franja', missing: true },
+  { k: 'river', name: 'EL MONUMENTAZO', club: 'RIVER PLATO', at: [11, 2], c1: '#f2f2f2', c2: '#e4002b', wall: '#c9c9c9',
+    pattern: 'banda' },
+  { k: 'inde', name: 'LOS DEUDORES DE AMERICA', club: 'DEPENDIENTE', at: [17, 19], c1: '#d8141c', c2: '#ffffff', wall: '#a80e14',
+    pattern: 'liso' },
+  { k: 'racing', name: 'EL TERMO', club: 'RASIN CLUB', at: [18, 19], c1: '#7cc4ef', c2: '#ffffff', wall: '#7a7e84',
+    pattern: 'bastones', round: true },
 ];
 
 const SUPERS = [
