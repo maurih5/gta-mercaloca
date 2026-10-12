@@ -86,12 +86,21 @@ Con <kbd>F</kbd> (o el botón 🌿) el mundo va en cámara lenta durante 7 segun
 
 Los autos manejan con volante y frenos de verdad (`js/traffic.js`):
 
-* **Siguen su carril** apuntando a un punto adelante, con radio de giro mínimo: nada de teletransportarse.
-* **Doblan con curva**: cerrada a la derecha, abierta a la izquierda, frenando antes y con **guiño**. En la avenida se acomodan en el carril que corresponde y cambian de carril para pasar a uno lento.
-* **Distancia y frenado (IDM)**: mantienen distancia con el de adelante y frenan suave para el semáforo, la curva o la gente. Luces de freno y guiños se ven, también de noche.
-* **Reserva de bocacalles**: entran solo con verde, si hay lugar del otro lado y si nadie adentro hace una maniobra que se cruce. Comprometidos no frenan, así la bocacalle se vacía y no se arman nudos. El que espera mucho (ej. doblar a la izquierda contra un chorro de autos) reclama su turno.
-* **Rotonda del Obelisco**: sentido antihorario, ceden el paso a los que ya circulan y salen por cualquiera de las cuatro salidas.
-* **Esquivan** autos parados o patrulleros usando la mano contraria si viene libre, **pegan la vuelta** en calles cortadas, **se tiran al cordón** cuando viene un patrullero con sirena y le tocan bocina a quien se planta en la calle.
+* **Siguen su carril**, centrados entre la raya y el cordón, apuntando a un punto adelante y con radio de giro mínimo: nada de teletransportarse. Aparecen a mitad de cuadra, con lugar adelante y ya andando (nunca adentro de una bocacalle).
+* **Doblan con curva**: cerrada a la derecha, abierta a la izquierda, frenando antes y con **guiño**. En la avenida se acomodan en el carril que corresponde (si al lado viene alguien, siguen derecho y doblan en la próxima) y cambian de carril para pasar a uno lento, mirando que el de atrás no venga más rápido.
+* **Distancia y frenado (IDM)**: mantienen distancia con el de adelante, que buscan sobre el camino que van a hacer (también en la curva o cambiándose de carril), y frenan suave para el semáforo, la curva o la gente. Paran antes de la cebra. Luces de freno y guiños se ven, también de noche.
+* **Reserva de bocacalles**: entran solo con verde, si hay lugar del otro lado y si nadie adentro hace una maniobra que se cruce. Comprometidos no frenan, así la bocacalle se vacía y no se arman nudos. **Para doblar a la izquierda esperan un hueco** entre los que vienen de frente; el que espera mucho reclama su turno.
+* **La Diagonal** tiene tránsito en las dos manos y sus bocacalles un **semáforo de tres fases**, con luz propia para la Diagonal. En las puntas se entra y se sale doblando.
+* **Rotonda del Obelisco**: sentido antihorario, ceden el paso a los que ya circulan, los dos carriles de la avenida entran de a uno y salen por cualquiera de las cuatro salidas.
+* **Cada chofer maneja a su manera**: tranquilo (colectivos y camionetas), normal o picante (taxis y deportivos): velocidad, distancia, si se manda con el amarillo y cuánto toca bocina.
+* **Reaccionan como en GTA**:
+  * Con **tiros o explosiones** cerca se asustan y salen rajando, sin mirar el semáforo y para el lado contrario. Si están atascados, se bajan y salen corriendo y el auto queda con las **balizas** puestas.
+  * Si **los chocás**, tocan bocina y se asustan o **se calientan y te salen a buscar** para chocarte (al que los chocó, no al otro).
+  * Pegan un **volantazo** si se les viene un auto encima, y **se tiran al cordón y paran** cuando viene la yuta con sirena.
+  * **Esquivan** autos parados usando la mano contraria si viene libre, **pegan la vuelta** en calles cortadas y le tocan **bocina** a quien se planta en la calle.
+* **Los autos paran las balas**: la chapa se abolla, humea y, si no da más, revienta. Sirven de cobertura.
+* **Robar un auto**: si tiene chofer, lo bajás de una y sale corriendo (y suma búsqueda). Al bajarte, el auto queda donde lo dejaste (rueda si venías andando) y te podés volver a subir sin lío.
+* **La yuta** maneja por las calles hacia vos, esquiva el tránsito y te apunta adelante para encajonarte.
 
 ---
 
@@ -148,6 +157,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
   - [x] Agua con profundidad, espuma, corriente y embarcaciones
   - [x] Puentes con estilo propio, veredas, faroles y Transbordador
   - [x] Playas con gente, puestos, guardavidas, vóley y muelles
+- [x] IA de autos al estilo GTA: choferes que reaccionan (tiros, choques, sirenas), la Diagonal con semáforo propio, sin choques entre autos ni atascos en el borde del mapa (#92)
 - [x] Obelisco como landmark navegable (#33)
 - [x] Casa Rosada como landmark, con actividad de NPCs (#34)
 - [x] Supermercado CHOTO, parodia de Coto (con carne) (#30)

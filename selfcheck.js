@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -648,11 +648,12 @@ describe('simulacion', () => {
     for (const g of G.guards) {
       assert.ok(dist(g, casaRosada[0].door) < 40, 'el guardia tiene que estar posta en la puerta de la Casa Rosada');
     }
-    // todo auto arranca sobre la calle y alineado a un eje
+    // todo auto arranca sobre la calle y alineado a su carril (un eje, o la Diagonal)
     for(const c of G.cars){
       assert.ok(onRoad(c.x, c.y), 'auto fuera de la calle al spawnear');
       const a = ((c.ang % (Math.PI/2)) + Math.PI/2) % (Math.PI/2);
-      assert.ok(a < 1e-6 || Math.abs(a - Math.PI/2) < 1e-6, 'auto no alineado al carril: ' + c.ang);
+      const diag = Math.abs(Math.sin(c.ang - DIAG_ANG)) < 1e-6;
+      assert.ok(a < 1e-6 || Math.abs(a - Math.PI/2) < 1e-6 || diag, 'auto no alineado al carril: ' + c.ang);
     }
   });
 
@@ -820,6 +821,215 @@ describe('simulacion', () => {
     for(const p of G.peds) if(p.inside)
       assert.ok(p.doorT > 0 || p.doorT <= 0, 'temporizador de puerta invalido');
     console.log('  edificios: ' + inside + ' peatones adentro, ' + going + ' yendo a una puerta');
+  });
+});
+
+describe('ia de los autos', () => {
+  // Vereda tranquila cerca de (x, y): lejos del borde y fuera de la Diagonal
+  const vereda = (x, y) => {
+    let best = null, bd = Infinity;
+    for (let dx = -240; dx <= 240; dx += 4) for (let dy = -240; dy <= 240; dy += 4) {
+      const px = x + dx, py = y + dy;
+      if (Math.min(px, py, WORLD - px, WORLD - py) < SIM_R) continue;
+      if (!onSidewalk(px, py) || hitBuilding(px, py, 3) || inDiagonalBand(px, py)) continue;
+      const d = Math.hypot(dx, dy);
+      if (d < bd) { bd = d; best = { x: px, y: py }; }
+    }
+    return best;
+  };
+  const civiles = () => G.cars.filter(c => c.ai && !c.chase && c.hp > 0);
+  // Ninguna parte del auto adentro de una bocacalle (ni de la zona de la Diagonal)
+  const enBocacalle = c => !!trafficAI.boxAt(c.x, c.y) || trafficAI.diagJ().some(J => trafficAI.footIn(J.key, c.x, c.y, c.ang, c.w, c.h));
+
+  test('aparecen en su carril, lejos de las bocacalles y sin pisarse', () => {
+    startGame(CREW[0]);
+    const revisar = (c, cuando) => {
+      assert.ok(onRoad(c.x, c.y), cuando + ': auto fuera de la calle');
+      assert.ok(!enBocacalle(c), cuando + ': auto aparecido adentro de una bocacalle en ' + Math.round(c.x) + ',' + Math.round(c.y));
+      for (const o of G.cars) if (o !== c) assert.ok(!carOverlap(c, o), cuando + ': auto aparecido encima de otro');
+    };
+    for (const c of G.cars) revisar(c, 'al arrancar');
+    // Los que van apareciendo mientras el jugador recorre la ciudad
+    let nuevos = 0;
+    for (let k = 0; k < 4; k++) {
+      const s = freeRoadSpot(); G.me.x = s.x; G.me.y = s.y;
+      for (let f = 0; f < 150; f++) {
+        const antes = new Set(G.cars);
+        update(1/60);
+        G.me.hp = G.me.maxhp;
+        for (const c of G.cars) if (!antes.has(c) && c.ai) { nuevos++; revisar(c, 'al aparecer'); }
+      }
+    }
+    assert.ok(nuevos > 5, 'aparecieron autos nuevos: ' + nuevos);
+  });
+
+  test('la Diagonal tiene su fase de semaforo y autos que la usan', () => {
+    const dj = trafficAI.diagJ();
+    assert.ok(dj.length >= 2, 'la Diagonal cruza bocacalles: ' + dj.length);
+    const t0 = G.t;
+    for (const J of dj) {
+      const L = lights[J.j * GRID + J.i];
+      if (!L || L.off) continue;
+      assert.ok(L.diag, 'el semaforo de la Diagonal tiene tres fases');
+      const verdes = [0, 0, 0];
+      for (let i = 0; i < 1500; i++) {
+        G.t = i / 1500 * LIGHT_CYCLE * 3;
+        const st = [lightState(L, true), lightState(L, false), lightState(L, 'd')];
+        assert.ok(st.filter(x => x === 'verde').length <= 1, 'dos fases en verde a la vez: ' + st);
+        st.forEach((x, k) => { if (x === 'verde') verdes[k]++; });
+      }
+      for (const v of verdes) assert.ok(v / 1500 > 0.2, 'cada fase tiene su verde: ' + verdes);
+    }
+    G.t = t0;
+  });
+
+  test('manejan sin chocarse, sin pasarse el rojo y por la calle', () => {
+    startGame(CREW[0]);
+    // Al lado de la Diagonal: bocacalles de tres fases, la rotonda y la avenida cerca
+    const J = trafficAI.diagJ()[1];
+    const b = trafficAI.boxCenter(J.key), v = vereda(b.x + 100, b.y - 70);
+    G.me.x = v.x; G.me.y = v.y;
+    let choques = 0, rojos = 0, afuera = 0, encima = 0, enDiagonal = 0, n = 0, clavado = 0;
+    const tocandose = new Set(), detalle = [];
+    for (let f = 0; f < 2400; f++) {
+      const antes = new Map(civiles().map(c => [c, { hp: c.hp, commit: c.commit }]));
+      update(1/60);
+      G.me.hp = G.me.maxhp;
+      const cs = civiles();
+      for (const c of cs) {
+        const a = antes.get(c);
+        n++;
+        if (!onRoad(c.x, c.y)) afuera++;
+        if (c.dir >= 4) enDiagonal++;
+        clavado = Math.max(clavado, c.idleT || 0);
+        if (!a) continue;
+        if (c.hp < a.hp - 0.01) choques++;
+        // Comprometerse con el semaforo en rojo (asustado no cuenta: ahi no mira el semaforo)
+        if (c.commit && c.commit !== a.commit && c.cmove && !(c.panic > 0)
+          && !trafficAI.footIn(c.commit, c.x, c.y, c.ang, c.w, c.h)) {
+          const L = lights[c.cmove.j * GRID + c.cmove.i];
+          if (L && lightState(L, c.cmove.d >= 4 ? 'd' : c.cmove.d % 2 === 0) === 'rojo') rojos++;
+        }
+      }
+      for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) {
+        const k = cs[i].seed + ':' + cs[j].seed;
+        // Que se pisen de verdad (mas de 1 px): rozarse de costado en la fila no se ve
+        const hit = carOverlap(cs[i], cs[j]);
+        if (hit && hit.o > 1) { if (!tocandose.has(k)) { encima++; if (detalle.length < 4) detalle.push([f, hit.o.toFixed(1), [cs[i], cs[j]].map(c => [Math.round(c.x), Math.round(c.y), c.why, Math.round(c.spd), c.dir, c.w, c.h, c.ai, c.panic > 0, c.rage ? 1 : 0, c.dodge ? 1 : 0, c.revT > 0 ? 1 : 0])]); } tocandose.add(k); }
+        else tocandose.delete(k);
+      }
+    }
+    assert.equal(rojos, 0, 'autos que se mandaron con el rojo: ' + rojos);
+    assert.ok(choques <= 1, 'autos de la IA chocando entre si: ' + choques);
+    assert.ok(encima <= 1, 'autos de la IA encimados: ' + encima + ' ' + JSON.stringify(detalle) + ' me ' + Math.round(G.me.x) + ',' + Math.round(G.me.y));
+    assert.ok(afuera / n < 0.002, 'autos fuera de la calle: ' + afuera + '/' + n);
+    // Ni el rojo de tres fases con la fila hace esperar tanto: mas que esto es un nudo
+    assert.ok(clavado < 30, 'un auto quedo clavado ' + Math.round(clavado) + 's');
+    console.log('  ia: ' + choques + ' choques, ' + encima + ' encimados, ' + rojos + ' rojos; en la Diagonal ' + Math.round(enDiagonal / 2400 * 10) / 10 + ' autos en promedio');
+  });
+
+  test('por la Diagonal se va de punta a punta y se sale doblando', () => {
+    startGame(CREW[0]);
+    const dj = trafficAI.diagJ(), J0 = dj[0], J1 = dj[1];
+    // Un auto a mitad de camino entre las dos primeras bocacalles, yendo para la Casa Rosada
+    const u = (J0.u + J1.u) / 2, p = trafficAI.lanePoint(4, 0, 0, u);
+    const v = vereda(p.x + 60, p.y - 60);
+    G.me.x = v.x; G.me.y = v.y;
+    G.cars = G.cars.filter(o => dist(o, p) > 60);
+    const c = makeCar(p.x, p.y);
+    Object.assign(c, { x: p.x, y: p.y, ang: DIAG_ANG, spd: 30 });
+    G.cars.push(c);
+    let salio = false, uMax = u;
+    for (let f = 0; f < 60 * 40 && !salio && c.hp > 0; f++) {
+      update(1/60);
+      G.me.hp = G.me.maxhp;
+      c.idleT = 0; c.stopT = 0; // que no lo saque el despawn de los trabados lejos de cámara
+      assert.ok(onRoad(c.x, c.y), 'se salio de la calle en ' + Math.round(c.x) + ',' + Math.round(c.y));
+      if (c.dir === 4) uMax = Math.max(uMax, trafficAI.alongOf(4, c.x, c.y));
+      if (c.dir < 4 && !c.path) salio = true;
+    }
+    assert.ok(salio, 'llego a la punta y doblo a una calle');
+    assert.ok(uMax > dj[dj.length - 1].u - 80, 'recorrio la Diagonal hasta la otra punta');
+  });
+
+  test('para doblar a la izquierda espera que pase el que viene de frente', () => {
+    startGame(CREW[0]);
+    G.cars = [];
+    // Una bocacalle comun (ni la avenida ni la Diagonal) con calle para los cuatro lados
+    let box = null;
+    for (let j = 3; j < GRID - 3 && !box; j++) for (let i = 3; i < GRID - 3 && !box; i++) {
+      if (i === PLAZA_CX || j === PLAZA_CY || trafficAI.isDiagKey(jkey(i, j)) || !lights[j * GRID + i]) continue;
+      if ([0, 1, 2, 3].every(e => trafficAI.exitOK(i, j, e, 0))) box = { i, j };
+    }
+    assert.ok(box, 'hay una bocacalle comun');
+    const key = jkey(box.i, box.j), b = trafficAI.boxCenter(key);
+    const poner = (dir, dist, spd) => {
+      const c = makeCar(b.x, b.y);
+      const p = trafficAI.lanePoint(dir, box.i, 0, trafficAI.alongOf(dir, b.x, b.y) - trafficAI.sgn(dir) * (28 + dist));
+      Object.assign(c, { x: p.x, y: p.y, ang: DIRS[dir], spd });
+      trafficAI.initNav(c);
+      G.cars.push(c);
+      return c;
+    };
+    const A = poner(1, 30, 10);                         // baja por la calle y quiere doblar a la izquierda
+    const m = { i: box.i, j: box.j, key, d: 1, e: 0 };
+    const B = poner(3, 90, 55);                         // y de frente viene otro a buena velocidad
+    assert.ok(trafficAI.oncomingBusy(A, m), 'con uno viniendo de frente, espera');
+    Object.assign(B, trafficAI.lanePoint(3, box.i, 0, trafficAI.alongOf(3, b.x, b.y) + 400));
+    assert.ok(!trafficAI.oncomingBusy(A, m), 'si el otro esta lejos, dobla');
+    Object.assign(B, trafficAI.lanePoint(3, box.i, 0, trafficAI.alongOf(3, b.x, b.y) + 28 + 36), { spd: 0 });
+    assert.ok(!trafficAI.oncomingBusy(A, m), 'si el otro esta parado en la raya, dobla');
+  });
+
+  test('los tiros asustan a los que manejan cerca, y asustados no frenan en el rojo', () => {
+    startGame(CREW[0]);
+    for (let f = 0; f < 30; f++) update(1/60);
+    const P = G.me;
+    const c = civiles().find(c => dist(c, P) < SIM_R);
+    P.x = c.x + 45; P.y = c.y; P.wpn = 'pistola'; P.ang = Math.PI / 2;
+    for (const o of civiles()) o.panic = 0;
+    game.attack(P);
+    assert.ok(c.panic > 0 || (!c.ai && c.hazard), 'el de al lado se asusto (o dejo el auto y salio corriendo)');
+    assert.ok(civiles().filter(o => dist(o, P) > 300).every(o => !(o.panic > 0)), 'los de lejos ni se enteran');
+    // Asustado pasa aunque este en rojo
+    const L = lights.find(l => l && !l.off && !l.diag);
+    const m = { i: L.cx, j: L.cy, key: jkey(L.cx, L.cy), d: lightState(L, true) === 'rojo' ? 0 : 1, e: 0 };
+    const calmo = { ...c, panic: 0 };
+    assert.ok(!trafficAI.lightAllows(calmo, m, 50), 'tranquilo frena en el rojo');
+    assert.ok(trafficAI.lightAllows({ ...c, panic: 5 }, m, 50), 'asustado se lo pasa');
+  });
+
+  test('los autos paran las balas y el chofer se asusta', () => {
+    startGame(CREW[0]);
+    for (let f = 0; f < 10; f++) update(1/60);
+    const c = civiles().find(c => !trafficAI.boxAt(c.x, c.y)), P = G.me;
+    G.cars = [c];
+    c.spd = 0;
+    const hx = Math.cos(c.ang), hy = Math.sin(c.ang);
+    // Tiro por la calle, desde atras del auto; un peaton justo adelante, en la linea del tiro
+    const ped = G.peds.find(p => p.hp > 0);
+    Object.assign(ped, { x: c.x + hx * 30, y: c.y + hy * 30, inside: null });
+    const hp0 = c.hp, php0 = ped.hp;
+    G.bullets.push({ x: c.x - hx * 40, y: c.y - hy * 40, vx: hx * 600, vy: hy * 600, life: 1, owner: P, dmg: 22 });
+    for (let f = 0; f < 6; f++) update(1/60);
+    assert.ok(c.hp < hp0, 'la chapa recibio el balazo');
+    assert.equal(ped.hp, php0, 'el de atras quedo cubierto');
+    assert.ok(c.panic > 0 || !c.ai, 'el chofer se asusto (o se bajo corriendo)');
+  });
+
+  test('con la sirena atras se tira al cordon y lo deja pasar', () => {
+    startGame(CREW[0]);
+    for (let f = 0; f < 30; f++) update(1/60);
+    const c = civiles().find(c => !c.path && c.spd > 20 && !trafficAI.boxAt(c.x, c.y) && c.dir < 4);
+    assert.ok(c, 'hay un auto andando derecho');
+    const cop = makeChaser(G.me);
+    Object.assign(cop, { x: c.x - Math.cos(c.ang) * 45, y: c.y - Math.sin(c.ang) * 45, ang: c.ang, spd: 70 });
+    G.cars.push(cop);
+    trafficAI.update(c, 1/60);
+    assert.ok(c.pullOver > 0, 'se corre al cordon');
+    const v0 = c.spd;
+    for (let f = 0; f < 30; f++) trafficAI.update(c, 1/60);
+    assert.ok(c.spd < v0 * 0.6, 'afloja para dejarlo pasar: ' + v0.toFixed(0) + ' -> ' + c.spd.toFixed(0));
   });
 });
 
@@ -1876,6 +2086,97 @@ describe('multijugador', () => {
     removePlayer(P2);
   });
 
+  test('robar un auto con chofer: el chofer sale corriendo y la yuta se entera; el tuyo se recupera sin lio', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    for (let f = 0; f < 10; f++) update(1/60);
+    const c = G.cars.find(c => c.ai && c.hp > 0 && !c.chase);
+    c.spd = 0;
+    P2.x = c.x; P2.y = c.y + 12; P2.cool = 0; P2.wanted = 0;
+    const n0 = G.peds.length;
+    P2.ctl = { ...idleControls(), use: true };
+    update(1/60);
+    P2.ctl = idleControls();
+    assert.ok(P2.car === c, 'se subio');
+    const chofer = G.peds.slice(n0).find(p => p.fleeT > 0 && p.fleeFrom === P2);
+    assert.ok(chofer && dist(chofer, c) < 30, 'el chofer se bajo y huye del que le robo');
+    assert.equal(P2.wanted, 1, 'robarle el auto a alguien suma busqueda');
+    assert.equal(G.me.wanted, 0, 'al otro no le toca nada');
+    const cx0 = chofer.x, cy0 = chofer.y, d0 = dist(chofer, P2);
+    for (let f = 0; f < 90; f++) update(1/60);
+    // (con tránsito pasando a veces esquiva autos en vez de irse derecho)
+    const huye = Math.hypot(chofer.x - cx0, chofer.y - cy0) > 10 || dist(chofer, P2) > d0 + 10;
+    assert.ok(huye && chofer.fleeT > 0, 'sale corriendo');
+    // Bajarse andando: el auto queda sin nadie, rueda un poco y frena (no se va manejando solo)
+    c.spd = 90;
+    P2.cool = 0;
+    P2.ctl = { ...idleControls(), use: true };
+    update(1/60);
+    P2.ctl = idleControls();
+    const x0 = c.x, y0 = c.y;
+    for (let f = 0; f < 120; f++) update(1/60);
+    assert.ok(!P2.car && !c.ai && c.parked === P2, 'queda estacionado, de ' + P2.def.id);
+    assert.equal(c.spd, 0, 'termina frenando');
+    const rodo = Math.hypot(c.x - x0, c.y - y0);
+    assert.ok(rodo > 5 && rodo < 70, 'rodo un poco y freno: ' + rodo.toFixed(1));
+    // Volver a subirse al propio no llama a nadie
+    P2.wanted = 0; P2.x = c.x; P2.y = c.y + 12; P2.cool = 0;
+    P2.ctl = { ...idleControls(), use: true };
+    update(1/60);
+    P2.ctl = idleControls();
+    assert.ok(P2.car === c, 'se vuelve a subir');
+    assert.equal(P2.wanted, 0, 'subirse al propio no suma busqueda');
+  });
+
+  test('el que choca es el que la liga: el chofer se calienta con ese jugador y lo va a buscar', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    lejos(P2, 220);
+    for (let f = 0; f < 10; f++) update(1/60);
+    const mine = G.cars.find(c => c.ai && c.hp > 0 && dist(c, P2) < 300 && dist(c, G.me) > 150);
+    mine.ai = false;
+    P2.car = mine; P2.x = mine.x; P2.y = mine.y;
+    // Un chofer picante, de frente y a buena velocidad
+    const c = G.cars.find(o => o.ai && o.hp > 0 && o !== mine && dist(o, mine) > 60);
+    c.drv = { ...STYLES.picante, rage: 1 };
+    Object.assign(c, { x: mine.x + Math.cos(mine.ang) * 30, y: mine.y + Math.sin(mine.ang) * 30, ang: mine.ang + Math.PI, spd: 30, nav: false });
+    mine.spd = 60;
+    let pego = false;
+    for (let f = 0; f < 30 && !pego; f++) { update(1/60); P2.hp = P2.maxhp; pego = !!c.rage; }
+    assert.ok(pego, 'el choque lo calento');
+    assert.ok(c.rage.P === P2, 'la tiene con el que lo choco, no con el otro');
+    assert.ok(c.horn > 0 || c.hornCD > 0, 'toco bocina');
+    // Lo va a buscar: lo pongo a 120 px por la misma calle y lo tiene que alcanzar
+    mine.spd = 0;
+    P2.x = mine.x; P2.y = mine.y;
+    for (const k of [120, -120]) {
+      const x = mine.x + Math.cos(mine.ang) * k, y = mine.y + Math.sin(mine.ang) * k;
+      if (onRoad(x, y) && !hitBuilding(x, y, 8)) { Object.assign(c, { x, y, ang: mine.ang + (k > 0 ? Math.PI : 0) }); break; }
+    }
+    const d0 = dist(c, mine);
+    for (let f = 0; f < 90; f++) { update(1/60); P2.hp = P2.maxhp; mine.hp = 100; }
+    assert.ok(dist(c, mine) < d0 || !c.rage, 'lo persigue: ' + d0.toFixed(0) + ' -> ' + dist(c, mine).toFixed(0));
+    // Si se baja del auto, se le pasa
+    game.exitCar(P2);
+    for (let f = 0; f < 2; f++) update(1/60);
+    assert.ok(!c.rage, 'sin auto al que chocar, se le pasa la bronca');
+  });
+
+  test('si se le viene un auto encima, pega un volantazo', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    for (let f = 0; f < 10; f++) update(1/60);
+    const c = G.cars.find(o => o.ai && o.hp > 0 && !o.path && o.dir < 4 && !trafficAI.boxAt(o.x, o.y));
+    const mine = G.cars.find(o => o.ai && o.hp > 0 && o !== c);
+    mine.ai = false;
+    P2.car = mine;
+    // De frente por su carril, a toda velocidad
+    Object.assign(mine, { x: c.x + Math.cos(c.ang) * 60, y: c.y + Math.sin(c.ang) * 60, ang: c.ang + Math.PI, spd: 130 });
+    P2.x = mine.x; P2.y = mine.y;
+    trafficAI.update(c, 1/60);
+    assert.ok(c.evT > 0, 'se corre para un costado');
+  });
+
   test('el auto que maneja un jugador no se lo roba otro', () => {
     startGame(CREW[0]);
     const P2 = addPlayer(CREW[1]);
@@ -2192,6 +2493,31 @@ describe('multijugador online', () => {
     assert.equal(C.G.me.respect, P2.respect, 'y su respeto');
     C.render();
     game.dropTrapo(P2);
+  });
+
+  test('el cliente le roba el auto a uno: lo ve salir corriendo, y ve las balizas de los abandonados', async () => {
+    const { red, P2 } = await conectar();
+    const c = G.cars.find(c => c.ai && c.hp > 0 && !c.chase);
+    c.spd = 0;
+    Object.assign(P2, { x: c.x, y: c.y + 12, car: null, cool: 0, wanted: 0 });
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = false;
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(P2.car === c, 'el host lo sube al auto');
+    const chofer = G.peds.find(p => p.fleeFrom === P2);
+    assert.ok(chofer, 'el chofer se bajo');
+    assert.ok(C.G.peds.some(p => Math.hypot(p.x - chofer.x, p.y - chofer.y) < 8), 'el cliente lo ve salir corriendo');
+    assert.ok(C.G.me.car, 'y se ve adentro del auto');
+    // Un auto que abandono un chofer asustado queda con las balizas: el cliente las ve titilar
+    const o = G.cars.filter(o => o !== c && o.ai && o.hp > 0).sort((a, b) => dist(a, P2) - dist(b, P2))[0];
+    o.spd = 0;
+    trafficAI.bailOut(o, P2);
+    for (let f = 0; f < 20; f++) frame(red);
+    const visto = C.G.cars.slice().sort((a, b) => dist(a, o) - dist(b, o))[0];
+    assert.ok(visto && dist(visto, o) < 12 && visto.hazard, 'el cliente ve las balizas');
+    C.render();
   });
 
   test('las fotos son chicas y lo que no cambia se manda una vez', async () => {
