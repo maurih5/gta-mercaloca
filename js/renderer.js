@@ -2430,7 +2430,7 @@ class Renderer {
     rows.forEach(([kind, label], i) => {
       const y = 30 + i * step;
       this.mapIcon(kind, x0 + 12, y, kind === 'jugador' ? G.players.find(q => q !== G.me) : null);
-      this.text(label, x0 + 22, y + 2.5, '#e8e8e8', 5);
+      this.text(label, x0 + 22, y + 2.5, '#e8e8e8', label.length > 16 ? 4 : 5); // los largos, más chicos para que entren
     });
   }
 
@@ -2850,7 +2850,7 @@ const MAP_LEGEND = [
   ['vos', 'VOS'], ['jugador', 'OTRO JUGADOR'], ['hospital', 'HOSPITAL'], ['armeria', 'ARMERIA'],
   ['choto', 'SUPER CHOTO'], ['noche', 'SUPER NOCHE %'], ['cerrado', 'SUPER CERRADO'],
   ['parrilla', 'PARRILLA'], ['asado', 'ASADO PRENDIDO'], ...STADIUMS.map(S => ['st_' + S.k, S.name]),
-  ...BARRAS.map(B => ['tr_' + B.k, 'TRAPO DE ' + B.short]), ['hincha', 'BARRA CALIENTE'],
+  ...BARRAS.map(B => ['tr_' + B.k, 'TRAPO ' + B.short]), ['hincha', 'BARRA CALIENTE'],
   ['rosada', 'CASA ROSADA'], ['obelisco', 'OBELISCO'],
   ['tranza', 'TRANZA'], ['tranzaMal', 'TRANZA CALIENTE'], ['famoso', 'FAMOSO'], ['yuta', 'YUTA'],
   ['patrullero', 'PATRULLERO'], ['guita', 'GUITA'], ['fierro', 'FIERRO'], ['comida', 'COMIDA'],
