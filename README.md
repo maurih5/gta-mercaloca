@@ -154,6 +154,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 - [x] Supermercado económico NOCHE %, parodia de Día (sin carne, más barato) (#31)
 - [x] Poder robar los supermercados: alarma, botín, testigos, respuesta policial (#32)
 - [x] CHOTO de Lanús: sin carne, cartel sin la O, changuitos dados vuelta y un perro durmiendo en la puerta (#35)
+- [x] Estadios de BOCA JUNIORES (LA CHOCOLATERA) y RIVER PLATO (EL MONUMENTAZO), con los colores de cada club
 - [ ] Casas personales personalizables: interior, guardado, mejoras (#28)
 - [ ] Autos personales: propiedad, guardado, personalización, recuperación (#29)
 - [ ] Bares como lugar social: pedidos, NPCs, minijuegos, reputación (#36)

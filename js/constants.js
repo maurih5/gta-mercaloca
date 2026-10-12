@@ -330,6 +330,14 @@ const LANUS_ITEMS = [
 // Las cadenas: cartel del techo (al de Lanús se le cayó la O), colores de la fachada y del cartel, y dónde va cada
 // local (fracción del mapa; se convierte el edificio grande más cercano a ese punto).
 // El de Lanús va del otro lado del Riachuelo, como corresponde.
+// Estadios: parodias de las canchas de verdad, con los colores de cada club. Cada uno ocupa
+// una manzana entera, la libre más cercana a "at" (celda de la grilla): LA CHOCOLATERA del
+// lado de La Boca, pegada al Riachuelo; EL MONUMENTAZO en el norte.
+const STADIUMS = [
+  { k: 'boca', name: 'LA CHOCOLATERA', club: 'BOCA JUNIORES', at: [14, 14], c1: '#123f8c', c2: '#f3b229', wall: '#0e3270' },
+  { k: 'river', name: 'EL MONUMENTAZO', club: 'RIVER PLATO', at: [11, 2], c1: '#f2f2f2', c2: '#e4002b', wall: '#c9c9c9' },
+];
+
 const SUPERS = [
   { k: 'choto', name: 'CHOTO', at: [0.30, 0.44], col: '#e8e0d4', roof: '#c8302a', sign: '#c8302a', ink: '#fff' },
   { k: 'noche', name: 'NOCHE %', at: [0.22, 0.62], col: '#e4e6ec', roof: '#2a4fa8', sign: '#d8302a', ink: '#fff' },

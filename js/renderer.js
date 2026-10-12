@@ -420,6 +420,7 @@ class Renderer {
       ctx.fillText('ARMAS', px(sx), px(sy + 2.5));
     }
 
+    if (b.stadium) this.drawStadium(b, rx, ry);
     if (b.super) this.drawSuperSign(b, rx, ry);
     if (b.super && b.closed > 0 && b.door) {
       // Persiana baja: chapa gris con canaletas
@@ -439,6 +440,70 @@ class Renderer {
       ctx.fillStyle = bl ? '#ff5a5a' : '#4a1212';
       ctx.fillRect(px(rx + b.w * 0.85), px(ry + b.h * 0.85), 3, 3);
     }
+  }
+
+  // Estadio visto de arriba: tribunas con los colores del club (Boca: azul con la franja
+  // amarilla; River: blanco con la banda roja cruzada), la cancha con sus líneas, las
+  // torres de luz en las esquinas y el nombre sobre la tribuna de la puerta.
+  drawStadium(b, rx, ry) {
+    const ctx = this.ctx, S = STADIUMS.find(q => q.k === b.stadium);
+    const w = b.w, h = b.h, m = Math.min(w, h) * 0.2;
+    ctx.fillStyle = S.c1;
+    ctx.fillRect(px(rx), px(ry), px(w), px(h));
+    // Gradas: escalones más oscuros hacia la cancha
+    ctx.fillStyle = 'rgba(0,0,0,.12)';
+    for (let i = 1; i < 4; i++) ctx.strokeRect(rx + i * m / 4, ry + i * m / 4, w - i * m / 2, h - i * m / 2);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(rx, ry, w, h);
+    ctx.rect(rx + m, ry + m, w - 2 * m, h - 2 * m);
+    ctx.clip('evenodd');
+    ctx.fillStyle = S.c2;
+    if (b.stadium === 'river') {
+      // La banda roja, de punta a punta en diagonal
+      ctx.beginPath();
+      ctx.moveTo(rx, ry + h * 0.18);
+      ctx.lineTo(rx + w * 0.18, ry);
+      ctx.lineTo(rx + w, ry + h * 0.82);
+      ctx.lineTo(rx + w * 0.82, ry + h);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillRect(px(rx), px(ry + h * 0.4), px(w), px(h * 0.2)); // la franja amarilla
+    }
+    ctx.restore();
+    // La cancha
+    const fx = rx + m, fy = ry + m, fw = w - 2 * m, fh = h - 2 * m;
+    ctx.fillStyle = '#3f8f3a';
+    ctx.fillRect(px(fx), px(fy), px(fw), px(fh));
+    ctx.fillStyle = '#4a9c44';
+    for (let i = 0; i < 6; i += 2) ctx.fillRect(px(fx), px(fy + fh * i / 6), px(fw), px(fh / 6));
+    ctx.strokeStyle = 'rgba(255,255,255,.75)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(fx + 3, fy + 3, fw - 6, fh - 6);
+    ctx.beginPath();
+    ctx.moveTo(fx + 3, fy + fh / 2);
+    ctx.lineTo(fx + fw - 3, fy + fh / 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(fx + fw / 2, fy + fh / 2, Math.min(fw, fh) * 0.12, 0, TAU);
+    ctx.stroke();
+    ctx.strokeRect(fx + fw * 0.3, fy + 3, fw * 0.4, fh * 0.12);
+    ctx.strokeRect(fx + fw * 0.3, fy + fh - 3 - fh * 0.12, fw * 0.4, fh * 0.12);
+    // Torres de luz
+    for (const [cx2, cy2] of [[rx + 3, ry + 3], [rx + w - 6, ry + 3], [rx + 3, ry + h - 6], [rx + w - 6, ry + h - 6]]) {
+      ctx.fillStyle = '#2a2d33';
+      ctx.fillRect(px(cx2), px(cy2), 4, 4);
+      ctx.fillStyle = darkness() > 0.3 ? '#fff6c8' : '#b8bcc4';
+      ctx.fillRect(px(cx2 + 1), px(cy2 + 1), 2, 2);
+    }
+    // Nombre sobre la tribuna de la puerta
+    const nw = S.name.length * 5 + 8;
+    ctx.fillStyle = '#14100c';
+    ctx.fillRect(px(rx + w / 2 - nw / 2 - 1), px(ry + h - m * 0.75 - 1), nw + 2, 10);
+    ctx.fillStyle = b.stadium === 'river' ? S.c2 : S.c1;
+    ctx.fillRect(px(rx + w / 2 - nw / 2), px(ry + h - m * 0.75), nw, 8);
+    this.text(S.name, rx + w / 2, ry + h - m * 0.75 + 6.5, b.stadium === 'river' ? '#fff' : S.c2, 5, 'center');
   }
 
   // Cartel del super en el techo. Al de Lanús se le cayó la O y quedó tirada al lado
@@ -2033,6 +2098,7 @@ class Renderer {
     for (const b of supers) dot({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, '#ff6a5a', 3);
     for (const g of parrillas) dot(g, g.cooking ? '#ff9a3a' : '#a8643a', 2);
     for (const cr of casaRosada) dot({ x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }, '#ff8fc0', 3);
+    for (const b of stadiums) dot({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, STADIUMS.find(q => q.k === b.stadium).c2, 3);
     if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#e8f070', 3);
     for (const c of G.cops) dot(c, '#4aa3ff');
     for (const t of G.tranzas) if (t.hp > 0) dot(t, t.villa.angry > 0 ? '#ff3a3a' : '#c070ff');
@@ -2088,6 +2154,7 @@ class Renderer {
     for (const b of shops) add('armeria', b.door.x + b.door.ox, b.door.y + b.door.oy);
     for (const b of supers) add(b.closed > 0 || b.robbing ? 'cerrado' : b.super === 'noche' ? 'noche' : 'choto', ...mid(b));
     for (const cr of casaRosada) add('rosada', ...mid(cr));
+    for (const b of stadiums) add(b.stadium, ...mid(b));
     if (obelisco) add('obelisco', ...mid(obelisco));
     for (const t of G.tranzas) if (t.hp > 0) add(t.villa.angry > 0 ? 'tranzaMal' : 'tranza', t.x, t.y);
     for (const c of G.cops) add('yuta', c.x, c.y);
@@ -2132,6 +2199,12 @@ class Renderer {
       case 'cerrado': box('#5a5e64'); cart('#9aa0a6'); break;
       case 'parrilla': box('#6a3a22'); r('#c8c8c8', -3, -1, 7, 1); r('#c8c8c8', -3, 1, 7, 1); r('#c8c8c8', -2, -3, 1, 6); r('#c8c8c8', 1, -3, 1, 6); break;
       case 'asado': box('#2a1610'); r('#ff7a2a', -2, -1, 5, 4); r('#ffd34a', -1, -3, 3, 4); r('#fff2a0', 0, -1, 1, 2); break;
+      case 'boca': box('#123f8c'); r('#f3b229', -4, -1, 9, 3); break;
+      case 'river': {
+        box('#f2f2f2');
+        for (let i = -4; i <= 3; i++) r('#e4002b', i, i - 1, 2, 2); // la banda cruzada
+        break;
+      }
       case 'rosada': box('#ff8fc0'); r('#fff', -3, 0, 7, 3); r('#fff', -2, -1, 5, 1); r('#fff', -1, -2, 3, 1); r('#ff8fc0', 0, 1, 1, 2); break;
       case 'obelisco': box('#e8f070'); r('#14100c', 0, -3, 1, 7); r('#14100c', -1, 2, 3, 2); break;
       case 'tranza': box('#7a3ab8'); r('#5ad266', -1, -3, 3, 6); r('#5ad266', -3, -1, 7, 2); break;
@@ -2165,7 +2238,7 @@ class Renderer {
     ctx.globalAlpha = 1;
     // Primero lo chico (guita, yuta), arriba los lugares
     const order = ['guita', 'fierro', 'comida', 'yuta', 'parrilla', 'asado', 'tranza', 'tranzaMal', 'patrullero',
-      'cerrado', 'noche', 'choto', 'armeria', 'hospital', 'rosada', 'obelisco', 'famoso', 'jugador'];
+      'cerrado', 'noche', 'choto', 'armeria', 'hospital', 'boca', 'river', 'rosada', 'obelisco', 'famoso', 'jugador'];
     for (const kind of order) {
       for (const e of items) {
         if (e.kind !== kind) continue;
@@ -2622,7 +2695,8 @@ const drawMap = () => renderer.drawMap();
 const MAP_LEGEND = [
   ['vos', 'VOS'], ['jugador', 'OTRO JUGADOR'], ['hospital', 'HOSPITAL'], ['armeria', 'ARMERIA'],
   ['choto', 'SUPER CHOTO'], ['noche', 'SUPER NOCHE %'], ['cerrado', 'SUPER CERRADO'],
-  ['parrilla', 'PARRILLA'], ['asado', 'ASADO PRENDIDO'], ['rosada', 'CASA ROSADA'], ['obelisco', 'OBELISCO'],
+  ['parrilla', 'PARRILLA'], ['asado', 'ASADO PRENDIDO'], ['boca', 'LA CHOCOLATERA'], ['river', 'EL MONUMENTAZO'],
+  ['rosada', 'CASA ROSADA'], ['obelisco', 'OBELISCO'],
   ['tranza', 'TRANZA'], ['tranzaMal', 'TRANZA CALIENTE'], ['famoso', 'FAMOSO'], ['yuta', 'YUTA'],
   ['patrullero', 'PATRULLERO'], ['guita', 'GUITA'], ['fierro', 'FIERRO'], ['comida', 'COMIDA'],
 ];
