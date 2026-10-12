@@ -426,6 +426,7 @@ function rectHitsWater(x, y, w, h) {
 }
 const shops = [];
 const supers = []; // supermercados (CHOTO, NOCHE %, CHOTO de Lanús)
+const stadiums = []; // LA CHOCOLATERA y EL MONUMENTAZO
 const parrillas = []; // parrillas de las plazas y los potreros: ahí se hace el asado
 
 // Villas con su rectángulo en coordenadas del mundo (incluye las calles que las cruzan)
@@ -460,6 +461,7 @@ class World {
     this.cabildo = cabildo;
     this.shops = shops;
     this.supers = supers;
+    this.stadiums = stadiums;
     this.parrillas = parrillas;
     this.bgrid = null;
   }
@@ -590,6 +592,13 @@ class World {
     }
     this.shops.length = 0;
     this.supers.length = 0;
+    this.stadiums.length = 0;
+    // Las manzanas de los estadios, antes de plantar edificios
+    const cancha = new Map();
+    for (const S of STADIUMS) {
+      const c = this.stadiumCell(S, [...cancha.keys()]);
+      if (c) cancha.set(c, S);
+    }
     this.parrillas.length = 0;
 
     let id = 0;
@@ -617,6 +626,20 @@ class World {
 
         if (park) {
           this.props.push({ t: 'park', x: bx, y: by, w: innerW, h: innerH, villa: !!villa });
+          continue;
+        }
+
+        // Estadio: la manzana entera, con la puerta (y la barra) del lado de abajo
+        const S = cancha.get(cx + ',' + cy);
+        if (S) {
+          const x = bx + 6, y = by + 6, w = innerW - 12, h = innerH - 12;
+          const b = {
+            id: id++, x, y, w, h, H: 30, ty: BTYPE.find(t => t.k === 'local'),
+            col: S.wall, roofCol: S.c1, ac: false, tank: false, stadium: S.k,
+            door: { x: x + w / 2, y: y + h, ox: 0, oy: 7, s: 's' },
+          };
+          this.buildings.push(b);
+          this.stadiums.push(b);
           continue;
         }
 
@@ -764,7 +787,7 @@ class World {
         let best = null, bd = Infinity;
         for (const b of this.buildings) {
           const d = b.door;
-          if (!d || b.shop || b.casaRosada || b.cabildo || !this.onRoad(d.x + d.ox * 4, d.y + d.oy * 4)) continue;
+          if (!d || b.shop || b.casaRosada || b.cabildo || b.stadium || !this.onRoad(d.x + d.ox * 4, d.y + d.oy * 4)) continue;
           const dd = Math.hypot(d.x - zcx, d.y - zcy);
           if (dd < bd) { bd = dd; best = b; }
         }
@@ -1144,7 +1167,7 @@ class World {
       let best = null, bd = Infinity;
       for (const b of this.buildings) {
         // Ni monumentos, ni armerías, ni casillas de villa: no se pintan de hospital
-        if (b.hospital || b.shop || b.villa || b.casaRosada || b.cabildo || b.ty.k === 'torre') continue;
+        if (b.hospital || b.shop || b.villa || b.casaRosada || b.cabildo || b.stadium || b.ty.k === 'torre') continue;
         const d = Math.hypot(b.x + b.w / 2 - tx, b.y + b.h / 2 - ty);
         if (d < bd) { bd = d; best = b; }
       }
@@ -1163,7 +1186,7 @@ class World {
       let best = null, bs = -Infinity;
       for (const b of this.buildings) {
         const d = b.door;
-        if (!d || b.super || b.shop || b.hospital || b.villa || b.casaRosada || b.cabildo || b.ty.k === 'torre') continue;
+        if (!d || b.super || b.shop || b.hospital || b.villa || b.casaRosada || b.cabildo || b.stadium || b.ty.k === 'torre') continue;
         if (!this.onRoad(d.x + d.ox * 4, d.y + d.oy * 4)) continue;
         const dd = Math.hypot(b.x + b.w / 2 - tx, b.y + b.h / 2 - ty);
         const score = b.w * b.h - dd * 12; // grande, pero que no se vaya lejos del punto
@@ -1185,6 +1208,26 @@ class World {
       if (inWater(x, y) || this.hitBuilding(x, y, 10)) continue;
       this.parrillas.push({ x, y, t: 0, cooking: false, portions: 0, owner: null });
     }
+  }
+
+  // La manzana libre más cercana a S.at para un estadio: sin río, playa, diagonal, villa,
+  // plazas ni la Plaza de Mayo, y con las cuatro calles de alrededor vivas
+  stadiumCell(S, taken) {
+    let best = null, bd = Infinity;
+    for (let cy = 1; cy < GRID - 1; cy++) {
+      for (let cx = 1; cx < GRID - 1; cx++) {
+        const d = Math.hypot(cx - S.at[0], cy - S.at[1]);
+        if (d >= bd || taken.includes(cx + ',' + cy)) continue;
+        if (this.villaCell(cx, cy) || isPlazaMayoCell(cx, cy) || (cx === PLAZA_CX && cy === PLAZA_CY)) continue;
+        if ((cx + cy) % 9 === 4) continue; // ahí va una plaza
+        const x = cx * CELL, y = cy * CELL, s = CELL + ROAD;
+        if (rectHitsWater(x, y, s, s) || rectHitsBeach(x, y, s, s) || rectHitsDiagonalBand(x, y, s, s)) continue;
+        if (inCabildoLote(x, y, s, s)) continue;
+        bd = d;
+        best = cx + ',' + cy;
+      }
+    }
+    return best;
   }
 
   // Changuitos en la vereda del super, al costado de la puerta. En el de Lanús están

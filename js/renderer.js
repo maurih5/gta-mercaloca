@@ -420,6 +420,7 @@ class Renderer {
       ctx.fillText('ARMAS', px(sx), px(sy + 2.5));
     }
 
+    if (b.stadium) this.drawStadium(b, rx, ry);
     if (b.super) this.drawSuperSign(b, rx, ry);
     if (b.super && b.closed > 0 && b.door) {
       // Persiana baja: chapa gris con canaletas
@@ -439,6 +440,112 @@ class Renderer {
       ctx.fillStyle = bl ? '#ff5a5a' : '#4a1212';
       ctx.fillRect(px(rx + b.w * 0.85), px(ry + b.h * 0.85), 3, 3);
     }
+  }
+
+  // Estadio visto de arriba: tribunas con los colores del club, la cancha con sus líneas,
+  // las torres de luz y el nombre sobre la tribuna de la puerta. Cada club a su manera:
+  // Boca con la franja amarilla y sin una tribuna (solo los palcos), River con la banda roja
+  // cruzada, Independiente todo rojo y Racing redondo, con bastones celestes y blancos.
+  drawStadium(b, rx, ry) {
+    const ctx = this.ctx, S = STADIUMS.find(q => q.k === b.stadium);
+    const w = b.w, h = b.h, m = Math.min(w, h) * 0.2;
+    // La cancha (en Boca se corre: del lado que falta la tribuna hay solo palcos)
+    const miss = S.missing ? m * 0.65 : 0;
+    const fx = rx + m, fy = ry + m, fw = w - 2 * m + miss, fh = h - 2 * m;
+    ctx.save();
+    if (S.round) {
+      // El termo: redondo, con gajos celestes y blancos
+      const cx = rx + w / 2, cy = ry + h / 2, R = Math.min(w, h) / 2;
+      ctx.fillStyle = '#8a8e94'; // explanada de cemento en las esquinas
+      ctx.fillRect(px(rx), px(ry), px(w), px(h));
+      ctx.fillStyle = S.c1;
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill();
+      ctx.fillStyle = S.c2;
+      for (let i = 0; i < 16; i += 2) {
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, R, (i / 16) * TAU, ((i + 1) / 16) * TAU);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(0,0,0,.18)';
+      for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.arc(cx, cy, R - i * m / 4, 0, TAU); ctx.stroke(); }
+      ctx.strokeStyle = '#2a2d33';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, R - 0.5, 0, TAU); ctx.stroke();
+      ctx.lineWidth = 1;
+    } else {
+      ctx.fillStyle = S.c1;
+      ctx.fillRect(px(rx), px(ry), px(w), px(h));
+      ctx.strokeStyle = 'rgba(0,0,0,.12)';
+      for (let i = 1; i < 4; i++) ctx.strokeRect(rx + i * m / 4, ry + i * m / 4, w - i * m / 2, h - i * m / 2);
+      ctx.beginPath();
+      ctx.rect(rx, ry, w, h);
+      ctx.rect(fx, fy, fw, fh);
+      ctx.clip('evenodd');
+      ctx.fillStyle = S.c2;
+      if (S.pattern === 'banda') {
+        ctx.beginPath();
+        ctx.moveTo(rx, ry + h * 0.18); ctx.lineTo(rx + w * 0.18, ry);
+        ctx.lineTo(rx + w, ry + h * 0.82); ctx.lineTo(rx + w * 0.82, ry + h);
+        ctx.closePath();
+        ctx.fill();
+      } else if (S.pattern === 'franja') {
+        ctx.fillRect(px(rx), px(ry + h * 0.4), px(w), px(h * 0.2));
+      } else {
+        // Liso: una línea blanca finita en el borde de cada tribuna
+        ctx.strokeStyle = S.c2;
+        ctx.strokeRect(rx + 2.5, ry + 2.5, w - 5, h - 5);
+      }
+    }
+    ctx.restore();
+    if (S.missing) {
+      // El lado sin tribuna: la fila chata de palcos y el cartel del chiste
+      const px0 = fx + fw, pw = rx + w - px0;
+      ctx.fillStyle = '#d8d0c0';
+      ctx.fillRect(px(px0), px(ry), px(pw), px(h));
+      ctx.fillStyle = '#5a5e64';
+      for (let yy = ry + 3; yy < ry + h - 4; yy += 6) ctx.fillRect(px(px0 + 1.5), px(yy), px(pw - 3), 4);
+      ctx.save();
+      ctx.translate(px0 + pw / 2 + 1.5, ry + h / 2);
+      ctx.rotate(Math.PI / 2);
+      this.text('ACA VA UNA TRIBUNA', 0, 0, '#ffd34a', 4, 'center');
+      ctx.restore();
+    }
+    // La cancha
+    ctx.fillStyle = '#3f8f3a';
+    ctx.fillRect(px(fx), px(fy), px(fw), px(fh));
+    ctx.fillStyle = '#4a9c44';
+    for (let i = 0; i < 6; i += 2) ctx.fillRect(px(fx), px(fy + fh * i / 6), px(fw), px(fh / 6));
+    ctx.strokeStyle = 'rgba(255,255,255,.75)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(fx + 3, fy + 3, fw - 6, fh - 6);
+    ctx.beginPath();
+    ctx.moveTo(fx + 3, fy + fh / 2);
+    ctx.lineTo(fx + fw - 3, fy + fh / 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(fx + fw / 2, fy + fh / 2, Math.min(fw, fh) * 0.12, 0, TAU);
+    ctx.stroke();
+    ctx.strokeRect(fx + fw * 0.3, fy + 3, fw * 0.4, fh * 0.12);
+    ctx.strokeRect(fx + fw * 0.3, fy + fh - 3 - fh * 0.12, fw * 0.4, fh * 0.12);
+    // Torres de luz
+    const lights = S.round
+      ? [[rx + w * 0.15, ry + h * 0.15], [rx + w * 0.85 - 4, ry + h * 0.15], [rx + w * 0.15, ry + h * 0.85 - 4], [rx + w * 0.85 - 4, ry + h * 0.85 - 4]]
+      : [[rx + 3, ry + 3], [rx + w - 6, ry + 3], [rx + 3, ry + h - 6], [rx + w - 6, ry + h - 6]];
+    for (const [cx2, cy2] of lights) {
+      ctx.fillStyle = '#2a2d33';
+      ctx.fillRect(px(cx2), px(cy2), 4, 4);
+      ctx.fillStyle = darkness() > 0.3 ? '#fff6c8' : '#b8bcc4';
+      ctx.fillRect(px(cx2 + 1), px(cy2 + 1), 2, 2);
+    }
+    // Nombre sobre la tribuna de la puerta
+    const nw = S.name.length * 5 + 8, ny = ry + h - m * 0.75;
+    ctx.fillStyle = '#14100c';
+    ctx.fillRect(px(rx + w / 2 - nw / 2 - 1), px(ny - 1), nw + 2, 10);
+    ctx.fillStyle = S.pattern === 'banda' ? S.c2 : S.round ? '#3a7ab8' : S.c1;
+    ctx.fillRect(px(rx + w / 2 - nw / 2), px(ny), nw, 8);
+    this.text(S.name, rx + w / 2, ny + 6.5, S.pattern === 'franja' ? S.c2 : '#fff', 5, 'center');
   }
 
   // Cartel del super en el techo. Al de Lanús se le cayó la O y quedó tirada al lado
@@ -2033,6 +2140,7 @@ class Renderer {
     for (const b of supers) dot({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, '#ff6a5a', 3);
     for (const g of parrillas) dot(g, g.cooking ? '#ff9a3a' : '#a8643a', 2);
     for (const cr of casaRosada) dot({ x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }, '#ff8fc0', 3);
+    for (const b of stadiums) dot({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, STADIUMS.find(q => q.k === b.stadium).c2, 3);
     if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#e8f070', 3);
     for (const c of G.cops) dot(c, '#4aa3ff');
     for (const t of G.tranzas) if (t.hp > 0) dot(t, t.villa.angry > 0 ? '#ff3a3a' : '#c070ff');
@@ -2088,6 +2196,7 @@ class Renderer {
     for (const b of shops) add('armeria', b.door.x + b.door.ox, b.door.y + b.door.oy);
     for (const b of supers) add(b.closed > 0 || b.robbing ? 'cerrado' : b.super === 'noche' ? 'noche' : 'choto', ...mid(b));
     for (const cr of casaRosada) add('rosada', ...mid(cr));
+    for (const b of stadiums) add('st_' + b.stadium, ...mid(b));
     if (obelisco) add('obelisco', ...mid(obelisco));
     for (const t of G.tranzas) if (t.hp > 0) add(t.villa.angry > 0 ? 'tranzaMal' : 'tranza', t.x, t.y);
     for (const c of G.cops) add('yuta', c.x, c.y);
@@ -2108,6 +2217,16 @@ class Renderer {
     };
     const box = (bg) => { r('#000', -5, -5, 11, 11); r(bg, -4, -4, 9, 9); };
     const cart = c => { r(c, -3, -2, 6, 3); r(c, -3, -3, 1, 1); r(c, -2, 2, 1, 1); r(c, 2, 2, 1, 1); };
+    // Estadios: un cuadrito con los colores del club, a su manera
+    if (kind.startsWith('st_')) {
+      const S = STADIUMS.find(q => 'st_' + q.k === kind);
+      box(S.c1);
+      if (S.pattern === 'franja') r(S.c2, -4, -1, 9, 3);
+      else if (S.pattern === 'banda') for (let i = -4; i <= 3; i++) r(S.c2, i, i - 1, 2, 2);
+      else if (S.pattern === 'bastones') for (let i = -3; i <= 3; i += 2) r(S.c2, i, -4, 1, 9);
+      else { r(S.c2, -2, -2, 5, 5); r(S.c1, -1, -1, 3, 3); }
+      return;
+    }
     switch (kind) {
       case 'vos': {
         const P = G.me;
@@ -2165,7 +2284,7 @@ class Renderer {
     ctx.globalAlpha = 1;
     // Primero lo chico (guita, yuta), arriba los lugares
     const order = ['guita', 'fierro', 'comida', 'yuta', 'parrilla', 'asado', 'tranza', 'tranzaMal', 'patrullero',
-      'cerrado', 'noche', 'choto', 'armeria', 'hospital', 'rosada', 'obelisco', 'famoso', 'jugador'];
+      'cerrado', 'noche', 'choto', 'armeria', 'hospital', ...STADIUMS.map(S => 'st_' + S.k), 'rosada', 'obelisco', 'famoso', 'jugador'];
     for (const kind of order) {
       for (const e of items) {
         if (e.kind !== kind) continue;
@@ -2622,7 +2741,8 @@ const drawMap = () => renderer.drawMap();
 const MAP_LEGEND = [
   ['vos', 'VOS'], ['jugador', 'OTRO JUGADOR'], ['hospital', 'HOSPITAL'], ['armeria', 'ARMERIA'],
   ['choto', 'SUPER CHOTO'], ['noche', 'SUPER NOCHE %'], ['cerrado', 'SUPER CERRADO'],
-  ['parrilla', 'PARRILLA'], ['asado', 'ASADO PRENDIDO'], ['rosada', 'CASA ROSADA'], ['obelisco', 'OBELISCO'],
+  ['parrilla', 'PARRILLA'], ['asado', 'ASADO PRENDIDO'], ...STADIUMS.map(S => ['st_' + S.k, S.name]),
+  ['rosada', 'CASA ROSADA'], ['obelisco', 'OBELISCO'],
   ['tranza', 'TRANZA'], ['tranzaMal', 'TRANZA CALIENTE'], ['famoso', 'FAMOSO'], ['yuta', 'YUTA'],
   ['patrullero', 'PATRULLERO'], ['guita', 'GUITA'], ['fierro', 'FIERRO'], ['comida', 'COMIDA'],
 ];
