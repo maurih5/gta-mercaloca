@@ -138,9 +138,9 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 - [x] **Fumarse un porro:**
   - [x] Efecto "bullet time" (ralentiza el paso del tiempo durante unos segundos)
   - [x] Efecto visual de gradiente/filtro verde en pantalla
-- [ ] Necesidades de hambre y sed: comida, bebida, efectos de estado e inventario (#41)
-- [ ] Mecánica de asado: combinar carbón + carne + parrilla, tiempo de cocción y resultado consumible (#40)
-- [ ] Respeto por jugador: robarle el trapo a una barra da respeto y la pone en tu contra (#81)
+- [x] Necesidades de hambre y sed: comida, bebida, efectos de estado e inventario (#41)
+- [x] Mecánica de asado: combinar carbón + carne + parrilla, tiempo de cocción y resultado consumible (#40)
+- [x] Respeto por jugador: robarle el trapo a una barra da respeto y la pone en tu contra (#81)
 
 ### 🗺️ Mundo & Ubicaciones
 - [x] Ampliar el mapa a 24x24 (#38)
@@ -154,6 +154,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 - [x] Supermercado económico NOCHE %, parodia de Día (sin carne, más barato) (#31)
 - [x] Poder robar los supermercados: alarma, botín, testigos, respuesta policial (#32)
 - [x] CHOTO de Lanús: sin carne, cartel sin la O, changuitos dados vuelta y un perro durmiendo en la puerta (#35)
+- [x] Estadios de los cuatro grandes, con los colores de cada club: LA CHOCOLATERA (BOCA JUNIORES, le falta una tribuna), EL MONUMENTAZO (RIVER PLATO), LOS DEUDORES DE AMERICA (DEPENDIENTE) y EL TERMO (RASIN CLUB)
 - [ ] Casas personales personalizables: interior, guardado, mejoras (#28)
 - [ ] Autos personales: propiedad, guardado, personalización, recuperación (#29)
 - [ ] Bares como lugar social: pedidos, NPCs, minijuegos, reputación (#36)

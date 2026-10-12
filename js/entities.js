@@ -27,6 +27,16 @@ class EntityManager {
       armor: 0,
       swing: 0,
       porros: 0,
+      food: 100,       // hambre: 100 lleno, 0 muerto de hambre
+      drink: 100,      // sed
+      bag: {},         // mochila: comida y bebida por id (FOOD)
+      respect: 0,      // respeto (RANKS)
+      wantPeak: 0,     // estrellas máximas desde la última vez en 0 (para el respeto al perderlos)
+      trapo: null,     // la barra cuyo trapo lleva encima
+      trapoT: 0,
+      trapos: 0,       // trapos aguantados
+      hitBy: null,     // el último jugador que le pegó (para darle el respeto si cae)
+      hitT: 0,
       money: 0,
       wanted: 0,
       wantCool: 0,
@@ -38,6 +48,8 @@ class EntityManager {
       nearShop: null,
       nearTranza: null,
       nearSuper: null,
+      nearGrill: null,
+      nearTrapo: null,
       zone: null,
       slowmo: 0,
       high: 0,
@@ -143,8 +155,15 @@ class EntityManager {
     const m = cop
       ? { k: 'patrol', w: 24, h: 11, cruise: 78 }
       : CARMODEL[(Math.random() * CARMODEL.length) | 0];
-    const ang = Math.round(rnd(0, 4)) * Math.PI / 2;
-    const L = laneSnap(x, y, ang);
+    // Para un lado al azar, pero que el carril caiga en una calle que existe: en una
+    // esquina con una calle cortada (por el río, en el borde) se pasaba a esa y el auto
+    // aparecía fuera del asfalto. Se prueban los cuatro sentidos, empezando por el sorteado.
+    const ang0 = Math.round(rnd(0, 4)) * Math.PI / 2;
+    let L = laneSnap(x, y, ang0);
+    for (let i = 1; i < 4 && !onRoad(L.x, L.y); i++) {
+      const L2 = laneSnap(x, y, ang0 + i * Math.PI / 2);
+      if (onRoad(L2.x, L2.y)) L = L2;
+    }
     return {
       kind: 'car',
       x: L.x,
@@ -193,6 +212,40 @@ class EntityManager {
   }
 
   // Tranza parado en su esquina de la villa. Si lo atacan, la villa entera se pudre.
+  // Las barras (mundo compartido): su estadio, dónde cuelga el trapo y en qué anda
+  makeBarras() {
+    const out = [];
+    for (const def of BARRAS) {
+      const st = stadiums.find(b => b.stadium === def.stadium);
+      if (!st) continue;
+      const d = st.door;
+      out.push({
+        def, stadium: st,
+        flag: { x: d.x + d.ox * 1.6, y: d.y + d.oy * 1.6 }, // en la vereda, frente a la puerta
+        trapo: 'hung', // 'hung' colgado · 'carried' lo lleva alguien · 'gone' robado
+        by: null, backT: 0, angry: 0, tgt: null,
+      });
+    }
+    return out;
+  }
+
+  // Un hincha de la barra: para alrededor del trapo; con bronca, sale a cazar
+  makeHincha(barra, i) {
+    const f = barra.flag, n = barra.def.n;
+    let home = null;
+    for (let k = 0; k < 12 && !home; k++) {
+      const a = Math.PI * (0.15 + 0.7 * ((i + k * 0.37) % n) / n), r = rnd(16, 30);
+      const p = { x: f.x + Math.cos(a) * r * 1.6, y: f.y + Math.sin(a) * r * 0.6 };
+      if (!hitBuilding(p.x, p.y, 6)) home = p;
+    }
+    home = home || { x: f.x + rnd(-20, 20), y: f.y + 8 };
+    return {
+      kind: 'hincha', barra, home, x: home.x, y: home.y, ang: rnd(0, TAU), r: 5,
+      hp: HINCHA_HP, walk: 0, cool: 0, look: rnd(1, 3), dead: 0,
+      face: 'ped' + ((Math.random() * 4) | 0),
+    };
+  }
+
   makeTranza(villa, spot, i) {
     const look = TRANZA_LOOK[i % TRANZA_LOOK.length];
     return {
@@ -337,6 +390,8 @@ const makeCar = (x, y, cop) => entities.makeCar(x, y, cop);
 const makeCop = center => entities.makeCop(center);
 const makeChaser = center => entities.makeChaser(center);
 const makeTranza = (v, spot, i) => entities.makeTranza(v, spot, i);
+const makeBarras = () => entities.makeBarras();
+const makeHincha = (b, i) => entities.makeHincha(b, i);
 const makePickup = () => entities.makePickup();
 const makeGuard = (building, i, n) => entities.makeGuard(building, i, n);
 const makeDrop = (x, y, w, ammo) => entities.makeDrop(x, y, w, ammo);

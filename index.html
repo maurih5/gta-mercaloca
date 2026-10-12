@@ -58,6 +58,12 @@
   #sel .card:hover,#sel .card.sel{border-color:var(--gold);transform:translateY(-8px);
              box-shadow:0 14px 28px rgba(0,0,0,.8),0 0 24px rgba(232,181,58,.35)}
   #sel .card.sel .nm{color:var(--gold)}
+  /* Entrando a una sala: el personaje que ya está adentro no se puede repetir */
+  #sel .card{position:relative}
+  #sel .card.taken{cursor:not-allowed;transform:none;border-color:#2a2a2a;box-shadow:none}
+  #sel .card.taken img,#sel .card.taken .nm{filter:grayscale(1) brightness(.45)}
+  #sel .card.taken::after{content:'EN USO';position:absolute;top:44%;left:0;right:0;text-align:center;font-size:10px;
+             color:#fff;background:rgba(200,48,42,.85);padding:5px 0;letter-spacing:2px}
   #sel h3{position:absolute;top:6vh;font-size:min(4vw,24px);color:var(--gold);text-shadow:4px 4px 0 #000;letter-spacing:3px}
   #sel .go{margin-top:14px;font-size:10px;color:#bbb;letter-spacing:1px;text-align:center}
   #sel .btn-play-sel{margin-top:14px;font-size:14px;color:var(--gold);border:2px solid var(--gold);padding:10px 24px;background:rgba(0,0,0,0.6);cursor:pointer;transition:transform 0.1s}
@@ -257,6 +263,10 @@
     border-color: #3a9b47;
     background: radial-gradient(circle, rgba(90, 210, 102, 0.45) 0%, rgba(10, 30, 15, 0.85) 80%);
   }
+  .btn-eat {
+    border-color: #c8302a;
+    background: radial-gradient(circle, rgba(232, 120, 70, 0.45) 0%, rgba(30, 12, 10, 0.85) 80%);
+  }
   .btn-wpn {
     border-color: #e8a53a;
     background: radial-gradient(circle, rgba(232, 165, 58, 0.5) 0%, rgba(30, 20, 10, 0.85) 80%);
@@ -374,7 +384,7 @@
     <div class="mi" id="btnNews">&gt; NOVEDADES</div>
     <div class="hint">WASD / FLECHAS mover &nbsp;&middot;&nbsp; ESPACIO disparar &nbsp;&middot;&nbsp; E auto<br>
       SHIFT correr &nbsp;&middot;&nbsp; Q / 1-6 cambiar arma &nbsp;&middot;&nbsp; P pausa<br>
-      E en la puerta de la armeria para comprar fierros &nbsp;&middot;&nbsp; F fumar<br>si te frenan con la yuta encima, vas preso</div>
+      E en la puerta de la armeria o del super &nbsp;&middot;&nbsp; C comer &nbsp;&middot;&nbsp; F fumar<br>si te frenan con la yuta encima, vas preso</div>
   </div>
 </div>
 
@@ -433,6 +443,7 @@
       <button id="btn-run" class="touch-btn btn-run" aria-label="Correr">⚡</button>
       <button id="btn-wpn" class="touch-btn btn-wpn" aria-label="Cambiar arma">🔄</button>
       <button id="btn-porro" class="touch-btn btn-porro" aria-label="Fumar">🌿</button>
+      <button id="btn-eat" class="touch-btn btn-eat" aria-label="Comer">🍖</button>
     </div>
   </div>
   <button id="btn-pause" class="touch-btn btn-pause" aria-label="Pausa">⏸</button>
@@ -442,6 +453,7 @@
   <div id="touch-zoom" class="touch-zoom">
     <button id="btn-zoom-in" class="touch-btn btn-zoom" aria-label="Acercar">➕</button>
     <button id="btn-zoom-out" class="touch-btn btn-zoom" aria-label="Alejar">➖</button>
+    <button id="btn-map-center" class="touch-btn btn-zoom" aria-label="Centrar en vos">⌖</button>
   </div>
 </div>
 

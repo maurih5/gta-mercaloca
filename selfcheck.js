@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -157,6 +157,26 @@ describe('edificios', () => {
     assert.ok(dist(hospitals[0], hospitals[1]) > CELL * 3, 'los hospitales tienen que estar lejos entre si: ' + dist(hospitals[0], hospitals[1]));
   });
 
+  test('estan las canchas de los cuatro grandes, cada una en su manzana', () => {
+    assert.deepEqual(stadiums.map(b => b.stadium).sort(), ['boca', 'inde', 'racing', 'river'], 'los cuatro estadios');
+    for (const b of stadiums) {
+      assert.ok(buildings.includes(b) && b.w > CELL * 0.55 && b.h > CELL * 0.55, 'ocupa la manzana: ' + b.stadium);
+      assert.ok(!buildings.some(o => o !== b && o.x < b.x + b.w && o.x + o.w > b.x && o.y < b.y + b.h && o.y + o.h > b.y),
+        'no tiene otro edificio encima: ' + b.stadium);
+      assert.ok(onRoad(b.door.x + b.door.ox * 4, b.door.y + b.door.oy * 4), 'la puerta da a la calle: ' + b.stadium);
+      assert.ok(!villaAt(b.x + b.w / 2, b.y + b.h / 2), 'no esta en una villa');
+    }
+    const boca = stadiums.find(b => b.stadium === 'boca'), river = stadiums.find(b => b.stadium === 'river');
+    assert.ok(distToRiver(boca.x + boca.w / 2, boca.y + boca.h / 2) < CELL * 4, 'LA CHOCOLATERA cerca del Riachuelo');
+    assert.ok(river.y < WORLD / 3, 'EL MONUMENTAZO en el norte');
+    const inde = stadiums.find(b => b.stadium === 'inde'), racing = stadiums.find(b => b.stadium === 'racing');
+    assert.ok(dist(inde, racing) < CELL * 1.5, 'en Avellaneda, los vecinos a una cuadra');
+    assert.ok(inde.y > boca.y && racing.y > boca.y, 'del otro lado del Riachuelo');
+    assert.ok(!supers.concat(hospitals, shops).some(b => b.stadium), 'ni super, ni hospital, ni armeria adentro');
+    const leg = renderer.mapLegend(renderer.mapItems()).map(r => r[0]);
+    assert.ok(STADIUMS.every(S => leg.includes('st_' + S.k)), 'en las referencias del mapa');
+  });
+
   test('hay supers: un CHOTO, dos NOCHE % y el CHOTO de Lanus, con la puerta a la calle', () => {
     const k = supers.map(b => b.super).sort();
     assert.deepEqual(k, ['choto', 'lanus', 'noche', 'noche'], 'las cuatro sucursales: ' + k);
@@ -168,6 +188,15 @@ describe('edificios', () => {
     }
     const noches = supers.filter(b => b.super === 'noche');
     assert.ok(dist(noches[0], noches[1]) > CELL * 6, 'los dos NOCHE % no estan pegados');
+  });
+
+  test('hay parrillas en las plazas y en los potreros de las villas', () => {
+    assert.ok(parrillas.length >= 6, 'parrillas: ' + parrillas.length);
+    assert.ok(parrillas.filter(g => villaAt(g.x, g.y)).length >= 2, 'el potrero de cada villa tiene la suya');
+    for (const g of parrillas) {
+      assert.ok(!inWater(g.x, g.y) && !hitBuilding(g.x, g.y, 6), 'parrilla en un lugar libre');
+      assert.ok(inPark(g.x, g.y), 'en una plaza o un potrero');
+    }
   });
 
   test('el CHOTO de Lanus esta del otro lado del Riachuelo, con changuitos tirados y el perro', () => {
@@ -606,7 +635,7 @@ describe('dia y noche', () => {
 });
 
 describe('simulacion', () => {
-  let movingAcc = 0, movingN = 0;   // fraccion de autos andando en los ultimos 10s
+  let movingAcc = 0, flowAcc = 0, movingN = 0;   // fraccion de autos andando (y andando o esperando) en los ultimos 10s
 
   test('arranca la partida con autos, peatones y guardias', () => {
     startGame(CREW[0]);
@@ -640,22 +669,31 @@ describe('simulacion', () => {
   test('60s simulados y renderizados sin NaN ni salirse del mapa', () => {
     // El jugador espera en la vereda: parado en el medio de la calle 60s traba las dos manos
     // (los autos tocan bocina y esperan, como corresponde) y eso no es transito de la ciudad.
-    // Vereda de verdad, sin calle: toSidewalk a veces da un punto del borde del asfalto
-    // (en la bocacalle) que onSidewalk igual cuenta como vereda.
-    // Y lejos de los bordes del mapa: la calle del borde tiene menos lugar para doblar y ahí
-    // los autos se reacomodan con maniobras; eso es un caso aparte, no el tránsito de la ciudad.
+    // Donde no molesta a nadie: a mitad de cuadra (en la esquina los que doblan pasan rozandolo),
+    // contra la cuadra (el carril va pegado al cordon y un auto ancho lo toca si esta del lado
+    // de la calle) y con todo el radio de simulacion adentro del mapa: cerca del borde los
+    // autos se reparten en menos calles (en las esquinas todo el transito dobla en la misma
+    // bocacalle) y se arma fila sin que el jugador tenga nada que ver.
+    // Con un spawn al azar en cualquiera de esos lugares este test fallaba de vez en cuando.
     {
-      const P = G.me;
-      const lejosDelBorde = (x, y) => x > CELL && y > CELL && x < WORLD - CELL && y < WORLD - CELL;
-      if (!lejosDelBorde(P.x, P.y)) { P.x = clamp(P.x, CELL * 1.5, WORLD - CELL * 1.5); P.y = clamp(P.y, CELL * 1.5, WORLD - CELL * 1.5); }
+      const P = G.me, BORDE = SIM_R * 1.5;
+      const ancho = (i, eje) => (i === eje ? AVENUE_ROAD : ROAD);
+      const ci = Math.floor(P.x / CELL), cj = Math.floor(P.y / CELL);
       let best = null, bd = Infinity;
-      for (let r = 0; r <= 400 && !best; r += 4) {
-        for (let k = 0; k < 16; k++) {
-          const x = P.x + Math.cos(k * Math.PI / 8) * r, y = P.y + Math.sin(k * Math.PI / 8) * r;
-          if (lejosDelBorde(x, y) && onSidewalk(x, y) && !onRoad(x, y) && !hitBuilding(x, y, 4) && r < bd) { bd = r; best = { x, y }; }
+      for (let i = ci - 4; i <= ci + 4; i++) for (let j = cj - 4; j <= cj + 4; j++) {
+        const rw = ancho(i, PLAZA_CX), rh = ancho(j, PLAZA_CY);
+        const midX = i * CELL + (rw + CELL) / 2, midY = j * CELL + (rh + CELL) / 2;
+        for (const c of [
+          { x: i * CELL + 2, y: midY }, { x: i * CELL + rw - 2, y: midY },     // veredas de la columna
+          { x: midX, y: j * CELL + 2 }, { x: midX, y: j * CELL + rh - 2 },     // veredas de la fila
+        ]) {
+          if (Math.min(c.x, c.y, WORLD - c.x, WORLD - c.y) < BORDE) continue;
+          if (!onSidewalk(c.x, c.y) || hitBuilding(c.x, c.y, 3) || inDiagonalBand(c.x, c.y)) continue;
+          const d = Math.hypot(c.x - P.x, c.y - P.y);
+          if (d < bd) { bd = d; best = c; }
         }
       }
-      best = best || toSidewalk(P.x, P.y);
+      assert.ok(best, 'no hay vereda tranquila cerca de ' + JSON.stringify({ x: P.x, y: P.y }));
       P.x = best.x; P.y = best.y;
     }
     for(let f=0; f<3600; f++){                      // 60s
@@ -670,7 +708,11 @@ describe('simulacion', () => {
       // a proposito; la persecucion se prueba aparte ('los patrulleros persiguen...').
       if(f >= 3000){                                // ultimos 10s: fraccion de autos andando, frame a frame
         const tr = G.cars.filter(c => c.ai && c.hp > 0);
-        if(tr.length){ movingAcc += tr.filter(c => Math.abs(c.spd) > 12).length / tr.length; movingN++; }
+        if(tr.length){
+          movingAcc += tr.filter(c => Math.abs(c.spd) > 12).length / tr.length;
+          flowAcc += tr.filter(c => Math.abs(c.spd) > 12 || (c.waitLight||0) > 0 || c.queued).length / tr.length;
+          movingN++;
+        }
       }
     }
     assert.ok(G.fx.length < 4000 && G.smoke.length < 900, 'las particulas no se acumulan sin control');
@@ -747,10 +789,12 @@ describe('simulacion', () => {
     const jammed  = traffic.filter(c => c.stopT > 4).length;
     // parado en rojo es correcto; lo que no puede haber son autos trabados sin motivo
     assert.ok(jammed <= traffic.length*0.10, 'autos trabados sin motivo: ' + jammed);
-    assert.ok((moving + atRed) / traffic.length > 0.75,
-      'trafico muerto: ' + moving + ' en movimiento + ' + atRed + ' en rojo de ' + traffic.length);
     // Promedio de los ultimos 10s y no una foto de un solo frame: la foto depende de en que fase
-    // estaban los semaforos justo en ese instante y fallaba de vez en cuando aun con trafico sano.
+    // estaban los semaforos justo en ese instante y fallaba de vez en cuando aun con trafico sano
+    // (los que arrancan con el verde o le ceden el paso a un peaton no cuentan ni como andando
+    // ni como esperando, y en un frame llegaban a ser un tercio).
+    assert.ok(flowAcc / movingN > 0.75,
+      'trafico muerto: solo ' + Math.round(flowAcc / movingN * 100) + '% andando o esperando el rojo en los ultimos 10s');
     assert.ok(movingAcc / movingN > 0.45,
       'demasiados parados: solo ' + Math.round(movingAcc / movingN * 100) + '% circulando en los ultimos 10s');
     // regresion: al chocar una pared se reseteaban a la misma velocidad cada frame y
@@ -780,26 +824,85 @@ describe('simulacion', () => {
 });
 
 describe('jugador', () => {
-  test('en el super se compra comida que cura en el momento', () => {
+  test('en el super se compra a la mochila y se come con C', () => {
     startGame(CREW[0]);
     const P = G.me, carne = CHOTO_ITEMS.find(it => it.id === 'carne');
-    P.money = 1000; P.hp = 20;
+    P.money = 1000; P.hp = 20; P.food = 10;
     const r = shop.purchase(P, carne);
     assert.ok(r && !r.bad, 'la vende');
-    assert.equal(P.hp, 20 + carne.heal, 'cura lo que dice');
+    assert.equal(P.bag.carne, 1, 'va a la mochila');
     assert.equal(P.money, 1000 - carne.price, 'la cobra');
-    P.hp = P.maxhp;
-    assert.ok(!shop.status(carne, P).can, 'lleno no se compra');
-    P.hp = 10; P.money = 5;
+    assert.equal(P.hp, 20, 'no se come sola');
+    input.keys.KeyC = true;
+    update(1/60);
+    input.keys.KeyC = false;
+    assert.ok(!P.bag.carne, 'C se la come');
+    assert.ok(P.food >= 10 + FOOD.carne.food - 1 && P.hp >= 20 + FOOD.carne.heal - 1, 'llena y cura: ' + P.food + ' ' + P.hp);
+    P.bag = { agua: BAG_MAX };
+    assert.equal(shop.status(carne, P).label, 'MOCHILA LLENA', 'en la mochila entran ' + BAG_MAX + ' cosas');
+    P.bag = {}; P.money = 5;
     assert.ok(shop.purchase(P, carne).bad, 'sin guita no hay carne');
-    assert.equal(P.hp, 10, 'y no te cura');
+    assert.ok(!P.bag.carne, 'y no te la dan');
     P.money = 1000;
     assert.ok(!NOCHE_ITEMS.some(it => it.id === 'carne'), 'el NOCHE % no tiene carne');
     assert.ok(NOCHE_ITEMS.every(it => it.price < (CHOTO_ITEMS.find(c => c.id === it.id) || { price: Infinity }).price),
       'lo que tienen los dos es mas barato en el NOCHE %');
+    assert.ok(CHOTO_ITEMS.concat(NOCHE_ITEMS, LANUS_ITEMS).every(it => FOOD[it.id] || it.id === 'carbon'),
+      'todo lo del super se come o se toma (salvo el carbon, que es para el asado)');
     const sinCarne = LANUS_ITEMS.find(it => it.id === 'carne');
     assert.equal(shop.status(sinCarne, P).label, 'NO HAY', 'en Lanus nunca hay carne');
     assert.equal(shop.purchase(P, sinCarne), null, 'y no te la venden');
+  });
+
+  test('hambre y sed: bajan solas, en cero lastiman y bien comido la vida sube', () => {
+    startGame(CREW[0]);
+    const P = G.me;
+    assert.ok(P.food === 100 && P.drink === 100, 'arranca lleno');
+    const quieto = () => { G.cops.length = 0; P.wanted = 0; };
+    for (let f = 0; f < 600; f++) { quieto(); update(1/60); }
+    assert.ok(P.food < 100 && P.drink < P.food, 'bajan, la sed mas rapido: ' + P.food.toFixed(1) + ' ' + P.drink.toFixed(1));
+    P.food = 0; P.hp = 50;
+    for (let f = 0; f < 120; f++) { quieto(); P.food = 0; update(1/60); }
+    assert.ok(P.hp < 50 - NEED_HURT * 1.5, 'muerto de hambre se pierde vida: ' + P.hp.toFixed(1));
+    P.food = P.drink = 100; P.hp = 50;
+    for (let f = 0; f < 120; f++) { quieto(); update(1/60); }
+    assert.ok(P.hp > 50 + NEED_REGEN * 1.5, 'bien comido la vida sube: ' + P.hp.toFixed(1));
+    P.food = 0; P.drink = 0; P.hp = 2;
+    for (let f = 0; f < 600 && !P.dead; f++) { quieto(); update(1/60); }
+    assert.ok(P.dead, 'de hambre y sed uno se muere');
+  });
+
+  test('C come lo que mas hace falta: con sed toma, con hambre come', () => {
+    startGame(CREW[0]);
+    const P = G.me;
+    P.bag = { agua: 1, pernil: 1 };
+    P.food = 90; P.drink = 10;
+    assert.equal(game.bestBite(P), 'agua', 'con sed, el agua');
+    game.eat(P);
+    assert.ok(P.drink >= 60 && P.bag.pernil === 1 && !P.bag.agua, 'se toma el agua y guarda el pernil');
+    P.food = 10;
+    game.eat(P);
+    assert.ok(P.food >= 55 && !P.bag.pernil, 'despues se come el pernil');
+    assert.equal(game.eat(P), false, 'con la mochila vacia no hay nada');
+    P.bag = { agua: 1 }; P.food = P.drink = 100; P.hp = P.maxhp;
+    assert.equal(game.eat(P), false, 'lleno no se come');
+    assert.equal(P.bag.agua, 1, 'y no se gasta');
+  });
+
+  test('al morir se pierde la mochila; el hospital y la comisaria te dan de comer', () => {
+    startGame(CREW[0]);
+    const P = G.me, P2 = addPlayer(CREW[1]);
+    P.bag = { agua: 2 }; P.food = P.drink = 5;
+    P.hp = 30; P.healing = 1; P.healT = HOSPITAL_TIME;
+    update(1/60);
+    assert.ok(P.food >= 59 && P.drink >= 59, 'en el hospital te dan un sanguchito');
+    P2.bag = { carne: 1 }; P2.food = 3;
+    game.respawn(P2);
+    assert.deepEqual(P2.bag, {}, 'al morir se pierde la mochila');
+    assert.ok(P2.food === 80, 'y volves con algo en la panza');
+    P.food = P.drink = 5; P.busted = 1; P.bustT = 3.3;
+    update(1/60);
+    assert.ok(P.food >= 49 && P.drink >= 49, 'en la comisaria te dan un mate cocido');
   });
 
   // Robo al super: helpers. La yuta se saca de encima en cada frame para que no te arresten
@@ -906,6 +1009,138 @@ describe('jugador', () => {
     assert.ok(ROB_LOOT.lanus.v[1] < ROB_LOOT.noche.v[0], 'menos que en cualquier otro');
   });
 
+  test('el asado: carne y carbon a la parrilla, y sale crudo, a punto o quemado', () => {
+    startGame(CREW[0]);
+    const P = G.me, g = parrillas.find(q => !villaAt(q.x, q.y)) || parrillas[0];
+    Object.assign(P, { x: g.x, y: g.y + 10 });
+    P.bag = { carne: 1 };
+    assert.equal(game.useGrill(P, g), false, 'sin carbon no prende');
+    P.bag = { carne: 1, carbon: 1 };
+    input.keys.KeyE = true;
+    update(1/60);
+    input.keys.KeyE = false;
+    assert.ok(P.nearGrill === g && g.cooking, 'E en la parrilla prende el asado');
+    assert.deepEqual(P.bag, {}, 'se usa la carne y el carbon');
+    assert.equal(g.portions, ASADO_PORCIONES, 'salen ' + ASADO_PORCIONES + ' porciones');
+    game.useGrill(P, g);
+    assert.equal(P.bag.crudo, 1, 'sacado enseguida esta crudo');
+    game.updateGrills(ASADO_PUNTO);
+    game.useGrill(P, g);
+    assert.equal(P.bag.asado, 1, 'a tiempo sale a punto');
+    game.updateGrills(ASADO_QUEMA - ASADO_PUNTO);
+    game.useGrill(P, g);
+    assert.equal(P.bag.quemado, 1, 'tarde sale quemado');
+    assert.ok(!g.cooking, 'sin porciones la parrilla queda libre');
+    assert.ok(FOOD.asado.food > FOOD.crudo.food && FOOD.asado.food > FOOD.quemado.food, 'a punto llena mas');
+    // Si nadie lo saca, se hace carbon
+    P.bag = { carne: 1, carbon: 1 };
+    game.useGrill(P, g);
+    game.updateGrills(ASADO_CARBON + 0.1);
+    assert.ok(!g.cooking && g.portions === 0, 'olvidado, se hace carbon');
+    P.bag = { carbon: 1 }; P.food = 10;
+    assert.equal(game.eat(P), false, 'el carbon no se come');
+  });
+
+  test('respeto: sube de rango, da descuento y se pierde al morir o caer preso', () => {
+    startGame(CREW[0]);
+    const P = G.me;
+    assert.equal(RANKS[game.rankOf(P)][1], 'GIL', 'se arranca de GIL');
+    game.gainRespect(P, RANKS[1][0] + 10, 'PRUEBA');
+    assert.equal(game.rankOf(P), 1, 'sube de rango');
+    assert.ok(G.msg.includes('AHORA SOS ' + RANKS[1][1]), 'y te avisan: ' + G.msg);
+    const ak = SHOP_ITEMS.find(it => it.id === 'ak');
+    assert.ok(shop.status(ak, P).price < ak.price, 'con respeto la armeria es mas barata');
+    P.respect = RANKS[4][0];
+    assert.equal(game.price(P, 1000), 800, 'LEYENDA: 20% menos');
+    assert.ok(shop.status(CHOTO_ITEMS[0], P).price === CHOTO_ITEMS[0].price, 'en el super no hay descuento');
+    P.respect = 200; P.busted = 1; P.bustT = 3.3;
+    update(1/60);
+    assert.equal(P.respect, Math.round(200 * (1 - RESPECT_BUST)), 'preso se pierde el ' + RESPECT_BUST * 100 + '%');
+    P.respect = 100; P.hp = 0;
+    update(1/60);
+    assert.ok(P.dead && P.respect === Math.round(100 * (1 - RESPECT_DEATH)), 'muerto el ' + RESPECT_DEATH * 100 + '%: ' + P.respect);
+  });
+
+  test('robar un super, bajar un famoso y perder a la yuta dan respeto', () => {
+    startGame(CREW[0]);
+    const P = G.me, b = supers.find(q => q.super === 'choto');
+    b.robbers = [P];
+    game.lootSuper(b);
+    assert.equal(P.respect, RESPECT.choto, 'el robo al CHOTO');
+    const f = makeFamous(FAMOUS.find(d => !d.immortal), P.x + 20, P.y);
+    G.peds.push(f);
+    game.hurt(f, 999, P);
+    assert.equal(P.respect, RESPECT.choto + RESPECT.famoso, 'el famoso');
+    G.cops.length = 0;
+    Object.assign(P, { wanted: 1, wantPeak: 3, wantCool: 13 });
+    update(1/60);
+    assert.equal(P.wanted, 0, 'los perdio');
+    assert.equal(P.respect, RESPECT.choto + RESPECT.famoso + RESPECT.star * 3, 'perder a la yuta con 3 estrellas');
+  });
+
+  test('las barras paran en la puerta de su estadio con el trapo colgado', () => {
+    startGame(CREW[0]);
+    assert.deepEqual(G.barras.map(B => B.def.name), BARRAS.map(d => d.name), 'LA DOCENA y LOS BORRACHOS DEL TABLERO');
+    for (const B of G.barras) {
+      assert.equal(B.stadium.stadium, B.def.stadium, 'cada barra en su estadio');
+      assert.ok(dist(B.flag, B.stadium.door) < 20 && !hitBuilding(B.flag.x, B.flag.y, 2), 'el trapo en la puerta, afuera');
+      assert.equal(B.trapo, 'hung', 'colgado');
+      const hs = G.hinchas.filter(h => h.barra === B);
+      assert.equal(hs.length, B.def.n, 'con su gente');
+      assert.ok(hs.every(h => dist(h, B.flag) < 60), 'alrededor del trapo');
+    }
+  });
+
+  test('robar el trapo: la barra te sale a buscar, y si lo aguantas es tuyo', () => {
+    startGame(CREW[0]);
+    const P = G.me, B = G.barras[0];
+    Object.assign(P, { x: B.flag.x, y: B.flag.y + 6, car: null });
+    input.keys.KeyE = true;
+    update(1/60);
+    input.keys.KeyE = false;
+    assert.ok(P.trapo === B && B.trapo === 'carried' && B.angry > 0, 'E se lleva el trapo y la barra se calienta');
+    // Se aleja un poco: lo persiguen y le pegan
+    P.x += 60;
+    const hp0 = P.hp;
+    for (let f = 0; f < 4 * 60; f++) { G.cops.length = 0; P.wanted = 0; P.hp = Math.max(P.hp, 40); update(1/60); }
+    assert.ok(P.hp < hp0 || G.hinchas.some(h => h.barra === B && dist(h, P) < 16), 'la barra lo alcanza');
+    P.trapoT = TRAPO_TIME - 0.01;
+    const r0 = P.respect;
+    update(1/60);
+    assert.ok(P.respect >= r0 + RESPECT.trapo - 1 || game.rankOf(P) > 0, 'aguantado: respeto');
+    assert.ok(!P.trapo && B.trapo === 'gone' && P.trapos === 1, 'el trapo es suyo');
+    game.updateBarras(TRAPO_BACK + 1);
+    assert.equal(B.trapo, 'hung', 'al rato cuelgan otro');
+  });
+
+  test('si te bajan o caes preso con el trapo, vuelve a su barra', () => {
+    startGame(CREW[0]);
+    const P = G.me, B = G.barras[1];
+    game.takeTrapo(P, B);
+    P.hp = 0;
+    update(1/60);
+    assert.ok(!P.trapo && B.trapo === 'hung', 'muerto: vuelve colgado');
+    startGame(CREW[0]);
+    const Q = G.me, B2 = G.barras[1];
+    game.takeTrapo(Q, B2);
+    Q.busted = 1; Q.bustT = 3.3;
+    update(1/60);
+    assert.ok(!Q.trapo && B2.trapo === 'hung', 'preso: tambien');
+  });
+
+  test('con respeto, un tranza lastimado no prende la villa de una', () => {
+    startGame(CREW[0]);
+    const P = G.me, t = G.tranzas[0], v = t.villa;
+    P.respect = RANKS[RANK_CALM][0];
+    game.hurt(t, 5, P);
+    assert.ok(v.angry <= 0 && v.warnT > 0, 'el primero avisa');
+    game.hurt(t, 5, P);
+    assert.ok(v.angry > 0, 'el segundo ya no');
+    v.angry = 0; v.warnT = 0; P.respect = 0;
+    game.hurt(G.tranzas[1], 5, P);
+    assert.ok(G.tranzas[1].villa.angry > 0, 'sin respeto se prende enseguida');
+  });
+
   test('en la puerta del super se entra con E, pero no con la yuta encima', () => {
     startGame(CREW[0]);
     const P = G.me, b = supers.find(q => q.super === 'noche'), d = b.door;
@@ -985,6 +1220,8 @@ describe('jugador', () => {
     for(let f=0;f<1800;f++){
       update(1/60);
       if(G.me.busted) G.me.busted = 0, G.me.bustT = 0;      // ignorar arrestos, medir solo persecucion
+      G.me.hp = G.me.maxhp;                           // y muertes: con 5 estrellas la yuta a pie lo baja
+                                                       // en segundos, y muerto no aparecen patrulleros
       G.me.wanted = 5;                                 // si no, la busqueda baja sola al perderlo de vista
       if(f % 10 === 0) render();                    // el tiroteo tambien se tiene que poder dibujar
       if(f === 1800-120) for(const c of G.cars) if(c.chase){ c.x2s = c.x; c.y2s = c.y; }
@@ -997,9 +1234,10 @@ describe('jugador', () => {
     }
     // Clavado = lejos del jugador y sin moverse en los ultimos 2s. La velocidad sola no sirve:
     // uno que gira en el lugar contra una pared tiene velocidad, y uno que ya alcanzo al
-    // jugador (que esta quieto) frena al lado y esta bien. "Lejos" es mas de 3 largos de
-    // patrullero: con 5 amontonados alrededor del jugador, el ultimo queda a ~50px.
-    const stuckCh = ch.filter(c => c.x2s !== undefined && dist(c, G.me) > 80
+    // jugador (que esta quieto) frena al lado y esta bien. "Lejos" es fuera del operativo:
+    // el juego le guarda el lugar al patrullero hasta 120px (ver c.slot en game.js), y con
+    // 5 amontonados, autos en fila y un colectivo, alguno queda encajonado a 80-90px.
+    const stuckCh = ch.filter(c => c.x2s !== undefined && dist(c, G.me) > 120
       && Math.hypot(c.x - c.x2s, c.y - c.y2s) < 5);
     assert.equal(stuckCh.length, 0, 'patrulleros clavados lejos del jugador: ' + stuckCh.length + '/' + ch.length
       + ' ' + JSON.stringify(stuckCh.map(c => ({x: Math.round(c.x), y: Math.round(c.y), d: Math.round(dist(c, G.me))}))));
@@ -1069,6 +1307,7 @@ describe('jugador', () => {
     for(let f=0;f<10;f++) update(1/60);
     for(const food of FOODS){
       G.me.hp = 10;
+      G.me.food = G.me.drink = 50; // ni hambre ni bien comido: la vida no sube sola
       const pk = G.pickups[0];
       Object.assign(pk, { x: G.me.x, y: G.me.y, kind: 'hp', food, t: 0 });
       update(1/60);
@@ -1156,6 +1395,68 @@ describe('radio', () => {
     assert.deepEqual(bass.notes[0].slice(0, 3), [0, 1, 45]);
     assert.deepEqual(drums.notes[0].slice(0, 3), [1, 0.25, 'k']);
     assert.ok(compileSong(song).len > 0, 'el juego lo puede tocar');
+  });
+});
+
+describe('mapa', () => {
+  test('se abre centrado en vos y se mueve sin salirse del mundo', () => {
+    startGame(CREW[0]);
+    const P = G.me;
+    Object.assign(P, { x: WORLD * 0.4, y: WORLD * 0.6 });
+    G.mapZoom = 4;
+    mapCtl.open();
+    assert.ok(G.mapX === P.x && G.mapY === P.y, 'arranca en el jugador');
+    const v0 = mapCtl.view();
+    assert.ok(Math.abs(v0.sx + v0.viewW / 2 - P.x) < 1, 'el jugador queda en el medio');
+    mapCtl.pan(500, -300);
+    assert.ok(G.mapX === P.x + 500 && G.mapY === P.y - 300, 'se desplaza');
+    mapCtl.pan(-WORLD * 3, -WORLD * 3);
+    const v1 = mapCtl.view();
+    assert.ok(v1.sx === 0 && v1.sy === 0, 'no se va mas alla del borde');
+    mapCtl.pan(WORLD * 3, WORLD * 3);
+    const v2 = mapCtl.view();
+    assert.ok(Math.abs(v2.sx + v2.viewW - WORLD) < 1 && Math.abs(v2.sy + v2.viewH - WORLD) < 1, 'ni del otro');
+    assert.equal(v2.MW, RW - MAP_LEG_W, 'el panel de referencias le saca lugar');
+    G.mapLegend = false;
+    assert.equal(mapCtl.view().MW, RW, 'sin referencias, el mapa ocupa todo');
+    G.mapLegend = true;
+    G.mapZoom = 1;
+  });
+
+  test('las referencias muestran solo lo que hay en el mapa', () => {
+    startGame(CREW[0]);
+    G.cars.forEach(c => { c.chase = false; });
+    G.cops.length = 0;
+    const leg = () => renderer.mapLegend(renderer.mapItems()).map(r => r[0]);
+    const l1 = leg();
+    for (const k of ['vos', 'hospital', 'armeria', 'choto', 'noche', 'parrilla', 'rosada', 'obelisco', 'tranza'])
+      assert.ok(l1.includes(k), 'siempre estan los lugares: ' + k);
+    for (const k of ['jugador', 'patrullero', 'yuta', 'asado', 'cerrado'])
+      assert.ok(!l1.includes(k), 'no figura lo que no hay: ' + k);
+    addPlayer(CREW[1]);
+    G.cars[0].chase = true;
+    supers[0].closed = 30;
+    Object.assign(parrillas[0], { cooking: true, t: 1, portions: 3 });
+    const l2 = leg();
+    for (const k of ['jugador', 'patrullero', 'cerrado', 'asado']) assert.ok(l2.includes(k), 'aparece cuando hay: ' + k);
+    supers[0].closed = 0;
+    Object.assign(parrillas[0], { cooking: false, t: 0, portions: 0 });
+  });
+
+  test('el mapa se dibuja con y sin referencias, y con el jugador fuera de la vista', () => {
+    startGame(CREW[0]);
+    G.mapOpen = true;
+    for (const leg of [true, false]) {
+      G.mapLegend = leg;
+      mapCtl.open();
+      render();
+      G.mapZoom = 8;
+      mapCtl.pan(WORLD, WORLD); // lejos del jugador: flecha en el borde
+      render();
+      G.mapZoom = 1;
+    }
+    G.mapOpen = false;
+    G.mapLegend = true;
   });
 });
 
@@ -1253,10 +1554,48 @@ describe('multijugador', () => {
     } finally {
       game.openShop = orig;
     }
-    G.me.hp = 30; P2.hp = 30; P2.money = 500;
+    P2.money = 500;
     shop.purchase(P2, CHOTO_ITEMS.find(it => it.id === 'choripan'));
-    assert.ok(P2.hp > 30 && P2.money < 500, 'el que compra come y paga');
-    assert.equal(G.me.hp, 30, 'al otro no le llega');
+    assert.ok(P2.bag.choripan === 1 && P2.money < 500, 'el que compra se lo lleva y paga');
+    assert.ok(!G.me.bag.choripan, 'al otro no le llega');
+    G.me.food = 50; P2.food = 10;
+    P2.ctl = { ...idleControls(), eat: true };
+    update(1/60);
+    assert.ok(P2.food > 40 && !P2.bag.choripan, 'come el que aprieta C');
+    assert.ok(G.me.food <= 50, 'el otro sigue con su hambre');
+  });
+
+  test('el asado de uno se lo puede comer otro', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]), g = parrillas[0];
+    Object.assign(G.me, { x: g.x, y: g.y + 10, bag: { carne: 1, carbon: 1 } });
+    game.useGrill(G.me, g);
+    game.updateGrills(ASADO_PUNTO + 1);
+    assert.ok(G.msg.includes('A PUNTO'), 'al que lo prendio le avisan que esta a punto');
+    Object.assign(P2, { x: g.x + 4, y: g.y + 10, bag: {} });
+    P2.cool = 0;
+    P2.ctl = { ...idleControls(), use: true };
+    update(1/60);
+    assert.equal(P2.bag.asado, 1, 'el otro se lleva una porcion');
+    assert.ok(G.msg.includes('TE ESTAN COMIENDO'), 'y al dueño le avisan');
+    assert.ok(!G.me.bag.asado, 'el dueño no recibe nada por eso');
+  });
+
+  test('bajar a otro jugador da respeto y te quedas con su trapo', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]), B = G.barras[0];
+    lejos(P2, 200);
+    P2.respect = 100;
+    game.takeTrapo(P2, B);
+    game.hurtPlayer(P2, 999, G.me);
+    update(1/60);
+    assert.ok(P2.dead, 'cae');
+    assert.equal(G.me.respect, RESPECT.pvp, 'el que lo bajo gana respeto');
+    assert.equal(P2.respect, Math.round(100 * (1 - RESPECT_DEATH)) - RESPECT.pvpLoss, 'el que cae pierde');
+    assert.ok(G.me.trapo === B && B.by === G.me && B.tgt === G.me, 'y el trapo pasa al que lo bajo');
+    G.mapOpen = true;
+    render(); // la tabla de respeto en el mapa, con los dos
+    G.mapOpen = false;
   });
 
   test('dos roban el mismo super: va el doble de rapido y los dos quedan buscados', () => {
@@ -1369,6 +1708,7 @@ describe('multijugador', () => {
   test('las balas premian al que tiro y con PVP lastiman a los otros', () => {
     startGame(CREW[0]);
     const P2 = addPlayer(CREW[1]);
+    G.pickups = []; // que nadie junte un billete del piso: la guita tiene que ser solo la del tiro
     for (let f = 0; f < 10; f++) update(1/60);
     const ped = G.peds.find(p => p.hp > 0 && !p.inside);
     ped.hp = 1;
@@ -1556,7 +1896,7 @@ describe('multijugador', () => {
 // red de mentira en memoria (los mensajes pasan por JSON, como por WebRTC)
 describe('multijugador online', () => {
   const C = new Function(js + `
-;return {G,net,world,buildCity,bakeGround,buildings,CREW,render,input,shop,villas,update,VERSION};`)();
+;return {G,net,world,buildCity,bakeGround,buildings,CREW,render,input,shop,villas,update,VERSION,ui};`)();
 
   // Red en memoria: cada pantalla es un nodo. Nada se entrega hasta pump(), como en la red de verdad.
   const redLocal = () => {
@@ -1725,8 +2065,20 @@ describe('multijugador online', () => {
     assert.ok(!G.shopOpen, 'y no en la del host');
     C.shop.buy(C.shop.items.findIndex(it => it.id === 'carne'));
     for (let f = 0; f < 6; f++) frame(red);
-    assert.ok(P2.hp > 20 && P2.money < 1000, 'el host le vende y lo cura');
+    assert.ok(P2.bag.carne === 1 && P2.money < 1000, 'el host le vende a la mochila');
+    assert.equal(C.G.me.bag.carne, 1, 'el cliente ve su mochila');
+    C.shop.close();
+    P2.food = 10;
+    for (let f = 0; f < 3; f++) frame(red);
+    C.input.keys.KeyC = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyC = false;
+    for (let f = 0; f < 3; f++) frame(red);
+    assert.ok(P2.food > 60 && !P2.bag.carne, 'C en el cliente: el host lo hace comer');
+    assert.ok(C.G.me.food > 60 && !C.G.me.bag.carne, 'y el cliente ve la panza llena y la mochila vacia');
     assert.equal(C.G.me.hp, Math.ceil(P2.hp), 'el cliente ve la vida');
+    Object.assign(P2, { x: d.x + d.ox, y: d.y + d.oy });
+    for (let f = 0; f < 3; f++) frame(red);
     // Si se va de la puerta, el host no le vende aunque el cliente lo pida
     P2.x += CELL; const plata = P2.money;
     for (let f = 0; f < 3; f++) frame(red);
@@ -1754,6 +2106,92 @@ describe('multijugador online', () => {
     for (let f = 0; f < 4; f++) frame(red);
     assert.ok(cb.closed > 0 && !cb.robbing, 'y la persiana baja');
     C.render();
+  });
+
+  test('el cliente prende el asado y ve como se hace', async () => {
+    const { red, P2 } = await conectar();
+    const g = parrillas[1] || parrillas[0], i = parrillas.indexOf(g);
+    for (const q of parrillas) Object.assign(q, { cooking: false, t: 0, portions: 0, owner: null });
+    Object.assign(P2, { x: g.x, y: g.y + 10, car: null, bag: { carne: 1, carbon: 1 } });
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(C.G.me.nearGrill, 'el cliente sabe que esta en la parrilla');
+    C.input.keys.KeyE = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = false;
+    assert.ok(g.cooking && g.owner === P2, 'el host prende el asado del cliente');
+    for (let f = 0; f < 4; f++) frame(red);
+    const cg = C.world.parrillas[i];
+    assert.ok(cg.cooking && cg.portions === ASADO_PORCIONES && cg.t > 0, 'el cliente ve la parrilla prendida');
+    assert.deepEqual(C.G.me.bag, {}, 'y la mochila sin la carne y el carbon');
+    C.render();
+  });
+
+  // Arma la sala y deja al cliente eligiendo personaje (todavía sin entrar)
+  const eligiendo = async () => {
+    const red = redLocal();
+    for (const N of [net, C.net]) {
+      N.leave();
+      Object.assign(N, { role: null, hostId: null, myId: null, gone: false, ents: {}, onLost: null, onEnter: null, used: [] });
+      N.makeTransport = red.make;
+    }
+    if (!buildings.length) { buildCity(); bakeGround(); }
+    startGame(CREW[0]);
+    await net.host('ABCDE');
+    const info = C.net.probe('ABCDE');
+    for (let i = 0; i < 5; i++) { await tick(); red.pump(); }
+    const d = await info;
+    if (world.seed !== C.world.seed) { C.buildCity(d.seed); C.bakeGround(); }
+    C.ui.mode = 'join';
+    C.ui.selIdx = 0;
+    C.ui.markTaken();
+    C.G.state = 'sel';
+    return { red, info: d };
+  };
+
+  test('entrando a una sala no se puede elegir un personaje que ya esta adentro', async () => {
+    const { red, info } = await eligiendo();
+    assert.deepEqual(info.used, [0], 'el host avisa que su personaje esta en uso');
+    assert.ok(C.ui.taken(0) && !C.ui.taken(1), 'el del host sale tachado; los demas no');
+    assert.notEqual(C.ui.selIdx, 0, 'la seleccion salta al primero libre');
+    C.ui.selIdx = 0;
+    C.ui.play();
+    assert.equal(C.G.state, 'sel', 'con uno tomado no se entra');
+    C.ui.selIdx = 1;
+    C.ui.stepSel(-1);
+    assert.notEqual(C.ui.selIdx, 0, 'las flechas saltean los tomados');
+    // Mientras elige, entra otro: la lista se actualiza sola
+    addPlayer(CREW[3]);
+    for (let f = 0; f < 3 * 60; f++) { C.net.tick(1/60); red.pump(); }
+    assert.ok(C.net.used.includes(3) && C.ui.taken(3), 'el que entro mientras elegias tambien sale tachado');
+    // Si igual pide uno tomado (lo eligieron a la vez), el host no lo deja y vuelve a elegir
+    C.net.join(3);
+    for (let f = 0; f < 4; f++) { red.pump(); await tick(); }
+    assert.equal(G.players.length, 2, 'el host no lo suma');
+    assert.ok(C.G.state === 'sel' && !C.net.gone, 'el cliente vuelve a elegir, sin cortarse');
+    C.net.join(2);
+    for (let f = 0; f < 6; f++) { red.pump(); await tick(); }
+    assert.ok(G.players.some(q => q.def === CREW[2] && q.peer), 'con uno libre entra');
+    assert.equal(new Set(G.players.map(q => q.def)).size, G.players.length, 'nadie repetido');
+  });
+
+  test('el cliente roba el trapo y ve la barra caliente y su respeto', async () => {
+    const { red, P2 } = await conectar();
+    const B = G.barras[0], i = 0;
+    Object.assign(P2, { x: B.flag.x, y: B.flag.y + 6, car: null });
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(C.G.me.nearTrapo, 'el cliente ve el cartel para robarlo');
+    C.input.keys.KeyE = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = false;
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(P2.trapo === B, 'el host le da el trapo');
+    assert.ok(C.G.me.trapo === C.G.barras[i] && C.G.barras[i].trapo === 'carried' && C.G.barras[i].angry, 'el cliente lo lleva y ve la barra caliente');
+    assert.ok(C.G.hinchas.length > 0, 've a los hinchas');
+    game.gainRespect(P2, 20);
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.equal(C.G.me.respect, P2.respect, 'y su respeto');
+    C.render();
+    game.dropTrapo(P2);
   });
 
   test('las fotos son chicas y lo que no cambia se manda una vez', async () => {

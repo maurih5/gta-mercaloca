@@ -63,30 +63,34 @@ class ShopManager {
   // Qué se puede hacer con cada ítem según lo que ya tiene el jugador.
   // La ventana es del jugador local (G.me); en red la compra la hace el host (purchase)
   status(it, P = G.me) {
-    if (it.heal) {
+    if (inBag(it.id)) {
       if (it.out) return { can: false, label: 'NO HAY' };
-      return P.hp >= P.maxhp
-        ? { can: false, label: 'ESTAS LLENO' }
-        : { can: true, price: it.price, label: '$' + it.price };
+      const n = P.bag[it.id] || 0;
+      return game.bagCount(P) >= BAG_MAX
+        ? { can: false, label: 'MOCHILA LLENA' }
+        : { can: true, price: it.price, label: '$' + it.price + (n ? ' (' + n + ')' : '') };
     }
+    // Armería y tranzas: con respeto sale más barato (game.price)
+    const pr = game.price(P, it.price);
     if (it.id === 'porro') {
       return P.porros >= PORRO_MAX
         ? { can: false, label: 'BOLSILLO LLENO' }
-        : { can: true, price: it.price, label: '$' + it.price + ' (' + P.porros + '/' + PORRO_MAX + ')' };
+        : { can: true, price: pr, label: '$' + pr + ' (' + P.porros + '/' + PORRO_MAX + ')' };
     }
     if (it.id === 'chaleco') {
       return P.armor >= 100
         ? { can: false, label: 'PUESTO' }
-        : { can: true, price: it.price, label: '$' + it.price };
+        : { can: true, price: pr, label: '$' + pr };
     }
     const owned = it.id in P.inv;
     if (WEAPONS[it.id].melee) {
-      return owned ? { can: false, label: 'YA LO TENES' } : { can: true, price: it.price, label: '$' + it.price };
+      return owned ? { can: false, label: 'YA LO TENES' } : { can: true, price: pr, label: '$' + pr };
     }
     if (owned) {
-      return { can: true, price: it.refill, label: '+' + it.ammo + ' BALAS $' + it.refill };
+      const rf = game.price(P, it.refill);
+      return { can: true, price: rf, label: '+' + it.ammo + ' BALAS $' + rf };
     }
-    return { can: true, price: it.price, label: '$' + it.price };
+    return { can: true, price: pr, label: '$' + pr };
   }
 
   buy(i) {
@@ -107,10 +111,9 @@ class ShopManager {
     if (!st || !st.can) return null;
     if (P.money < st.price) return { msg: 'NO TE ALCANZA LA GUITA', bad: true };
     P.money -= st.price;
-    if (it.heal) {
-      P.hp = Math.min(P.maxhp, P.hp + it.heal);
-      sfxFor(P, 'comida');
-      return { msg: '+' + it.heal + ' VIDA. PROVECHO' };
+    if (inBag(it.id)) {
+      P.bag[it.id] = (P.bag[it.id] || 0) + 1;
+      return { msg: 'A LA MOCHILA (' + game.bagCount(P) + '/' + BAG_MAX + '). C PARA COMERLO' };
     }
     if (it.id === 'porro') {
       P.porros++;
@@ -136,11 +139,14 @@ class ShopManager {
   render() {
     const list = $('shop-list'), money = $('shop-money');
     if (!list) return;
-    if (money) money.textContent = '$' + G.me.money;
+    const off = !SHOP_KINDS[this.kind].super && game.rankOf(G.me) > 0 ? '  -' + Math.round(RANK_DISCOUNT * game.rankOf(G.me) * 100) + '% POR RESPETO' : '';
+    if (money) money.textContent = '$' + G.me.money + off;
     list.innerHTML = '';
     this.items.forEach((it, i) => {
       const st = this.status(it);
-      const name = WEAPONS[it.id] ? WEAPONS[it.id].name : it.id.toUpperCase() + (it.heal ? ' +' + it.heal + ' VIDA' : '');
+      const F = FOOD[it.id];
+      const name = WEAPONS[it.id] ? WEAPONS[it.id].name : it.id.toUpperCase()
+        + (F ? (F.food ? ' +' + F.food + ' HAMBRE' : '') + (F.drink ? ' +' + F.drink + ' SED' : '') : '');
       const row = document.createElement('div');
       row.className = 'shop-row' + (i === this.sel ? ' sel' : '') + (st.can ? '' : ' off');
 
@@ -148,7 +154,7 @@ class ShopManager {
       icon.width = 28;
       icon.height = 16;
       icon.className = 'shop-icon';
-      if (it.heal) foodIcon(icon.getContext('2d'), it.id, 14, 8);
+      if (inBag(it.id)) foodIcon(icon.getContext('2d'), it.id, 14, 8);
       else weaponIcon(icon.getContext('2d'), it.id, 14, 8);
 
       const info = document.createElement('div');

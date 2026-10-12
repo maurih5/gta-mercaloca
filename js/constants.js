@@ -115,6 +115,8 @@ const CASA_ROSADA_GUARDS = 3;
 
 // Mapa global (tecla M): rango y velocidad de zoom
 const MAP_MIN_ZOOM = 1, MAP_MAX_ZOOM = 8, MAP_ZOOM_RATE = 1.6;
+const MAP_PAN_RATE = 0.9;  // con las flechas, cuántas pantallas de mapa por segundo
+const MAP_LEG_W = 112;     // ancho del panel de referencias
 
 // Semaforos
 const LIGHT_CYCLE = 11, GREEN = 4.6, AMBER = 0.9;  // por eje: 4.6s verde, 0.9 amarillo, resto rojo
@@ -257,29 +259,128 @@ const TRANZA_ITEMS = [
   {id:'uzi',     price:1100, ammo:60, refill:250,  desc:'Usada, pero anda. Sin preguntas.'},
   {id:'granada', price:950,  ammo:3,  refill:600,  desc:'Del deposito del fondo. No preguntes de donde.'},
 ];
-// Supermercados: la comida se come ahí nomás y cura (heal) en el momento.
-// El CHOTO tiene carne; el NOCHE % es más barato y no tiene. El CHOTO de Lanús
-// vende lo mismo que el CHOTO, pero la carne nunca llega (out).
+// Hambre y sed, por jugador: 100 es lleno. Bajan solas (por segundo de juego); en 0 te
+// vas muriendo de a poco. Bien comido y tomado (las dos arriba de NEED_GOOD), la vida
+// sube sola. Lo que se compra va a la mochila (BAG_MAX cosas) y se come con C.
+const HUNGER_RATE = 100 / 420;  // 7 minutos de lleno a vacío
+const THIRST_RATE = 100 / 300;  // 5 minutos
+const NEED_LOW = 25;            // aviso y barra titilando
+const NEED_GOOD = 70;
+const NEED_HURT = 1.2;          // vida por segundo con hambre o sed en 0
+const NEED_REGEN = 0.5;         // vida por segundo bien comido
+const BAG_MAX = 6;
+// Lo que se come o se toma: cuánto llena (food), cuánto saca la sed (drink) y cuánto cura
+const FOOD = {
+  carne:      { food: 60, drink: 0,  heal: 30 },
+  pernil:     { food: 45, drink: 0,  heal: 20 },
+  choripan:   { food: 35, drink: 0,  heal: 15 },
+  fideos:     { food: 40, drink: 0,  heal: 10 },
+  galletitas: { food: 20, drink: 0,  heal: 5 },
+  mate:       { food: 0,  drink: 30, heal: 10 },
+  agua:       { food: 0,  drink: 50, heal: 0 },
+  gaseosa:    { food: 5,  drink: 35, heal: 0 },
+  asado:      { food: 100, drink: 0, heal: 60 }, // sacado a punto
+  crudo:      { food: 35, drink: 0,  heal: 5 },
+  quemado:    { food: 30, drink: 0,  heal: 5 },
+};
+// Lo que entra en la mochila: lo que se come y el carbón para el asado
+const inBag = id => !!FOOD[id] || id === 'carbon';
+
+// Asado: en las parrillas de las plazas, con carne y carbón de la mochila (E). Se saca
+// con E de a una porción: antes de ASADO_PUNTO segundos sale crudo, hasta ASADO_QUEMA a
+// punto y después quemado; pasado ASADO_CARBON se hace carbón y no queda nada. Las
+// porciones se las lleva cualquiera que esté en la parrilla: si te descuidás, te lo comen.
+const ASADO_PUNTO = 25;
+const ASADO_QUEMA = 45;
+const ASADO_CARBON = 75;
+const ASADO_PORCIONES = 3;
+const GRILL_R = 18;
+
+const FOOD_NAME = { carne: 'UN VACIO', pernil: 'UN PERNIL', choripan: 'UN CHORI', fideos: 'UNOS FIDEOS',
+  galletitas: 'UNAS CRIOLLITAS', mate: 'UNOS MATES', agua: 'UN AGUA', gaseosa: 'UNA CHOCA-COLA',
+  asado: 'UN ASADO A PUNTO', crudo: 'UN ASADO CRUDO', quemado: 'UN ASADO QUEMADO' };
+
+// Supermercados: lo que se compra va a la mochila. El CHOTO tiene carne; el NOCHE % es
+// más barato y no tiene. El CHOTO de Lanús vende lo mismo que el CHOTO, pero la carne
+// nunca llega (out).
 const CHOTO_ITEMS = [
-  {id:'carne',    price:260, heal:70, desc:'Vacio del bueno. Lo morfas ahi nomas, crudo.'},
-  {id:'pernil',   price:180, heal:45, desc:'Pernil de cumpleanos. Sin el cumpleanos.'},
-  {id:'choripan', price:120, heal:30, desc:'Chori con chimi. El del CHOTO, no el de la cancha.'},
-  {id:'mate',     price:60,  heal:15, desc:'Yerba, termo y bombilla. Te levanta.'},
+  {id:'carne',    price:260, desc:'Vacio del bueno. Para la parrilla o pa morfar ya.'},
+  {id:'pernil',   price:180, desc:'Pernil de cumpleanos. Sin el cumpleanos.'},
+  {id:'choripan', price:120, desc:'Chori con chimi. El del CHOTO, no el de la cancha.'},
+  {id:'mate',     price:60,  desc:'Yerba, termo y bombilla. Saca la sed y te levanta.'},
+  {id:'agua',     price:40,  desc:'Agua mineral. La de la canilla no la tomes.'},
+  {id:'gaseosa',  price:70,  desc:'Choca-Cola de dos litros y cuarto. Caliente.'},
+  {id:'carbon',   price:90,  desc:'Bolsa de carbon. Con carne, a la parrilla de la plaza.'},
 ];
 const NOCHE_ITEMS = [
-  {id:'fideos',     price:70, heal:35, desc:'Monitos con manteca. Carne no hay, nunca hubo.'},
-  {id:'galletitas', price:40, heal:20, desc:'Paquete de criollitas, la mitad rotas.'},
-  {id:'mate',       price:35, heal:15, desc:'Yerba de marca propia. Tiene palos.'},
+  {id:'fideos',     price:70, desc:'Monitos con manteca. Carne no hay, nunca hubo.'},
+  {id:'galletitas', price:40, desc:'Paquete de criollitas, la mitad rotas.'},
+  {id:'mate',       price:35, desc:'Yerba de marca propia. Tiene palos.'},
+  {id:'agua',       price:25, desc:'Agua marca NOCHE. Sabe a agua, por suerte.'},
+  {id:'gaseosa',    price:45, desc:'Cola marca NOCHE. Sin gas desde el 2019.'},
+  {id:'carbon',     price:60, desc:'Carbon humedo. Prende, pero cuesta.'},
 ];
 const LANUS_ITEMS = [
-  {id:'carne',    price:260, heal:70, out:true, desc:'HOY NO HAY CARNE. Ayer tampoco.'},
-  {id:'pernil',   price:180, heal:45, desc:'El ultimo que quedaba. Tiene una mordida.'},
-  {id:'choripan', price:120, heal:30, desc:'Lo hace el de seguridad en la puerta.'},
-  {id:'mate',     price:60,  heal:15, desc:'Lo tenes que cebar vos.'},
+  {id:'carne',    price:260, out:true, desc:'HOY NO HAY CARNE. Ayer tampoco.'},
+  {id:'pernil',   price:180, desc:'El ultimo que quedaba. Tiene una mordida.'},
+  {id:'choripan', price:120, desc:'Lo hace el de seguridad en la puerta.'},
+  {id:'mate',     price:60,  desc:'Lo tenes que cebar vos.'},
+  {id:'agua',     price:40,  desc:'De la canilla, embotellada aca nomas.'},
 ];
 // Las cadenas: cartel del techo (al de Lanús se le cayó la O), colores de la fachada y del cartel, y dónde va cada
 // local (fracción del mapa; se convierte el edificio grande más cercano a ese punto).
 // El de Lanús va del otro lado del Riachuelo, como corresponde.
+// Estadios: parodias de las canchas de verdad, con los colores de cada club. Cada uno ocupa
+// una manzana entera, la libre más cercana a "at" (celda de la grilla): LA CHOCOLATERA del
+// lado de La Boca, pegada al Riachuelo (y le falta una tribuna); EL MONUMENTAZO en el norte;
+// y en Avellaneda, del otro lado del Riachuelo, los dos vecinos a una cuadra.
+// pattern: cómo se pintan las tribunas y el trapo (franja, banda, liso, bastones)
+const STADIUMS = [
+  { k: 'boca', name: 'LA CHOCOLATERA', club: 'BOCA JUNIORES', at: [14, 14], c1: '#123f8c', c2: '#f3b229', wall: '#0e3270',
+    pattern: 'franja', missing: true },
+  { k: 'river', name: 'EL MONUMENTAZO', club: 'RIVER PLATO', at: [11, 2], c1: '#f2f2f2', c2: '#e4002b', wall: '#c9c9c9',
+    pattern: 'banda' },
+  { k: 'inde', name: 'LOS DEUDORES DE AMERICA', club: 'DEPENDIENTE', at: [17, 19], c1: '#d8141c', c2: '#ffffff', wall: '#a80e14',
+    pattern: 'liso' },
+  { k: 'racing', name: 'EL TERMO', club: 'RASIN CLUB', at: [18, 19], c1: '#7cc4ef', c2: '#ffffff', wall: '#7a7e84',
+    pattern: 'bastones', round: true },
+];
+
+// Respeto, por jugador. Rangos (desde cuánto respeto) y cuánto da o saca cada cosa.
+const RANKS = [[0, 'GIL'], [50, 'PIBE DEL BARRIO'], [150, 'PESADO'], [350, 'CAPO'], [700, 'LEYENDA']];
+const RESPECT = {
+  choto: 10, noche: 6, lanus: 1,   // robar un super
+  famoso: 8,                       // bajar a un famoso
+  star: 5,                         // por estrella, al perder a la yuta con 3 o más
+  pvp: 15, pvpLoss: 10,            // bajar a otro jugador (y lo que pierde el que cae)
+  trapo: 50,                       // aguantar el trapo de una barra
+  asado: 2,                        // que otro coma de tu asado
+};
+const RESPECT_DEATH = 0.10;  // lo que se pierde al morir
+const RESPECT_BUST = 0.15;   // y al caer preso
+const RANK_DISCOUNT = 0.05;  // por rango: más barato en la armería y con los tranzas
+const RANK_CALM = 3;         // desde CAPO, un tranza lastimado no prende la villa de una
+
+// Barras: paran en la puerta de su estadio con el trapo colgado. Si se lo robás, te salen a
+// buscar; si lo aguantás TRAPO_TIME segundos es tuyo, y vuelve a colgarse a los TRAPO_BACK.
+const BARRAS = [
+  { k: 'boca', name: 'LA DOCENA', short: 'LA DOCENA', stadium: 'boca', shirt: '#123f8c', pants: '#0e2a5c', band: '#f3b229', n: 7,
+    chant: ['DALE CHOCO, DALE CHOCO!', 'LA DOCENA NO SE VA!', 'DE LA BOCA SOMOS NOSOTROS!'] },
+  { k: 'river', name: 'LOS BORRACHOS DEL TABLERO', short: 'LOS BORRACHOS', stadium: 'river', shirt: '#f2f2f2', pants: '#1a1a1a', band: '#e4002b', n: 7,
+    chant: ['VAMOS RIVER PLATO!', 'EL MAS GRANDE, PAPA!', 'LOS BORRACHOS ESTAN ACA!'] },
+  { k: 'inde', name: 'LOS DIABLITOS', short: 'LOS DIABLITOS', stadium: 'inde', shirt: '#d8141c', pants: '#1a1a1a', band: '#ffffff', n: 6,
+    chant: ['ROJO, ROJO, PAGA LO QUE DEBE!', 'DE AVELLANEDA SOMOS!', 'EL DIABLO NO SE VA!'] },
+  { k: 'racing', name: 'LA GUARDIA IMPERFECTA', short: 'LA GUARDIA', stadium: 'racing', shirt: '#7cc4ef', pants: '#1a1a1a', band: '#ffffff', n: 6,
+    chant: ['LA ACADEMIA, PAPA!', 'CEBATE UN MATE EN EL TERMO!', 'SOMOS EL PRIMER GRANDE!'] },
+];
+const TRAPO_TIME = 60;
+const TRAPO_BACK = 180;
+const TRAPO_R = 16;         // distancia para agarrarlo
+const BARRA_ANGRY = 90;     // cuánto dura la bronca
+const BARRA_CHASE = 420;    // hasta dónde te siguen
+// Corren más que vos caminando y menos que corriendo (SHIFT); pegan los HINCHA_FRONT más cerca
+const HINCHA_HP = 45, HINCHA_DMG = 5, HINCHA_SPD = 76, HINCHA_HIT = 1.1, HINCHA_FRONT = 3;
+
 const SUPERS = [
   { k: 'choto', name: 'CHOTO', at: [0.30, 0.44], col: '#e8e0d4', roof: '#c8302a', sign: '#c8302a', ink: '#fff' },
   { k: 'noche', name: 'NOCHE %', at: [0.22, 0.62], col: '#e4e6ec', roof: '#2a4fa8', sign: '#d8302a', ink: '#fff' },

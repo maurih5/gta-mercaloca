@@ -61,7 +61,18 @@ function step(now) {
     }
     if (!keys.KeyR) G._r = false;
 
+    // Al abrir el mapa, arranca centrado en el jugador
+    if (G.mapOpen && !G._mapWas) mapCtl.open();
+    G._mapWas = G.mapOpen;
     if (G.mapOpen) {
+      // Moverse por el mapa: flechas / WASD / joystick, o arrastrando. ESPACIO vuelve a vos.
+      const v = mapCtl.view();
+      mapCtl.pan(input.getHorizontalAxis() * v.viewW * MAP_PAN_RATE * dt, input.getVerticalAxis() * v.viewH * MAP_PAN_RATE * dt);
+      const d = input.consumeDrag();
+      if (d.x || d.y) mapCtl.pan(-d.x / v.k, -d.y / v.k);
+      if (keys.Space) mapCtl.open();
+      if (keys.KeyL && !G._l) G.mapLegend = !G.mapLegend;
+      G._l = !!keys.KeyL;
       const f = 1 + MAP_ZOOM_RATE * dt;
       if (keys.Equal || keys.NumpadAdd) G.mapZoom = clamp(G.mapZoom * f, MAP_MIN_ZOOM, MAP_MAX_ZOOM);
       if (keys.Minus || keys.NumpadSubtract) G.mapZoom = clamp(G.mapZoom / f, MAP_MIN_ZOOM, MAP_MAX_ZOOM);
@@ -69,6 +80,7 @@ function step(now) {
       if (wheel) G.mapZoom = clamp(G.mapZoom * Math.pow(1.0015, -wheel), MAP_MIN_ZOOM, MAP_MAX_ZOOM);
     } else {
       input.consumeWheel();
+      input.consumeDrag();
     }
     if (touchController) touchController.syncMapButtons();
 
@@ -232,8 +244,9 @@ async function boot() {
       }
       if (news) ui.openNews(true);
     } else if (sala) {
-      // Directo a elegir personaje para entrar a la sala
+      // Directo a elegir personaje para entrar a la sala (sin los que ya están adentro)
       ui.mode = 'join';
+      ui.markTaken();
       G.state = 'sel';
       fadeTo(() => { show('sel'); ui.openNews(news); });
     } else {

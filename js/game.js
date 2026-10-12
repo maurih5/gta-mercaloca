@@ -28,9 +28,14 @@ const G = {
   paused: false,
   mapOpen: false,
   mapZoom: MAP_MIN_ZOOM,
+  mapX: 0,          // centro del mapa (se mueve con flechas o arrastrando)
+  mapY: 0,
+  mapLegend: true,  // las referencias al costado (L)
   flash: 0,
   shopOpen: false,
   tranzas: [],
+  barras: [],      // LA DOCENA y LOS BORRACHOS DEL TABLERO: su trapo y su bronca
+  hinchas: [],
   ts: 1,
 };
 
@@ -123,6 +128,7 @@ class Game {
     this.snapCam();
     G.cars = [];
     this.resetSupers();
+    for (const g of parrillas) Object.assign(g, { cooking: false, t: 0, portions: 0, owner: null });
     copNav.reset();
     G.peds = [];
     G.guards = [];
@@ -139,6 +145,9 @@ class Game {
       v.angry = 0;
       v.spots.forEach((sp, i) => G.tranzas.push(makeTranza(v, sp, i)));
     }
+    G.barras = makeBarras();
+    G.hinchas = [];
+    for (const b of G.barras) for (let i = 0; i < b.def.n; i++) G.hinchas.push(makeHincha(b, i));
 
     for (let i = 0; i < CAR_TARGET; i++) {
       const sp = ringSpot(60, SIM_R, true) || freeRoadSpot();
@@ -196,7 +205,7 @@ class Game {
     Object.assign(P, {
       x: s.x, y: s.y, hp: P.maxhp, dead: false, car: null, cool: 0.5,
       inv: { pistola: Infinity }, wpn: 'pistola', armor: 0,
-      wanted: 0, wantCool: 0, slowmo: 0,
+      wanted: 0, wantCool: 0, wantPeak: 0, slowmo: 0, food: 80, drink: 80, bag: {}, trapo: null,
     });
     if (P === G.me) this.snapCam();
     this.say('DE VUELTA EN EL BARRIO', 2.6, P);
@@ -230,7 +239,12 @@ class Game {
     P.hp = P.maxhp;
     P.car = null;
     P.cool = 0.5;
-    // En la comisaria te sacan los fierros y el chaleco
+    this.dropTrapo(P);
+    this.loseRespect(P, RESPECT_BUST);
+    P.wantPeak = 0;
+    // En la comisaria te sacan los fierros y el chaleco, y te dan un mate cocido
+    P.food = Math.max(P.food, 50);
+    P.drink = Math.max(P.drink, 50);
     P.inv = { pistola: Infinity };
     P.wpn = 'pistola';
     P.armor = 0;
@@ -255,6 +269,7 @@ class Game {
     if (!P) return;
     const old = P.wanted;
     P.wanted = Math.min(5, P.wanted + n);
+    P.wantPeak = Math.max(P.wantPeak || 0, P.wanted);
     P.wantCool = 0;
     if (P.wanted > old && P.wanted >= 2) {
       sfxFor(P, 'busqueda');
@@ -285,7 +300,11 @@ class Game {
     if (isNew) P.wpn = id;
   }
 
-  hurtPlayer(P, n) {
+  hurtPlayer(P, n, by = null) {
+    if (by && by.kind === 'player' && by !== P) {
+      P.hitBy = by;
+      P.hitT = G.t;
+    }
     if (P.armor > 0) {
       const a = Math.min(P.armor, n * 0.7);
       P.armor -= a;
@@ -295,14 +314,14 @@ class Game {
   }
 
   // Un balazo a un jugador: en el auto lo absorbe casi todo la chapa
-  shootPlayer(P, dmg) {
+  shootPlayer(P, dmg, by = null) {
     this.shakeFor(P, 1.6);
     sfx('impacto', P.x, P.y);
     if (P.car) {
       P.car.hp -= dmg;
-      this.hurtPlayer(P, (dmg * 2) / 7);
+      this.hurtPlayer(P, (dmg * 2) / 7, by);
     } else {
-      this.hurtPlayer(P, dmg);
+      this.hurtPlayer(P, dmg, by);
     }
     boom(P.x, P.y, 5, '190,35,35');
   }
@@ -322,7 +341,26 @@ class Game {
     e.hp -= dmg;
     boom(e.x, e.y, 7, '190,35,35');
     sfx('impacto', e.x, e.y);
+    if (e.kind === 'hincha') {
+      // Tocar a uno es meterse con toda la barra
+      const B = e.barra;
+      if (by && B.tgt !== by) this.say(B.def.name + ' TE QUIERE MATAR', 2.6, by);
+      B.angry = Math.max(B.angry, BARRA_ANGRY);
+      if (by) B.tgt = by;
+      if (e.hp <= 0) {
+        decal(e.x, e.y, rnd(4, 7), 'rgba(95,12,12,.5)');
+        if (by) by.money += 60;
+        this.wantUp(by, 1);
+      }
+      return;
+    }
     if (e.kind === 'tranza') {
+      // Con respeto (CAPO o más), el primer golpe no prende la villa: avisan
+      if (by && e.hp > 0 && e.villa.angry <= 0 && this.rankOf(by) >= RANK_CALM && !(e.villa.warnT > 0)) {
+        e.villa.warnT = 25;
+        this.say('EL TRANZA TE RESPETA... NO TE ZARPES', 2.6, by);
+        return;
+      }
       if (e.villa.angry <= 0) this.say('SE PUDRIO TODO EN ' + e.villa.name, 3, by);
       e.villa.angry = 45;
       if (e.hp <= 0) {
@@ -344,7 +382,7 @@ class Game {
   // Lo que un jugador le puede pegar: la gente de la calle y, con PVP, los otros jugadores
   targetsOf(P) {
     const out = [];
-    for (const list of [G.cops, G.peds, G.tranzas]) {
+    for (const list of [G.cops, G.peds, G.tranzas, G.hinchas]) {
       for (const e of list) if (e.hp > 0 && !e.inside) out.push(e);
     }
     if (PVP) {
@@ -354,7 +392,7 @@ class Game {
   }
 
   damage(e, dmg, by) {
-    if (e.kind === 'player') this.hurtPlayer(e, dmg);
+    if (e.kind === 'player') this.hurtPlayer(e, dmg, by);
     else this.hurt(e, dmg, by);
   }
 
@@ -461,7 +499,7 @@ class Game {
     decal(x, y, 13, 'rgba(10,10,10,.5)');
     this.shakeAt(x, y, 10);
     this.flashAt(x, y, 0.7);
-    for (const list of [G.cops, G.peds, G.tranzas]) {
+    for (const list of [G.cops, G.peds, G.tranzas, G.hinchas]) {
       for (const e of list) {
         if (e.hp <= 0 || e.inside) continue;
         const d = dist(e, at);
@@ -482,7 +520,7 @@ class Game {
       if (!inPlay(P) || P.car) continue;
       if (by && P !== by && !PVP) continue;
       const d = dist(P, at);
-      if (d < R) this.hurtPlayer(P, dmg * 0.6 * (1 - (d / R) * 0.6));
+      if (d < R) this.hurtPlayer(P, dmg * 0.6 * (1 - (d / R) * 0.6), by);
     }
     if (by && by.wanted < 1) this.wantUp(by, 1);
   }
@@ -509,7 +547,10 @@ class Game {
   }
 
   updateTranzas(dt) {
-    for (const v of villas) v.angry = Math.max(0, v.angry - dt);
+    for (const v of villas) {
+      v.angry = Math.max(0, v.angry - dt);
+      v.warnT = Math.max(0, (v.warnT || 0) - dt);
+    }
     for (const t of G.tranzas) {
       t.muzzle = Math.max(0, t.muzzle - dt * 14);
 
@@ -576,6 +617,266 @@ class Game {
     if (!lines || !lines.length || p.lineT > 1.2) return;
     p.line = lines[(Math.random() * lines.length) | 0];
     p.lineT = 2.6;
+  }
+
+  // ---- Hambre y sed ----
+
+  // Bajan solas; en 0 se pierde vida de a poco y, bien comido y tomado, la vida sube
+  updateNeeds(P, dt) {
+    const f0 = P.food, d0 = P.drink;
+    P.food = Math.max(0, P.food - HUNGER_RATE * dt);
+    P.drink = Math.max(0, P.drink - THIRST_RATE * dt);
+    // Avisos al cruzar el umbral (una vez por bajada)
+    if (f0 > NEED_LOW && P.food <= NEED_LOW) this.say('TENES HAMBRE. C PARA COMER', 2.6, P);
+    if (d0 > NEED_LOW && P.drink <= NEED_LOW) this.say('TENES SED. C PARA TOMAR ALGO', 2.6, P);
+    if ((f0 > 0 && P.food <= 0) || (d0 > 0 && P.drink <= 0)) {
+      this.say(P.food <= 0 ? 'TE ESTAS MURIENDO DE HAMBRE' : 'TE ESTAS MURIENDO DE SED', 3, P);
+    }
+    if (P.food <= 0 || P.drink <= 0) P.hp -= NEED_HURT * dt;
+    else if (P.food > NEED_GOOD && P.drink > NEED_GOOD && P.hp > 0 && P.hp < P.maxhp) {
+      P.hp = Math.min(P.maxhp, P.hp + NEED_REGEN * dt);
+    }
+  }
+
+  // Lo que más le sirve ahora de lo que tiene en la mochila (null si nada le sirve)
+  bestBite(P) {
+    let best = null, bs = 0;
+    for (const id in P.bag) {
+      const F = FOOD[id];
+      if (!F || !(P.bag[id] > 0)) continue;
+      const s = Math.min(F.food, 100 - P.food) + Math.min(F.drink, 100 - P.drink)
+        + Math.min(F.heal, P.maxhp - P.hp) * 0.5;
+      if (s > bs) { bs = s; best = id; }
+    }
+    return best;
+  }
+
+  eat(P, id = this.bestBite(P)) {
+    if (!Object.keys(P.bag).some(k => FOOD[k] && P.bag[k] > 0)) {
+      this.say('NO TENES NADA PARA COMER. PASA POR UN SUPER', 2.2, P);
+      return false;
+    }
+    const F = FOOD[id];
+    if (!F || !(P.bag[id] > 0)) {
+      this.say('ESTAS LLENO', 1.8, P);
+      return false;
+    }
+    if (--P.bag[id] <= 0) delete P.bag[id];
+    P.food = Math.min(100, P.food + F.food);
+    P.drink = Math.min(100, P.drink + F.drink);
+    P.hp = Math.min(P.maxhp, P.hp + F.heal);
+    sfxFor(P, 'comida');
+    this.say((F.drink > F.food ? 'TE TOMASTE ' : 'TE COMISTE ') + (FOOD_NAME[id] || id.toUpperCase()), 2, P);
+    return true;
+  }
+
+  // Cuántas cosas lleva en la mochila
+  bagCount(P) {
+    let n = 0;
+    for (const k in P.bag) n += P.bag[k];
+    return n;
+  }
+
+  // ---- Respeto ----
+
+  rankOf(P) {
+    let r = 0;
+    RANKS.forEach(([min], i) => { if ((P.respect || 0) >= min) r = i; });
+    return r;
+  }
+
+  // quiet: sin cartel (el que llama ya avisa), salvo que suba de rango
+  gainRespect(P, n, why, quiet = false) {
+    if (!P || !n) return;
+    const r0 = this.rankOf(P);
+    P.respect = (P.respect || 0) + n;
+    const r1 = this.rankOf(P);
+    if (r1 > r0) {
+      this.say('AHORA SOS ' + RANKS[r1][1] + '!', 3.4, P);
+      sfxFor(P, 'guita');
+      this.flashFor(P, 0.35);
+    } else if (!quiet) {
+      this.say('+' + n + ' RESPETO' + (why ? ' (' + why + ')' : ''), 2.4, P);
+    }
+  }
+
+  loseRespect(P, frac, n = 0) {
+    P.respect = Math.max(0, Math.round((P.respect || 0) * (1 - frac)) - n);
+  }
+
+  // Precio con el descuento del rango (armería y tranzas)
+  price(P, base) {
+    return Math.round(base * (1 - RANK_DISCOUNT * this.rankOf(P)) / 10) * 10;
+  }
+
+  // Cayó un jugador: pierde respeto; si lo bajó otro jugador, ese se lleva respeto y el
+  // trapo (si lo tenía). Si no, el trapo vuelve a su barra.
+  playerDown(P) {
+    const by = P.hitBy && G.t - P.hitT < 6 && G.players.includes(P.hitBy) && inPlay(P.hitBy) ? P.hitBy : null;
+    this.loseRespect(P, RESPECT_DEATH, by ? RESPECT.pvpLoss : 0);
+    P.wantPeak = 0;
+    if (by) {
+      this.gainRespect(by, RESPECT.pvp, 'BAJASTE A ' + P.def.name);
+      if (P.trapo && !by.trapo) {
+        const B = P.trapo;
+        P.trapo = null;
+        Object.assign(by, { trapo: B, trapoT: 0 });
+        Object.assign(B, { by, tgt: by });
+        this.say('LE SACASTE EL TRAPO DE ' + B.def.name + '! AGUANTALO', 3, by);
+      }
+    }
+    this.dropTrapo(P);
+    P.hitBy = null;
+  }
+
+  // ---- Barras y trapos ----
+
+  takeTrapo(P, B) {
+    if (B.trapo !== 'hung' || P.trapo) return false;
+    Object.assign(B, { trapo: 'carried', by: P, tgt: P, angry: BARRA_ANGRY });
+    Object.assign(P, { trapo: B, trapoT: 0 });
+    this.say('TE LLEVASTE EL TRAPO DE ' + B.def.name + '! AGUANTALO ' + TRAPO_TIME + ' SEGUNDOS', 3.2, P);
+    for (const q of G.players) if (q !== P) this.say(P.def.name + ' LE ROBO EL TRAPO A ' + B.def.name, 2.8, q);
+    sfx('arma', B.flag.x, B.flag.y);
+    return true;
+  }
+
+  // Si lo tenía encima, el trapo vuelve a colgarse en su estadio
+  dropTrapo(P) {
+    const B = P.trapo;
+    if (!B) return;
+    P.trapo = null;
+    P.trapoT = 0;
+    Object.assign(B, { trapo: 'hung', by: null });
+  }
+
+  updateBarras(dt) {
+    for (const B of G.barras) {
+      B.angry = Math.max(0, B.angry - dt);
+      if (B.trapo === 'gone' && (B.backT -= dt) <= 0) Object.assign(B, { trapo: 'hung', by: null });
+      if (B.trapo !== 'carried') continue;
+      const P = B.by;
+      if (!P || !G.players.includes(P) || P.trapo !== B || P.dead || P.busted) {
+        if (P && P.trapo === B) this.dropTrapo(P);
+        else Object.assign(B, { trapo: 'hung', by: null });
+        continue;
+      }
+      // Mientras lo lleva, la barra entera lo busca
+      B.tgt = P;
+      B.angry = Math.max(B.angry, 20);
+      P.trapoT += dt;
+      if (P.trapoT >= TRAPO_TIME) {
+        P.trapo = null;
+        P.trapoT = 0;
+        P.trapos++;
+        Object.assign(B, { trapo: 'gone', by: null, backT: TRAPO_BACK, angry: BARRA_ANGRY });
+        this.gainRespect(P, RESPECT.trapo, 'EL TRAPO DE ' + B.def.name);
+        for (const q of G.players) if (q !== P) this.say(P.def.name + ' SE QUEDO CON EL TRAPO DE ' + B.def.name, 2.8, q);
+      }
+    }
+
+    // La barra pega con un solo ritmo: como mucho HINCHA_FRONT golpes cada HINCHA_HIT segundos,
+    // por más que te rodeen todos (los demás empujan y rodean)
+    for (const B of G.barras) {
+      B.hitT = Math.max(0, (B.hitT || 0) - dt);
+      B.near = B.nearNow || 0;
+      B.nearNow = 0;
+    }
+    for (const h of G.hinchas) {
+      // El que cayó vuelve al rato, si nadie lo está mirando
+      if (h.hp <= 0) {
+        h.dead += dt;
+        if (h.dead > 60 && h.barra.angry <= 0 && farFromPlayers(h.home, OFFSCREEN)) {
+          Object.assign(h, { x: h.home.x, y: h.home.y, hp: HINCHA_HP, dead: 0 });
+        }
+        continue;
+      }
+      const B = h.barra, T = B.tgt;
+      const chase = B.angry > 0 && T && inPlay(T) && dist(h, T) < BARRA_CHASE;
+      if (chase) {
+        const d = dist(h, T);
+        h.ang = Math.atan2(T.y - h.y, T.x - h.x);
+        if (d > 11) {
+          const nx = h.x + Math.cos(h.ang) * HINCHA_SPD * dt, ny = h.y + Math.sin(h.ang) * HINCHA_SPD * dt;
+          if (!pedBlocked(nx, h.y, h.r)) h.x = nx;
+          if (!pedBlocked(h.x, ny, h.r)) h.y = ny;
+          h.walk += (dt * HINCHA_SPD) / 8;
+        }
+        if (d < 14) B.nearNow++;
+        if (d < 14 && B.hitT <= 0) {
+          B.hitT = HINCHA_HIT / clamp(B.near, 1, HINCHA_FRONT) * rnd(0.85, 1.15);
+          h.swing = 1;
+          sfx('golpe', T.x, T.y);
+          boom(T.x, T.y, 4, '190,35,35');
+          if (T.car) T.car.hp -= HINCHA_DMG * 0.5;
+          else this.hurtPlayer(T, HINCHA_DMG);
+          this.shakeFor(T, 2);
+        }
+      } else {
+        // Tranqui: a su lugar alrededor del trapo, mirando para los costados
+        const dh = dist(h, h.home);
+        if (dh > 3) {
+          h.ang = Math.atan2(h.home.y - h.y, h.home.x - h.x);
+          h.x += Math.cos(h.ang) * 40 * dt;
+          h.y += Math.sin(h.ang) * 40 * dt;
+          h.walk += (dt * 40) / 8;
+        } else if ((h.look -= dt) <= 0) {
+          h.look = rnd(1.5, 4);
+          h.ang = rnd(0, TAU);
+        }
+      }
+      h.swing = Math.max(0, (h.swing || 0) - dt * 5);
+    }
+  }
+
+  // ---- Asado ----
+
+  // E en la parrilla: si está apagada, se prende con carne y carbón de la mochila; si hay
+  // asado, se lleva una porción (cruda, a punto o quemada según cuánto lleva)
+  useGrill(P, g) {
+    if (!g.cooking) {
+      if (!(P.bag.carne > 0) || !(P.bag.carbon > 0)) {
+        this.say('PARA EL ASADO: CARNE DEL CHOTO Y CARBON', 2.6, P);
+        return false;
+      }
+      for (const k of ['carne', 'carbon']) if (--P.bag[k] <= 0) delete P.bag[k];
+      Object.assign(g, { cooking: true, t: 0, portions: ASADO_PORCIONES, owner: P });
+      puff(g.x, g.y - 4, '200,200,200', 6, 12);
+      this.say('A LA PARRILLA! VOLVE A PUNTO, NO TE COLGUES', 2.8, P);
+      return true;
+    }
+    if (this.bagCount(P) >= BAG_MAX) {
+      this.say('NO TE ENTRA EN LA MOCHILA', 2, P);
+      return false;
+    }
+    const q = g.t < ASADO_PUNTO ? 'crudo' : g.t < ASADO_QUEMA ? 'asado' : 'quemado';
+    P.bag[q] = (P.bag[q] || 0) + 1;
+    g.portions--;
+    sfxFor(P, 'comida');
+    this.say('TE LLEVASTE ' + FOOD_NAME[q] + (g.portions ? ' (QUEDAN ' + g.portions + ')' : ''), 2.4, P);
+    if (g.owner && g.owner !== P && G.players.includes(g.owner)) {
+      this.say('TE ESTAN COMIENDO EL ASADO! +' + RESPECT.asado + ' RESPETO', 2.6, g.owner);
+      this.gainRespect(g.owner, RESPECT.asado, 'BUEN ASADOR', true);
+    }
+    if (g.portions <= 0) Object.assign(g, { cooking: false, t: 0, owner: null });
+    return true;
+  }
+
+  // El asado se va haciendo solo: avisos al dueño cuando está a punto y cuando se quema
+  updateGrills(dt) {
+    for (const g of parrillas) {
+      if (!g.cooking) continue;
+      const t0 = g.t;
+      g.t += dt;
+      const P = G.players.includes(g.owner) ? g.owner : null;
+      if (t0 < ASADO_PUNTO && g.t >= ASADO_PUNTO) this.say('EL ASADO ESTA A PUNTO!', 3, P);
+      if (t0 < ASADO_QUEMA && g.t >= ASADO_QUEMA) this.say('SE TE QUEMA EL ASADO!', 3, P);
+      if (g.t >= ASADO_CARBON) {
+        puff(g.x, g.y - 4, '40,40,40', 10, 18);
+        this.say('SE HIZO CARBON. NO QUEDO NADA', 3, P);
+        Object.assign(g, { cooking: false, t: 0, portions: 0, owner: null });
+      }
+    }
   }
 
   // ---- Robo al super ----
@@ -654,7 +955,10 @@ class Game {
       });
     }
     const msg = b.super === 'lanus' ? 'LA CAJA ESTABA VACIA. YA LA ROBARON AYER' : 'CAJA VACIA! JUNTA LA GUITA Y RAJA';
-    for (const q of b.robbers) this.say(msg, 3, q);
+    for (const q of b.robbers) {
+      this.say(msg, 3, q);
+      if (G.players.includes(q)) this.gainRespect(q, RESPECT[b.super], 'ROBO');
+    }
     boom(d.x + ax * 12, d.y + ay * 12, 10, '120,220,120');
     b.witnessT = ROB_WITNESS;
     this.endRobbery(b);
@@ -683,6 +987,7 @@ class Game {
       }
     }
     this.say('BAJASTE A ' + e.famous.name, 2.6, by);
+    if (by && by.kind === 'player') this.gainRespect(by, RESPECT.famoso, e.famous.name);
   }
 
   // Aparecen cerca de cada jugador cada tanto (sin que otro jugador los vea aparecer),
@@ -738,6 +1043,8 @@ class Game {
       P.healT += dt;
       if (P.healT > HOSPITAL_TIME) {
         P.hp = P.maxhp;
+        P.food = Math.max(P.food, 60); // suero y un sanguchito de miga
+        P.drink = Math.max(P.drink, 60);
         P.healing = 0;
         sfxFor(P, 'hospital');
         this.say('LISTO. A LA CALLE.', 2.6, P);
@@ -753,7 +1060,14 @@ class Game {
     P.nearShop = null;
     P.nearTranza = null;
     P.nearSuper = null;
+    P.nearGrill = null;
+    P.nearTrapo = null;
     if (!P.dead) this.switchWeapon(P);
+
+    if (!P.dead) this.updateNeeds(P, dt);
+
+    // Comer o tomar algo de la mochila: C (o el botón 🍖)
+    if (ctl.eat && !P.prev.eat && !P.dead) this.eat(P);
 
     // Fumarse un porro: F (o el botón 🌿)
     if (ctl.porro && !P.prev.porro && !P.dead) {
@@ -876,6 +1190,12 @@ class Game {
         const d = b.door;
         if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearSuper = b;
       }
+      for (const g of parrillas) {
+        if (dist(g, P) < GRILL_R) P.nearGrill = g;
+      }
+      for (const B of G.barras) {
+        if (B.trapo === 'hung' && !P.trapo && dist(B.flag, P) < TRAPO_R) P.nearTrapo = B;
+      }
 
       // Los menús (armería, tranza) se abren en la pantalla del que entró
       if (ctl.use && P.cool <= 0 && P.nearShop) {
@@ -891,6 +1211,12 @@ class Game {
         if (P.nearSuper.robbing || P.nearSuper.closed > 0) this.say('CERRADO POR ROBO', 2.6, P);
         else if (P.wanted >= 2) this.say('EL DE SEGURIDAD NO TE DEJA PASAR', 2.6, P);
         else this.openShop(P, P.nearSuper.super);
+      } else if (ctl.use && P.cool <= 0 && P.nearTrapo) {
+        P.cool = 0.4;
+        this.takeTrapo(P, P.nearTrapo);
+      } else if (ctl.use && P.cool <= 0 && P.nearGrill) {
+        P.cool = 0.4;
+        this.useGrill(P, P.nearGrill);
       } else if (ctl.use && P.cool <= 0) {
         P.cool = 0.4;
         let best = null, bd = 26;
@@ -972,7 +1298,7 @@ class Game {
         continue;
       }
       if (b.owner) {
-        for (const list of [G.cops, G.peds, G.tranzas]) {
+        for (const list of [G.cops, G.peds, G.tranzas, G.hinchas]) {
           for (const e of list) {
             if (b.life > 0 && e.hp > 0 && segDist(b, e) < 7) {
               b.life = 0;
@@ -988,7 +1314,7 @@ class Game {
         if (P === b.owner || (b.owner && !PVP) || !inPlay(P)) continue;
         if (segDist(b, P) < (P.car ? 12 : 7)) {
           b.life = 0;
-          this.shootPlayer(P, b.dmg);
+          this.shootPlayer(P, b.dmg, b.owner);
         }
       }
     }
@@ -1208,6 +1534,8 @@ class Game {
 
     this.updateFamous(dt);
     this.updateSupers(dt);
+    this.updateGrills(dt);
+    this.updateBarras(dt);
 
     // Velocidad real de cada auto (cuánto se movió de verdad), para que nadie espere
     // atrás de uno que acelera contra una pared sin avanzar
@@ -1553,6 +1881,10 @@ class Game {
         P.wantCool = 0;
         P.wanted--;
         this.say(P.wanted ? 'BAJO LA BUSQUEDA' : 'LOS PERDISTE', 2.6, P);
+        if (!P.wanted) {
+          if (P.wantPeak >= 3) this.gainRespect(P, RESPECT.star * P.wantPeak, 'LOS PERDISTE');
+          P.wantPeak = 0;
+        }
       }
     }
 
@@ -1571,8 +1903,12 @@ class Game {
           this.giveWeapon(P, pk.w, pk.ammo);
           this.say(WEAPONS[pk.w].melee ? WEAPONS[pk.w].name : WEAPONS[pk.w].short + ' +' + pk.ammo, 2.6, P);
         } else {
-          const heal = FOOD_HEAL[pk.food] || 35;
+          const heal = FOOD_HEAL[pk.food] || 35, F = FOOD[pk.food];
           P.hp = Math.min(P.maxhp, P.hp + heal);
+          if (F) {
+            P.food = Math.min(100, P.food + F.food);
+            P.drink = Math.min(100, P.drink + F.drink);
+          }
           this.say('+' + heal + ' VIDA (' + pk.food.toUpperCase() + ')', 2.6, P);
         }
         sfxFor(P, { cash: 'guita', gold: 'guita', weapon: 'arma' }[pk.kind] || 'comida');
@@ -1590,6 +1926,7 @@ class Game {
       if (P.hp <= 0 && !P.dead) {
         P.dead = true;
         P.hp = 0;
+        this.playerDown(P);
         this.exitCar(P);
         boom(P.x, P.y, 32, '170,30,30');
         sfxFor(P, 'muerte');
