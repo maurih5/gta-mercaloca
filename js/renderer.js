@@ -1459,6 +1459,8 @@ class Renderer {
       { dx:  off, dy: -off, horiz: false },
       { dx: -off, dy:  off, horiz: false },
     ];
+    // Donde pasa la Diagonal hay una luz más, la de su fase
+    if (L.diag) heads.push({ dx: off + 8, dy: -off - 8, horiz: 'd' }, { dx: -off - 8, dy: off + 8, horiz: 'd' });
     for (const h of heads) {
       const bx = x + h.dx, by = y + h.dy;
       if (bx < -20 || by < -20 || bx > RW + 20 || by > RH + 20) continue;
@@ -1703,12 +1705,14 @@ class Renderer {
     ctx.fillStyle = c.spd < -2 ? '#ff7a6a' : c.brake ? '#ff2a1a' : '#8c2a22';
     ctx.fillRect(-w / 2 + 0.6, -h / 2 + 2.5, 1.6, 3);
     ctx.fillRect(-w / 2 + 0.6, h / 2 - 5.5, 1.6, 3);
-    // Guiño: titila adelante y atrás del lado que va a doblar (+1 derecha, -1 izquierda)
-    if (c.signal && Math.floor(G.t * 3.2) % 2) {
-      const sy = c.signal > 0 ? h / 2 - 2 : -h / 2;
+    // Guiño: titila adelante y atrás del lado que va a doblar (+1 derecha, -1 izquierda).
+    // Balizas (auto abandonado): los dos lados a la vez
+    if ((c.signal || c.hazard) && Math.floor(G.t * 3.2) % 2) {
       ctx.fillStyle = '#ffb21a';
-      ctx.fillRect(w / 2 - 2.6, sy, 2.2, 2);
-      ctx.fillRect(-w / 2 + 0.4, sy, 2.2, 2);
+      for (const sy of c.hazard ? [h / 2 - 2, -h / 2] : [c.signal > 0 ? h / 2 - 2 : -h / 2]) {
+        ctx.fillRect(w / 2 - 2.6, sy, 2.2, 2);
+        ctx.fillRect(-w / 2 + 0.4, sy, 2.2, 2);
+      }
     }
 
     if (c.cop) {
@@ -2017,6 +2021,7 @@ class Renderer {
         for (const h of [
           { dx: -off, dy: -off, hz: true }, { dx: off, dy: off, hz: true },
           { dx: off, dy: -off, hz: false }, { dx: -off, dy: off, hz: false },
+          ...(L.diag ? [{ dx: off + 8, dy: -off - 8, hz: 'd' }, { dx: -off - 8, dy: off + 8, hz: 'd' }] : []),
         ]) {
           const bx = x + h.dx, by = y + h.dy;
           if (bx < -16 || by < -16 || bx > RW + 16 || by > RH + 16) continue;
@@ -2052,9 +2057,11 @@ class Renderer {
         // Luces traseras: brillan más al frenar
         ECTX.globalAlpha = (c.brake ? 0.9 : 0.4) * k;
         ECTX.drawImage(this.glow(255, 40, 30, c.brake ? 22 : 14), -c.w / 2 - (c.brake ? 11 : 7), -(c.brake ? 11 : 7));
-        if (c.signal && Math.floor(G.t * 3.2) % 2) {
+        if ((c.signal || c.hazard) && Math.floor(G.t * 3.2) % 2) {
           ECTX.globalAlpha = 0.8 * k;
-          ECTX.drawImage(this.glow(255, 180, 40, 16), c.w / 2 - 8, (c.signal > 0 ? c.h / 2 : -c.h / 2) - 8);
+          for (const sd of c.hazard ? [1, -1] : [c.signal]) {
+            ECTX.drawImage(this.glow(255, 180, 40, 16), c.w / 2 - 8, (sd > 0 ? c.h / 2 : -c.h / 2) - 8);
+          }
         }
         ECTX.globalAlpha = 1;
         ECTX.restore();

@@ -45,6 +45,27 @@ function segDist(b, e) {
 }
 
 /**
+ * ¿El tramo que recorrió la bala en el último frame pasa por el rectángulo del auto c
+ * (c.w de largo por c.h de ancho, girado c.ang)? Se hace en las coordenadas del auto.
+ */
+function segHitsCar(b, c) {
+  const ax = b.ox !== undefined ? b.ox : b.x, ay = b.oy !== undefined ? b.oy : b.y;
+  const ca = Math.cos(c.ang), sa = Math.sin(c.ang);
+  const lx = (x, y) => (x - c.x) * ca + (y - c.y) * sa, ly = (x, y) => -(x - c.x) * sa + (y - c.y) * ca;
+  const x0 = lx(ax, ay), y0 = ly(ax, ay), dx = lx(b.x, b.y) - x0, dy = ly(b.x, b.y) - y0;
+  let t0 = 0, t1 = 1;
+  for (const [p, d, h] of [[x0, dx, c.w / 2], [y0, dy, c.h / 2]]) {
+    if (Math.abs(d) < 1e-9) { if (p < -h || p > h) return false; continue; }
+    let ta = (-h - p) / d, tb = (h - p) / d;
+    if (ta > tb) [ta, tb] = [tb, ta];
+    t0 = Math.max(t0, ta);
+    t1 = Math.min(t1, tb);
+    if (t0 > t1) return false;
+  }
+  return true;
+}
+
+/**
  * Generador pseudo-aleatorio determinístico.
  * Mismo ID / valor -> mismo resultado siempre.
  */

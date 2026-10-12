@@ -58,8 +58,31 @@ function nearestPlayer(o, ok = null) {
 
 const distToPlayers = o => nearestPlayer(o).d;
 const farFromPlayers = (o, r) => distToPlayers(o) > r;
+// ¿o se ve en la pantalla de P (con margen m)? La cámara sigue al jugador pero se frena
+// contra el borde del mapa, así que ahí el jugador no está en el centro
+function inView(P, o, m = 0) {
+  const cx = clamp(P.x - RW / 2, 0, WORLD - RW), cy = clamp(P.y - RH / 2, 0, WORLD - RH);
+  return o.x > cx - m && o.x < cx + RW + m && o.y > cy - m && o.y < cy + RH + m;
+}
 // Ninguno de los otros jugadores lo ve (para aparecer gente alrededor de uno sin que se vea en la pantalla del otro)
 const offscreenForOthers = (o, P) => G.players.every(q => q === P || dist(q, o) > OFFSCREEN);
+
+// Choque de dos autos como rectángulos girados (largo w, ancho h): cuánto se pisan y para
+// qué lado conviene separarlos (de a hacia b), o null si no se tocan
+function carOverlap(a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, R = (a.w + b.w) / 2 + 2;
+  if (Math.abs(dx) > R || Math.abs(dy) > R) return null;
+  const ext = (c, ux, uy) => Math.abs(Math.cos(c.ang) * ux + Math.sin(c.ang) * uy) * c.w / 2
+    + Math.abs(-Math.sin(c.ang) * ux + Math.cos(c.ang) * uy) * c.h / 2;
+  let o = Infinity, nx = 0, ny = 0;
+  for (const t of [a.ang, a.ang + Math.PI / 2, b.ang, b.ang + Math.PI / 2]) {
+    const ux = Math.cos(t), uy = Math.sin(t), d = dx * ux + dy * uy;
+    const k = ext(a, ux, uy) + ext(b, ux, uy) - Math.abs(d);
+    if (k <= 0) return null;
+    if (k < o) { o = k; nx = d >= 0 ? ux : -ux; ny = d >= 0 ? uy : -uy; }
+  }
+  return { o, ux: nx, uy: ny };
+}
 
 function driverOf(car) {
   for (const P of G.players) if (P.car === car) return P;
@@ -149,9 +172,12 @@ class Game {
     G.hinchas = [];
     for (const b of G.barras) for (let i = 0; i < b.def.n; i++) G.hinchas.push(makeHincha(b, i));
 
-    for (let i = 0; i < CAR_TARGET; i++) {
-      const sp = ringSpot(60, SIM_R, true) || freeRoadSpot();
-      G.cars.push(makeCar(sp.x, sp.y));
+    // Cada auto en un carril a mitad de cuadra, con lugar adelante (js/traffic.js)
+    for (let k = 0; G.cars.length < CAR_TARGET && k < CAR_TARGET * 60; k++) {
+      // Si alrededor no entran (una esquina del mapa), el resto en cualquier calle
+      const sp = (k < CAR_TARGET * 40 && ringSpot(60, SIM_R, true)) || freeRoadSpot();
+      const car = trafficAI.spawnAt(sp);
+      if (car) G.cars.push(car);
     }
     for (let i = 0; i < PED_TARGET; i++) {
       const sp = sidewalkSpot(40, SIM_R) || freeRoadSpot();
@@ -254,14 +280,20 @@ class Game {
     this.say('TE SOLTARON SIN LOS FIERROS. PERDISTE $' + P.bustFine, 3.4, P);
   }
 
+  // Bajarse: el auto queda ahí, sin nadie adentro (rueda hasta frenar si venía andando),
+  // y es tuyo para volver a subirte sin que nadie llame a la yuta
   exitCar(P = G.me) {
     if (!P || !P.car) return;
-    sfx('puerta', P.car.x, P.car.y);
-    P.car.ai = true;
-    P.car.spd = 0;
-    P.car.nav = false; // la IA retoma desde donde lo dejaste
-    P.x = P.car.x + Math.cos(P.car.ang + Math.PI / 2) * 15;
-    P.y = P.car.y + Math.sin(P.car.ang + Math.PI / 2) * 15;
+    const car = P.car;
+    sfx('puerta', car.x, car.y);
+    car.ai = false;
+    car.chase = false;
+    car.nav = false;
+    car.parked = P;
+    car.brake = false;
+    car.steer = 0;
+    P.x = car.x + Math.cos(car.ang + Math.PI / 2) * 15;
+    P.y = car.y + Math.sin(car.ang + Math.PI / 2) * 15;
     P.car = null;
   }
 
@@ -280,6 +312,7 @@ class Game {
   wreckCar(car) {
     const P = driverOf(car);
     sfx('explosion', car.x, car.y);
+    trafficAI.alarm(car.x, car.y, 170, P, 2);
     boom(car.x, car.y, P ? 34 : 24, '255,150,40', 2);
     puff(car.x, car.y, '40,40,40', 10, 26);
     decal(car.x, car.y, P ? 14 : 12, 'rgba(10,10,10,.5)');
@@ -324,6 +357,20 @@ class Game {
       this.hurtPlayer(P, dmg, by);
     }
     boom(P.x, P.y, 5, '190,35,35');
+  }
+
+  // Un balazo a un auto que no maneja ningún jugador: si tiene chofer, se asusta y sale
+  // rajando (o se baja corriendo); si la chapa no da más, revienta
+  shootCar(c, dmg, by = null) {
+    const alive = c.hp > 0;
+    c.hp -= dmg * 0.6;
+    boom(c.x, c.y, 5, '255,220,150');
+    sfx('pared', c.x, c.y);
+    trafficAI.alarm(c.x, c.y, 40, by, 1.5);
+    if (alive && c.hp <= 0) {
+      c.spd = 0;
+      this.explode(c.x, c.y, 30, 60, by);
+    }
   }
 
   // Daño a peatón o policía, con premio y búsqueda para el jugador que lo bajó (by)
@@ -451,6 +498,7 @@ class Game {
       }
       P.muzzle = 1;
       sfx(id, P.x, P.y);
+      trafficAI.alarm(P.x, P.y, 120, P, 1); // los tiros asustan a los que manejan cerca
       this.shakeFor(P, W.shake);
       boom(P.x + Math.cos(P.ang) * W.barrel, P.y + Math.sin(P.ang) * W.barrel, 3, '255,225,150');
     }
@@ -523,6 +571,8 @@ class Game {
       if (d < R) this.hurtPlayer(P, dmg * 0.6 * (1 - (d / R) * 0.6), by);
     }
     if (by && by.wanted < 1) this.wantUp(by, 1);
+    // Después del daño: los choferes que se bajan corriendo no salen ya heridos por la misma explosión
+    trafficAI.alarm(x, y, R * 5, by, 2);
   }
 
   updateNades(dt) {
@@ -581,6 +631,7 @@ class Game {
           const a = t.ang + rnd(-0.18, 0.18);
           t.muzzle = 1;
           sfx(t.wpn === 'uzi' ? 'uzi' : 'pistola', t.x, t.y);
+          trafficAI.alarm(t.x, t.y, 100, t, 1);
           G.bullets.push({
             x: t.x + Math.cos(a) * 9,
             y: t.y + Math.sin(a) * 9,
@@ -1229,12 +1280,21 @@ class Game {
           }
         }
         if (best) {
+          // Con chofer: lo bajás de una y sale corriendo (y alguien llama a la yuta).
+          // Uno estacionado o abandonado se agarra sin escándalo.
+          const jacked = best.ai && !best.cop && best.hp > 0, mine = best.parked === P;
+          if (jacked) trafficAI.dropDriver(best, P);
+          trafficAI.release(best);
           best.ai = false;
           best.chase = false; // un patrullero robado deja de perseguir
+          best.rage = null;
+          best.panic = 0;
+          best.hazard = false;
+          best.parked = null;
           P.car = best;
           sfx('puerta', best.x, best.y);
-          if (!best.cop) this.wantUp(P, 1);
-          this.say(best.cop ? 'AUTO DE LA YUTA' : 'AUTO ROBADO', 2.6, P);
+          if (jacked) this.wantUp(P, 1);
+          if (!mine) this.say(best.cop ? 'AUTO DE LA YUTA' : 'AUTO ROBADO', 2.6, P);
         }
       }
 
@@ -1307,6 +1367,17 @@ class Game {
           }
         }
       }
+      // Los autos paran las balas: chapa, chispas y el chofer que se asusta. Al auto de un
+      // jugador lo ve el bloque de abajo (la chapa absorbe y algo le llega a él).
+      for (const c of G.cars) {
+        if (b.life <= 0) break;
+        // (las de la yuta y los tranzas no le pegan a los patrulleros: si no, los de a pie
+        // terminaban volando su propio auto estacionado al lado del jugador)
+        if (c.hp <= 0 || driverOf(c) || (b.owner ? b.owner.car === c : c.cop)) continue;
+        if (Math.abs(c.x - b.x) > 40 || Math.abs(c.y - b.y) > 40 || !segHitsCar(b, c)) continue;
+        b.life = 0;
+        this.shootCar(c, b.dmg, b.owner);
+      }
       // Las balas de la yuta y los tranzas le pegan a cualquier jugador; las de un
       // jugador, con PVP, a los otros (nunca a él mismo)
       for (const P of G.players) {
@@ -1349,6 +1420,12 @@ class Game {
         const dq = dist(p, q);
         if (q.wanted > 0 && dq < 105) busy = true;
         if (!threat && ((q.wanted > 0 && dq < 105) || (q.car && Math.abs(q.car.spd) > 70 && dq < 65))) threat = q;
+      }
+      // El chofer que se bajó corriendo (le robaron el auto, se asustó): huye un rato
+      if (p.fleeT > 0) {
+        p.fleeT -= dt;
+        busy = true;
+        threat = p.fleeFrom || threat;
       }
       if (!busy) {
         p.doorT -= dt;
@@ -1413,7 +1490,10 @@ class Game {
       for (const c of G.cars) {
         if (Math.abs(c.spd) < 25) continue;
         if (Math.hypot(c.x - nx, c.y - ny) < 22) {
+          // Se corre del auto (un paso para el costado, no se queda clavado)
           p.ang = Math.atan2(ny - c.y, nx - c.x);
+          const ex = p.x + Math.cos(p.ang) * s * dt, ey = p.y + Math.sin(p.ang) * s * dt;
+          if (!pedBlocked(ex, ey, p.r)) { p.x = ex; p.y = ey; p.walk += (dt * s) / 8; }
           dodge = true;
           break;
         }
@@ -1551,6 +1631,24 @@ class Game {
       trafficAI.update(c, dt);
     }
 
+    // Autos sin nadie adentro (el que dejó un jugador, el que abandonó un chofer asustado):
+    // ruedan hasta frenar. Los muy golpeados humean, como el del jugador.
+    for (const c of G.cars) {
+      if (c.hp <= 0) continue;
+      const P = driverOf(c);
+      if (!c.ai && !c.chase && !P) {
+        c.spd -= Math.sign(c.spd) * Math.min(Math.abs(c.spd), 110 * dt);
+        const nx = c.x + Math.cos(c.ang) * c.spd * dt, ny = c.y + Math.sin(c.ang) * c.spd * dt;
+        if (hitBuilding(nx, ny, c.h * 0.5 + 1) || hitCarBlock(nx, ny, c.h * 0.5 + 1)) c.spd *= -0.2;
+        else { c.x = clamp(nx, 10, WORLD - 10); c.y = clamp(ny, 10, WORLD - 10); }
+        c.brake = false;
+        c.signal = 0;
+      }
+      if (!P && c.hp < 45 && Math.random() < dt * 2.5) {
+        puff(c.x - Math.cos(c.ang) * 10, c.y - Math.sin(c.ang) * 10, c.hp < 18 ? '255,140,40' : '90,90,90', 1, 16);
+      }
+    }
+
     // Se mantienen los autos cerca de algún jugador, y siempre los que maneja un jugador
     G.cars = G.cars.filter(c => driverOf(c) || (c.hp > 0 && distToPlayers(c) < SIM_R * 1.12));
     // Cuántos autos entran alrededor de cada jugador: en una esquina del mapa o contra el
@@ -1589,18 +1687,18 @@ class Game {
         if (P.carSpawn > 0.22) {
           P.carSpawn = 0;
           // Busca un lugar con calle libre: no aparece adentro de una fila ni en una zona
-          // ya cargada (en una esquina del mapa o al lado del río hay menos calles para repartir)
+          // ya cargada (en una esquina del mapa o al lado del río hay menos calles para repartir).
+          // trafficAI.spawnAt lo pone en un carril, lejos de las bocacalles y con lugar adelante.
           for (let k = 0; k < 4; k++) {
             const sp = ringSpot(OFFSCREEN, SIM_R * 0.95, true, P);
             if (!sp || !offscreenForOthers(sp, P)) continue;
-            let near = 0, touching = false;
-            for (const o of G.cars) {
-              const dx = Math.abs(o.x - sp.x), dy = Math.abs(o.y - sp.y);
-              if (dx < 40 && dy < 40) { touching = true; break; }
-              if (dx < 120 && dy < 120) near++;
-            }
-            if (touching || near >= 4) continue;
-            G.cars.push(makeCar(sp.x, sp.y));
+            let near = 0;
+            for (const o of G.cars) if (Math.abs(o.x - sp.x) < 120 && Math.abs(o.y - sp.y) < 120) near++;
+            if (near >= 4) continue;
+            const car = trafficAI.spawnAt(sp);
+            // (con margen: la cámara se adelanta hasta 52 px yendo rápido en auto)
+            if (!car || G.players.some(q => inView(q, car, 70))) continue;
+            G.cars.push(car);
             break;
           }
         }
@@ -1644,82 +1742,8 @@ class Game {
       } else if (d > 120) {
         c.slot = undefined; // se alejó (el jugador se fue): el lugar queda para otro
       }
-      // Desvío en curso (ver abajo): sigue ese rumbo un rato antes de volver a apuntar
-      c.detourT = Math.max(0, (c.detourT || 0) - dt);
-      const want = c.detourT > 0 ? c.detourAng : Math.atan2(nav.y - c.y, nav.x - c.x);
-      let diff = ((want - c.ang + Math.PI * 3) % TAU) - Math.PI;
-      const rate = 2.6 * clamp(Math.abs(c.spd) / 70, 0.3, 1);
-      const turn = clamp(diff, -rate * dt, rate * dt);
-      c.ang += turn;
-      c.steer = lerp(c.steer, clamp(diff, -1, 1), dt * 8);
-
-      let target = d > 70 ? c.cruise : (d > 26 ? 70 : 26);
-      // Frena antes de doblar en una esquina, o si tiene que girar mucho: a toda velocidad
-      // el radio de giro no entra en la calle y se come la esquina
-      if (nav.turn) target = Math.min(target, 55);
-      if (nav.park) target = Math.hypot(nav.x - c.x, nav.y - c.y) > 6 ? 30 : 0;
-      if (Math.abs(diff) > 0.8) target = Math.min(target, 45);
-      c.spd += (target - c.spd) * 1.5 * dt;
-      const CR2 = c.h * 0.5 + 1;
-      const nx2 = c.x + Math.cos(c.ang) * c.spd * dt;
-      const ny2 = c.y + Math.sin(c.ang) * c.spd * dt;
-
-      if (hitBuilding(nx2, ny2, CR2) || hitCarBlock(nx2, ny2, CR2) || nx2 < 10 || ny2 < 10 || nx2 > WORLD - 10 || ny2 > WORLD - 10) {
-        let got = false;
-        for (const t2 of [0.7, -0.7, 1.5, -1.5, 2.4, -2.4, Math.PI]) {
-          const a2 = c.ang + t2;
-          const tx3 = c.x + Math.cos(a2) * (Math.abs(c.spd) * dt + CR2 + 6);
-          const ty3 = c.y + Math.sin(a2) * (Math.abs(c.spd) * dt + CR2 + 6);
-          if (!hitBuilding(tx3, ty3, CR2) && !hitCarBlock(tx3, ty3, CR2) && tx3 > 10 && ty3 > 10 && tx3 < WORLD - 10 && ty3 < WORLD - 10) {
-            c.ang = a2;
-            // Se compromete con el desvío: si al frame siguiente vuelve a apuntar al jugador,
-            // choca contra la misma pared y queda girando en el lugar para siempre
-            c.detourAng = a2;
-            c.detourT = 0.6;
-            // Y sale ya hacia ese lado: si quedó medio metido en el obstáculo, un paso corto
-            // sigue chocando y no se despega nunca; el punto libre está más adelante
-            const step = Math.max(Math.abs(c.spd) * dt, 1.5);
-            c.x += Math.cos(a2) * step;
-            c.y += Math.sin(a2) * step;
-            got = true;
-            break;
-          }
-        }
-        c.spd *= got ? 0.8 : 0.35;
-        if (!got) {
-          c.ang += Math.PI;
-          c.spd = 16;
-          if (farFromPlayers(c, OFFSCREEN)) c.hp = 0;
-        }
-      } else {
-        c.x = nx2;
-        c.y = ny2;
-      }
-      // Como los autos civiles: un choque puede empujarlo afuera del mapa, y desde ahí
-      // todo movimiento choca con el borde y queda girando en el lugar para siempre
-      c.x = clamp(c.x, 10, WORLD - 10);
-      c.y = clamp(c.y, 10, WORLD - 10);
-
-      // Sin camino de calles, va derecho al jugador: en un callejón sin salida puede quedar
-      // girando sin avanzar. Si en 2s no se movió y no está encima del jugador, se reubica:
-      // fuera de pantalla desaparece (aparece otro en una calle), en pantalla salta al carril libre más cercano
-      c.progT = (c.progT || 0) + dt;
-      if (c.progT >= 2) {
-        const moved = Math.hypot(c.x - (c.progX ?? c.x + 99), c.y - (c.progY ?? c.y + 99));
-        if (moved < 6 && d > 80) {
-          if (farFromPlayers(c, OFFSCREEN)) c.hp = 0;
-          else {
-            for (const a of [0, Math.PI / 2]) {
-              const L = laneSnap(c.x, c.y, a);
-              if (L.x > 10 && L.y > 10 && L.x < WORLD - 10 && L.y < WORLD - 10 && !hitBuilding(L.x, L.y, CR2) && !hitCarBlock(L.x, L.y, CR2)) {
-                c.x = L.x; c.y = L.y; c.ang = L.ang; c.detourT = 0;
-                break;
-              }
-            }
-          }
-        }
-        c.progT = 0; c.progX = c.x; c.progY = c.y;
-      }
+      // Maneja hacia ahí sin carriles ni semáforos, esquivando lo que se le cruza (js/traffic.js)
+      trafficAI.pursue(c, nav, P, dt, d, true);
       // Encajonar jugador
       if (inPlay(P) && P.car && d < 24) {
         if (Math.abs(P.car.spd) < 34) {
@@ -1752,12 +1776,13 @@ class Game {
       for (let j = i + 1; j < G.cars.length; j++) {
         const b = G.cars[j];
         if (b.hp <= 0) continue;
-        const minD = (a.w + a.h) / 4 + (b.w + b.h) / 4;
+        // Como rectángulos girados: con círculos, dos anchos que se cruzan de frente cada
+        // uno en su carril se "tocaban" sin estar ni cerca
+        const hit = carOverlap(a, b);
+        if (!hit) continue;
         const dx2 = b.x - a.x, dy2 = b.y - a.y;
-        const d2 = Math.hypot(dx2, dy2);
-        if (d2 <= 0 || d2 >= minD) continue;
-
-        const overlap = minD - d2, ux = dx2 / d2, uy = dy2 / d2;
+        const d2 = Math.hypot(dx2, dy2) || 1;
+        const overlap = hit.o, ux = hit.ux, uy = hit.uy;
         const halfAx = a.x - ux * overlap * 0.5, halfAy = a.y - uy * overlap * 0.5;
         const halfBx = b.x + ux * overlap * 0.5, halfBy = b.y + uy * overlap * 0.5;
         // Libre = sin edificio y adentro del mapa: el empujón no puede sacar a nadie del borde
@@ -1788,11 +1813,14 @@ class Game {
           }
         }
 
-        // Velocidad de cierre real (proyectada sobre la normal), no la suma de rapideces:
-        // dos autos en fila yendo para el mismo lado no deben "chocar" solo por ir cerca.
+        // Velocidad de cierre real (proyectada sobre la línea entre los dos), no la suma de
+        // rapideces: dos autos en fila yendo para el mismo lado no deben "chocar" solo por ir cerca.
         const avx = Math.cos(a.ang) * a.spd, avy = Math.sin(a.ang) * a.spd;
         const bvx = Math.cos(b.ang) * b.spd, bvy = Math.sin(b.ang) * b.spd;
-        const impact = -((bvx - avx) * ux + (bvy - avy) * uy);
+        const impact = -((bvx - avx) * dx2 + (bvy - avy) * dy2) / d2;
+        const da = driverOf(a), db = driverOf(b);
+        // Al que chocó un jugador: bocinazo, y si fue fuerte, según el chofer se calienta o se asusta
+        if (impact > 8 && !!da !== !!db) trafficAI.rammed(da ? b : a, da || db, impact);
         if (impact > 30) {
           const dmg = impact / 14;
           const aAlive = a.hp > 0, bAlive = b.hp > 0;
@@ -1803,7 +1831,6 @@ class Game {
           boom((a.x + b.x) / 2, (a.y + b.y) / 2, 10, '255,190,90');
           sfx('choque', (a.x + b.x) / 2, (a.y + b.y) / 2, dmg);
           this.shakeAt((a.x + b.x) / 2, (a.y + b.y) / 2, Math.min(10, dmg * 0.5));
-          const da = driverOf(a), db = driverOf(b);
           if (da) da.hp -= dmg * 0.5;
           if (db) db.hp -= dmg * 0.5;
           if (aAlive && a.hp <= 0) this.wreckCar(a);
@@ -1858,6 +1885,7 @@ class Game {
         const a = c.ang + rnd(-0.16, 0.16);
         c.muzzle = 1;
         sfx('pistola', c.x, c.y);
+        trafficAI.alarm(c.x, c.y, 100, c, 1);
         G.bullets.push({
           x: c.x + Math.cos(a) * 9,
           y: c.y + Math.sin(a) * 9,

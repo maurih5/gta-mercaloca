@@ -280,7 +280,7 @@ class NetManager {
 
     const cars = G.cars.filter(c => driven.has(c) || (c.hp > 0 && (c.chase || near(c)))).map(c => [
       id(c), r1(c.x), r1(c.y), r2(c.ang), r1(c.spd), r2(c.steer || 0), Math.round(c.hp),
-      (c.cop ? 1 : 0) | (c.chase ? 2 : 0) | (c.brake ? 4 : 0), c.signal || 0,
+      (c.cop ? 1 : 0) | (c.chase ? 2 : 0) | (c.brake ? 4 : 0) | (c.hazard ? 8 : 0), c.signal || 0,
       look('c' + c.nid, () => [c.col, c.w, c.h]),
     ]);
     const peds = G.peds.filter(p => p.hp > 0 && !p.inside && (p.famous || near(p))).map(p => [
@@ -451,6 +451,7 @@ class NetManager {
       c.cop = !!(a[7] & 1);
       c.chase = !!(a[7] & 2);
       c.brake = !!(a[7] & 4);
+      c.hazard = !!(a[7] & 8);
       c.signal = a[8];
     });
     const cars = this.ents.c;
