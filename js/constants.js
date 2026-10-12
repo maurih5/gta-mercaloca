@@ -338,6 +338,37 @@ const STADIUMS = [
   { k: 'river', name: 'EL MONUMENTAZO', club: 'RIVER PLATO', at: [11, 2], c1: '#f2f2f2', c2: '#e4002b', wall: '#c9c9c9' },
 ];
 
+// Respeto, por jugador. Rangos (desde cuánto respeto) y cuánto da o saca cada cosa.
+const RANKS = [[0, 'GIL'], [50, 'PIBE DEL BARRIO'], [150, 'PESADO'], [350, 'CAPO'], [700, 'LEYENDA']];
+const RESPECT = {
+  choto: 10, noche: 6, lanus: 1,   // robar un super
+  famoso: 8,                       // bajar a un famoso
+  star: 5,                         // por estrella, al perder a la yuta con 3 o más
+  pvp: 15, pvpLoss: 10,            // bajar a otro jugador (y lo que pierde el que cae)
+  trapo: 50,                       // aguantar el trapo de una barra
+  asado: 2,                        // que otro coma de tu asado
+};
+const RESPECT_DEATH = 0.10;  // lo que se pierde al morir
+const RESPECT_BUST = 0.15;   // y al caer preso
+const RANK_DISCOUNT = 0.05;  // por rango: más barato en la armería y con los tranzas
+const RANK_CALM = 3;         // desde CAPO, un tranza lastimado no prende la villa de una
+
+// Barras: paran en la puerta de su estadio con el trapo colgado. Si se lo robás, te salen a
+// buscar; si lo aguantás TRAPO_TIME segundos es tuyo, y vuelve a colgarse a los TRAPO_BACK.
+const BARRAS = [
+  { k: 'boca', name: 'LA DOCENA', stadium: 'boca', shirt: '#123f8c', pants: '#0e2a5c', band: '#f3b229', n: 7,
+    chant: ['DALE CHOCO, DALE CHOCO!', 'LA DOCENA NO SE VA!', 'DE LA BOCA SOMOS NOSOTROS!'] },
+  { k: 'river', name: 'LOS BORRACHOS DEL TABLERO', stadium: 'river', shirt: '#f2f2f2', pants: '#1a1a1a', band: '#e4002b', n: 7,
+    chant: ['VAMOS RIVER PLATO!', 'EL MAS GRANDE, PAPA!', 'LOS BORRACHOS ESTAN ACA!'] },
+];
+const TRAPO_TIME = 60;
+const TRAPO_BACK = 180;
+const TRAPO_R = 16;         // distancia para agarrarlo
+const BARRA_ANGRY = 90;     // cuánto dura la bronca
+const BARRA_CHASE = 420;    // hasta dónde te siguen
+// Corren más que vos caminando y menos que corriendo (SHIFT); pegan los HINCHA_FRONT más cerca
+const HINCHA_HP = 45, HINCHA_DMG = 5, HINCHA_SPD = 76, HINCHA_HIT = 1.1, HINCHA_FRONT = 3;
+
 const SUPERS = [
   { k: 'choto', name: 'CHOTO', at: [0.30, 0.44], col: '#e8e0d4', roof: '#c8302a', sign: '#c8302a', ink: '#fff' },
   { k: 'noche', name: 'NOCHE %', at: [0.22, 0.62], col: '#e4e6ec', roof: '#2a4fa8', sign: '#d8302a', ink: '#fff' },

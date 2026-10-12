@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -1038,6 +1038,106 @@ describe('jugador', () => {
     assert.equal(game.eat(P), false, 'el carbon no se come');
   });
 
+  test('respeto: sube de rango, da descuento y se pierde al morir o caer preso', () => {
+    startGame(CREW[0]);
+    const P = G.me;
+    assert.equal(RANKS[game.rankOf(P)][1], 'GIL', 'se arranca de GIL');
+    game.gainRespect(P, RANKS[1][0] + 10, 'PRUEBA');
+    assert.equal(game.rankOf(P), 1, 'sube de rango');
+    assert.ok(G.msg.includes('AHORA SOS ' + RANKS[1][1]), 'y te avisan: ' + G.msg);
+    const ak = SHOP_ITEMS.find(it => it.id === 'ak');
+    assert.ok(shop.status(ak, P).price < ak.price, 'con respeto la armeria es mas barata');
+    P.respect = RANKS[4][0];
+    assert.equal(game.price(P, 1000), 800, 'LEYENDA: 20% menos');
+    assert.ok(shop.status(CHOTO_ITEMS[0], P).price === CHOTO_ITEMS[0].price, 'en el super no hay descuento');
+    P.respect = 200; P.busted = 1; P.bustT = 3.3;
+    update(1/60);
+    assert.equal(P.respect, Math.round(200 * (1 - RESPECT_BUST)), 'preso se pierde el ' + RESPECT_BUST * 100 + '%');
+    P.respect = 100; P.hp = 0;
+    update(1/60);
+    assert.ok(P.dead && P.respect === Math.round(100 * (1 - RESPECT_DEATH)), 'muerto el ' + RESPECT_DEATH * 100 + '%: ' + P.respect);
+  });
+
+  test('robar un super, bajar un famoso y perder a la yuta dan respeto', () => {
+    startGame(CREW[0]);
+    const P = G.me, b = supers.find(q => q.super === 'choto');
+    b.robbers = [P];
+    game.lootSuper(b);
+    assert.equal(P.respect, RESPECT.choto, 'el robo al CHOTO');
+    const f = makeFamous(FAMOUS.find(d => !d.immortal), P.x + 20, P.y);
+    G.peds.push(f);
+    game.hurt(f, 999, P);
+    assert.equal(P.respect, RESPECT.choto + RESPECT.famoso, 'el famoso');
+    G.cops.length = 0;
+    Object.assign(P, { wanted: 1, wantPeak: 3, wantCool: 13 });
+    update(1/60);
+    assert.equal(P.wanted, 0, 'los perdio');
+    assert.equal(P.respect, RESPECT.choto + RESPECT.famoso + RESPECT.star * 3, 'perder a la yuta con 3 estrellas');
+  });
+
+  test('las barras paran en la puerta de su estadio con el trapo colgado', () => {
+    startGame(CREW[0]);
+    assert.deepEqual(G.barras.map(B => B.def.name), BARRAS.map(d => d.name), 'LA DOCENA y LOS BORRACHOS DEL TABLERO');
+    for (const B of G.barras) {
+      assert.equal(B.stadium.stadium, B.def.stadium, 'cada barra en su estadio');
+      assert.ok(dist(B.flag, B.stadium.door) < 20 && !hitBuilding(B.flag.x, B.flag.y, 2), 'el trapo en la puerta, afuera');
+      assert.equal(B.trapo, 'hung', 'colgado');
+      const hs = G.hinchas.filter(h => h.barra === B);
+      assert.equal(hs.length, B.def.n, 'con su gente');
+      assert.ok(hs.every(h => dist(h, B.flag) < 60), 'alrededor del trapo');
+    }
+  });
+
+  test('robar el trapo: la barra te sale a buscar, y si lo aguantas es tuyo', () => {
+    startGame(CREW[0]);
+    const P = G.me, B = G.barras[0];
+    Object.assign(P, { x: B.flag.x, y: B.flag.y + 6, car: null });
+    input.keys.KeyE = true;
+    update(1/60);
+    input.keys.KeyE = false;
+    assert.ok(P.trapo === B && B.trapo === 'carried' && B.angry > 0, 'E se lleva el trapo y la barra se calienta');
+    // Se aleja un poco: lo persiguen y le pegan
+    P.x += 60;
+    const hp0 = P.hp;
+    for (let f = 0; f < 4 * 60; f++) { G.cops.length = 0; P.wanted = 0; P.hp = Math.max(P.hp, 40); update(1/60); }
+    assert.ok(P.hp < hp0 || G.hinchas.some(h => h.barra === B && dist(h, P) < 16), 'la barra lo alcanza');
+    P.trapoT = TRAPO_TIME - 0.01;
+    const r0 = P.respect;
+    update(1/60);
+    assert.ok(P.respect >= r0 + RESPECT.trapo - 1 || game.rankOf(P) > 0, 'aguantado: respeto');
+    assert.ok(!P.trapo && B.trapo === 'gone' && P.trapos === 1, 'el trapo es suyo');
+    game.updateBarras(TRAPO_BACK + 1);
+    assert.equal(B.trapo, 'hung', 'al rato cuelgan otro');
+  });
+
+  test('si te bajan o caes preso con el trapo, vuelve a su barra', () => {
+    startGame(CREW[0]);
+    const P = G.me, B = G.barras[1];
+    game.takeTrapo(P, B);
+    P.hp = 0;
+    update(1/60);
+    assert.ok(!P.trapo && B.trapo === 'hung', 'muerto: vuelve colgado');
+    startGame(CREW[0]);
+    const Q = G.me, B2 = G.barras[1];
+    game.takeTrapo(Q, B2);
+    Q.busted = 1; Q.bustT = 3.3;
+    update(1/60);
+    assert.ok(!Q.trapo && B2.trapo === 'hung', 'preso: tambien');
+  });
+
+  test('con respeto, un tranza lastimado no prende la villa de una', () => {
+    startGame(CREW[0]);
+    const P = G.me, t = G.tranzas[0], v = t.villa;
+    P.respect = RANKS[RANK_CALM][0];
+    game.hurt(t, 5, P);
+    assert.ok(v.angry <= 0 && v.warnT > 0, 'el primero avisa');
+    game.hurt(t, 5, P);
+    assert.ok(v.angry > 0, 'el segundo ya no');
+    v.angry = 0; v.warnT = 0; P.respect = 0;
+    game.hurt(G.tranzas[1], 5, P);
+    assert.ok(G.tranzas[1].villa.angry > 0, 'sin respeto se prende enseguida');
+  });
+
   test('en la puerta del super se entra con E, pero no con la yuta encima', () => {
     startGame(CREW[0]);
     const P = G.me, b = supers.find(q => q.super === 'noche'), d = b.door;
@@ -1476,6 +1576,23 @@ describe('multijugador', () => {
     assert.equal(P2.bag.asado, 1, 'el otro se lleva una porcion');
     assert.ok(G.msg.includes('TE ESTAN COMIENDO'), 'y al dueño le avisan');
     assert.ok(!G.me.bag.asado, 'el dueño no recibe nada por eso');
+  });
+
+  test('bajar a otro jugador da respeto y te quedas con su trapo', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]), B = G.barras[0];
+    lejos(P2, 200);
+    P2.respect = 100;
+    game.takeTrapo(P2, B);
+    game.hurtPlayer(P2, 999, G.me);
+    update(1/60);
+    assert.ok(P2.dead, 'cae');
+    assert.equal(G.me.respect, RESPECT.pvp, 'el que lo bajo gana respeto');
+    assert.equal(P2.respect, Math.round(100 * (1 - RESPECT_DEATH)) - RESPECT.pvpLoss, 'el que cae pierde');
+    assert.ok(G.me.trapo === B && B.by === G.me && B.tgt === G.me, 'y el trapo pasa al que lo bajo');
+    G.mapOpen = true;
+    render(); // la tabla de respeto en el mapa, con los dos
+    G.mapOpen = false;
   });
 
   test('dos roban el mismo super: va el doble de rapido y los dos quedan buscados', () => {
@@ -2052,6 +2169,26 @@ describe('multijugador online', () => {
     for (let f = 0; f < 6; f++) { red.pump(); await tick(); }
     assert.ok(G.players.some(q => q.def === CREW[2] && q.peer), 'con uno libre entra');
     assert.equal(new Set(G.players.map(q => q.def)).size, G.players.length, 'nadie repetido');
+  });
+
+  test('el cliente roba el trapo y ve la barra caliente y su respeto', async () => {
+    const { red, P2 } = await conectar();
+    const B = G.barras[0], i = 0;
+    Object.assign(P2, { x: B.flag.x, y: B.flag.y + 6, car: null });
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(C.G.me.nearTrapo, 'el cliente ve el cartel para robarlo');
+    C.input.keys.KeyE = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = false;
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(P2.trapo === B, 'el host le da el trapo');
+    assert.ok(C.G.me.trapo === C.G.barras[i] && C.G.barras[i].trapo === 'carried' && C.G.barras[i].angry, 'el cliente lo lleva y ve la barra caliente');
+    assert.ok(C.G.hinchas.length > 0, 've a los hinchas');
+    game.gainRespect(P2, 20);
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.equal(C.G.me.respect, P2.respect, 'y su respeto');
+    C.render();
+    game.dropTrapo(P2);
   });
 
   test('las fotos son chicas y lo que no cambia se manda una vez', async () => {

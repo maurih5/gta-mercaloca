@@ -140,7 +140,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
   - [x] Efecto visual de gradiente/filtro verde en pantalla
 - [x] Necesidades de hambre y sed: comida, bebida, efectos de estado e inventario (#41)
 - [x] Mecánica de asado: combinar carbón + carne + parrilla, tiempo de cocción y resultado consumible (#40)
-- [ ] Respeto por jugador: robarle el trapo a una barra da respeto y la pone en tu contra (#81)
+- [x] Respeto por jugador: robarle el trapo a una barra da respeto y la pone en tu contra (#81)
 
 ### 🗺️ Mundo & Ubicaciones
 - [x] Ampliar el mapa a 24x24 (#38)

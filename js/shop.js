@@ -70,24 +70,27 @@ class ShopManager {
         ? { can: false, label: 'MOCHILA LLENA' }
         : { can: true, price: it.price, label: '$' + it.price + (n ? ' (' + n + ')' : '') };
     }
+    // Armería y tranzas: con respeto sale más barato (game.price)
+    const pr = game.price(P, it.price);
     if (it.id === 'porro') {
       return P.porros >= PORRO_MAX
         ? { can: false, label: 'BOLSILLO LLENO' }
-        : { can: true, price: it.price, label: '$' + it.price + ' (' + P.porros + '/' + PORRO_MAX + ')' };
+        : { can: true, price: pr, label: '$' + pr + ' (' + P.porros + '/' + PORRO_MAX + ')' };
     }
     if (it.id === 'chaleco') {
       return P.armor >= 100
         ? { can: false, label: 'PUESTO' }
-        : { can: true, price: it.price, label: '$' + it.price };
+        : { can: true, price: pr, label: '$' + pr };
     }
     const owned = it.id in P.inv;
     if (WEAPONS[it.id].melee) {
-      return owned ? { can: false, label: 'YA LO TENES' } : { can: true, price: it.price, label: '$' + it.price };
+      return owned ? { can: false, label: 'YA LO TENES' } : { can: true, price: pr, label: '$' + pr };
     }
     if (owned) {
-      return { can: true, price: it.refill, label: '+' + it.ammo + ' BALAS $' + it.refill };
+      const rf = game.price(P, it.refill);
+      return { can: true, price: rf, label: '+' + it.ammo + ' BALAS $' + rf };
     }
-    return { can: true, price: it.price, label: '$' + it.price };
+    return { can: true, price: pr, label: '$' + pr };
   }
 
   buy(i) {
@@ -136,7 +139,8 @@ class ShopManager {
   render() {
     const list = $('shop-list'), money = $('shop-money');
     if (!list) return;
-    if (money) money.textContent = '$' + G.me.money;
+    const off = !SHOP_KINDS[this.kind].super && game.rankOf(G.me) > 0 ? '  -' + Math.round(RANK_DISCOUNT * game.rankOf(G.me) * 100) + '% POR RESPETO' : '';
+    if (money) money.textContent = '$' + G.me.money + off;
     list.innerHTML = '';
     this.items.forEach((it, i) => {
       const st = this.status(it);

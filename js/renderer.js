@@ -506,6 +506,49 @@ class Renderer {
     this.text(S.name, rx + w / 2, ry + h - m * 0.75 + 6.5, b.stadium === 'river' ? '#fff' : S.c2, 5, 'center');
   }
 
+  // Un trapo con los colores del club: Boca azul con la franja amarilla, River blanco con
+  // la banda roja. (x, y) es la punta del palo; flamea un poco.
+  drawFlag(k, x, y, s = 1) {
+    const ctx = this.ctx, B = BARRAS.find(q => q.k === k), w = 16 * s, h = 10 * s;
+    const wave = Math.sin(G.t * 6 + x * 0.1) * 1.2 * s;
+    ctx.fillStyle = '#4a3a2a';
+    ctx.fillRect(px(x - 1), px(y), 1.5, 14 * s);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.transform(1, wave / w, 0, 1, 0, 0);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-0.5, -0.5, w + 1, h + 1);
+    ctx.fillStyle = B.shirt;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = B.band;
+    if (k === 'river') {
+      ctx.beginPath();
+      ctx.moveTo(0, 0); ctx.lineTo(w * 0.3, 0); ctx.lineTo(w, h * 0.7); ctx.lineTo(w, h); ctx.lineTo(w * 0.7, h); ctx.lineTo(0, h * 0.3);
+      ctx.fill();
+    } else {
+      ctx.fillRect(0, h * 0.35, w, h * 0.3);
+    }
+    ctx.restore();
+  }
+
+  // El palo del trapo en la puerta del estadio (con el trapo si está colgado) y, si estás
+  // cerca y la barra está tranquila, lo que canta
+  drawTrapoPole(B) {
+    const x = B.flag.x - G.cam.x, y = B.flag.y - G.cam.y;
+    if (x < -40 || y < -40 || x > RW + 40 || y > RH + 40) return;
+    const ctx = this.ctx;
+    if (B.trapo === 'hung') this.drawFlag(B.def.k, x, y - 18);
+    else {
+      ctx.fillStyle = '#4a3a2a';
+      ctx.fillRect(px(x - 1), px(y - 18), 1.5, 18);
+    }
+    const P = G.me;
+    if (P && dist(P, B.flag) < 170 && B.angry <= 0 && B.trapo === 'hung') {
+      const k = Math.floor(G.t / 5), on = (G.t % 5) < 2.6;
+      if (on) this.text(B.def.chant[k % B.def.chant.length], x, y - 26, B.def.band, 5, 'center');
+    }
+  }
+
   // Cartel del super en el techo. Al de Lanús se le cayó la O y quedó tirada al lado
   drawSuperSign(b, rx, ry) {
     const ctx = this.ctx, S = SUPERS.find(q => q.k === b.super), name = S.name;
@@ -2102,6 +2145,7 @@ class Renderer {
     if (obelisco) dot({ x: obelisco.x + obelisco.w / 2, y: obelisco.y + obelisco.h / 2 }, '#e8f070', 3);
     for (const c of G.cops) dot(c, '#4aa3ff');
     for (const t of G.tranzas) if (t.hp > 0) dot(t, t.villa.angry > 0 ? '#ff3a3a' : '#c070ff');
+    for (const h of G.hinchas) if (h.hp > 0 && h.barra.angry > 0) dot(h, '#ff6a2a');
     for (const c of G.cars) if (c.chase && c.hp > 0) dot(c, '#2a6aff', 3);
     for (const q of G.players) if (q !== P && !q.dead) dot(q, q.def.shirt, 3);
     // Armerías: siempre visibles, pegadas al borde si quedan lejos
@@ -2157,6 +2201,11 @@ class Renderer {
     for (const b of stadiums) add(b.stadium, ...mid(b));
     if (obelisco) add('obelisco', ...mid(obelisco));
     for (const t of G.tranzas) if (t.hp > 0) add(t.villa.angry > 0 ? 'tranzaMal' : 'tranza', t.x, t.y);
+    for (const B of G.barras) {
+      const at = B.trapo === 'hung' ? B.flag : B.trapo === 'carried' && B.by ? B.by : null;
+      if (at) add(B.def.k === 'boca' ? 'trapoBoca' : 'trapoRiver', at.x, at.y);
+    }
+    for (const h of G.hinchas) if (h.hp > 0 && h.barra.angry > 0) add('hincha', h.x, h.y);
     for (const c of G.cops) add('yuta', c.x, c.y);
     for (const c of G.cars) if (c.chase && c.hp > 0) add('patrullero', c.x, c.y);
     for (const f of G.peds) if (f.famous && f.hp > 0) add('famoso', f.x, f.y);
@@ -2205,6 +2254,15 @@ class Renderer {
         for (let i = -4; i <= 3; i++) r('#e4002b', i, i - 1, 2, 2); // la banda cruzada
         break;
       }
+      case 'trapoBoca': case 'trapoRiver': {
+        const B = BARRAS[kind === 'trapoBoca' ? 0 : 1];
+        r('#000', -4, -4, 1, 9); r('#000', -3, -5, 8, 6);
+        r(B.shirt, -2, -4, 6, 4);
+        if (kind === 'trapoBoca') r(B.band, -2, -3, 6, 1); else { r(B.band, -2, -4, 2, 2); r(B.band, 0, -3, 2, 2); r(B.band, 2, -2, 2, 2); }
+        r('#c8b89a', -3, -4, 1, 8);
+        break;
+      }
+      case 'hincha': r('#000', -2, -2, 5, 5); r('#ff3a2a', -1, -1, 3, 3); break;
       case 'rosada': box('#ff8fc0'); r('#fff', -3, 0, 7, 3); r('#fff', -2, -1, 5, 1); r('#fff', -1, -2, 3, 1); r('#ff8fc0', 0, 1, 1, 2); break;
       case 'obelisco': box('#e8f070'); r('#14100c', 0, -3, 1, 7); r('#14100c', -1, 2, 3, 2); break;
       case 'tranza': box('#7a3ab8'); r('#5ad266', -1, -3, 3, 6); r('#5ad266', -3, -1, 7, 2); break;
@@ -2237,8 +2295,8 @@ class Renderer {
     }
     ctx.globalAlpha = 1;
     // Primero lo chico (guita, yuta), arriba los lugares
-    const order = ['guita', 'fierro', 'comida', 'yuta', 'parrilla', 'asado', 'tranza', 'tranzaMal', 'patrullero',
-      'cerrado', 'noche', 'choto', 'armeria', 'hospital', 'boca', 'river', 'rosada', 'obelisco', 'famoso', 'jugador'];
+    const order = ['guita', 'fierro', 'comida', 'hincha', 'yuta', 'parrilla', 'asado', 'tranza', 'tranzaMal', 'patrullero',
+      'cerrado', 'noche', 'choto', 'armeria', 'hospital', 'boca', 'river', 'rosada', 'obelisco', 'trapoBoca', 'trapoRiver', 'famoso', 'jugador'];
     for (const kind of order) {
       for (const e of items) {
         if (e.kind !== kind) continue;
@@ -2294,7 +2352,25 @@ class Renderer {
     ctx.fillStyle = '#e8b53a';
     ctx.fillRect(x0, 0, 1, RH);
     this.text('REFERENCIAS', x0 + MAP_LEG_W / 2, 14, '#ffd34a', 6, 'center');
-    const rows = this.mapLegend(items), step = Math.min(13, (RH - 30) / rows.length);
+    // En una sala: la tabla de respeto de todos, abajo del panel
+    const table = G.players.length > 1 ? G.players.slice().sort((a, b) => (b.respect || 0) - (a.respect || 0)) : [];
+    const tableH = table.length ? 16 + table.length * 10 : 0;
+    const rows = this.mapLegend(items), step = Math.min(13, (RH - 30 - tableH) / rows.length);
+    if (table.length) {
+      const ty = RH - tableH;
+      ctx.fillStyle = '#e8b53a';
+      ctx.fillRect(x0 + 6, ty - 2, MAP_LEG_W - 12, 1);
+      this.text('RESPETO', x0 + MAP_LEG_W / 2, ty + 8, '#ffd34a', 5, 'center');
+      table.forEach((q, i) => {
+        const y = ty + 18 + i * 10;
+        ctx.fillStyle = '#000';
+        ctx.fillRect(x0 + 6, y - 5, 6, 6);
+        ctx.fillStyle = q.def.shirt;
+        ctx.fillRect(x0 + 7, y - 4, 4, 4);
+        this.text(q.def.name.replace(/^EL /, ''), x0 + 15, y, q === G.me ? '#ffd34a' : '#e8e8e8', 4);
+        this.text(String(q.respect || 0), x0 + MAP_LEG_W - 6, y, '#e8c86a', 4, 'right');
+      });
+    }
     rows.forEach(([kind, label], i) => {
       const y = 30 + i * step;
       this.mapIcon(kind, x0 + 12, y, kind === 'jugador' ? G.players.find(q => q !== G.me) : null);
@@ -2375,6 +2451,9 @@ class Renderer {
       ctx.fillStyle = '#5a8ad8';
       ctx.fillRect(RW - 78, 43, 70 * clamp(P.armor / 100, 0, 1), 4);
     }
+    // Respeto: el rango y cuánto tiene
+    const rank = RANKS[game.rankOf(P)][1];
+    this.text(rank + ' ' + (P.respect || 0), RW - 8, needY + 17, '#e8c86a', 5, 'right');
     // Hambre (naranja) y sed (celeste): titilan cuando están bajas
     const blink = Math.floor(G.t * 4) % 2;
     [[P.food, '#e8a23a', RW - 79], [P.drink, '#4ab0e8', RW - 42]].forEach(([v, col, x]) => {
@@ -2430,6 +2509,20 @@ class Renderer {
       } else {
         this.text(key + ': ' + what + (sup ? ' - DISPARA: ASALTO' : ''), RW / 2, RH - 34, bl ? '#ffb04a' : '#ffd34a', 7, 'center');
       }
+    }
+
+    // Con el trapo encima: cuánto falta para que sea tuyo
+    if (P.trapo && !P.dead) {
+      const k2 = clamp(P.trapoT / TRAPO_TIME, 0, 1), W = 140, X = RW / 2 - W / 2, Y = 30;
+      this.text('TRAPO DE ' + P.trapo.def.name + ' - AGUANTALO', RW / 2, Y - 4, Math.floor(G.t * 4) % 2 ? P.trapo.def.band : '#fff', 6, 'center');
+      ctx.fillStyle = '#000';
+      ctx.fillRect(X - 1, Y - 1, W + 2, 7);
+      ctx.fillStyle = P.trapo.def.band;
+      ctx.fillRect(X, Y, W * k2, 5);
+    }
+    if (P.nearTrapo && !P.car && !P.dead && !G.shopOpen) {
+      const B = G.barras.find(q => q.trapo === 'hung' && dist(q.flag, P) < TRAPO_R);
+      if (B) this.text('E: ROBAR EL TRAPO DE ' + B.def.name, RW / 2, RH - 44, Math.floor(G.t * 3) % 2 ? '#ff6a5a' : '#ffd34a', 7, 'center');
     }
 
     // Asalto en curso: la barra de la caja para los que están en la puerta
@@ -2564,6 +2657,9 @@ class Renderer {
     for (const t of G.tranzas) {
       if (t.hp > 0) this.drawGuy(t, t.face, t.shirt, t.pants, false);
     }
+    for (const h of G.hinchas) {
+      if (h.hp > 0) this.drawGuy(h, h.face, h.barra.def.shirt, h.barra.def.pants, false);
+    }
 
     // Edificios: ordenados desde el más lejano del centro de pantalla
     const vis = [];
@@ -2597,6 +2693,7 @@ class Renderer {
       else if (p.t === 'perro') this.drawPerro(p);
     }
     for (const g of parrillas) this.drawParrilla(g);
+    for (const B of G.barras) this.drawTrapoPole(B);
     for (const l of lamps) this.drawLamp(l, night);
     for (const L of lights) if (L) this.drawTrafficLight(L);
 
@@ -2604,6 +2701,7 @@ class Renderer {
     for (const P of G.players.filter(q => q !== G.me).concat(G.me ? [G.me] : [])) {
       if (P.car) this.drawCar(P.car, night);
       else if (!P.dead && !P.healing) this.drawGuy(P, P.def.id, P.def.shirt, P.def.pants, P.hp < 35);
+      if (P.trapo && !P.dead) this.drawFlag(P.trapo.def.k, P.x - G.cam.x + 3, P.y - G.cam.y - 16, 0.8);
     }
 
     for (const b of G.bullets) {
@@ -2696,6 +2794,7 @@ const MAP_LEGEND = [
   ['vos', 'VOS'], ['jugador', 'OTRO JUGADOR'], ['hospital', 'HOSPITAL'], ['armeria', 'ARMERIA'],
   ['choto', 'SUPER CHOTO'], ['noche', 'SUPER NOCHE %'], ['cerrado', 'SUPER CERRADO'],
   ['parrilla', 'PARRILLA'], ['asado', 'ASADO PRENDIDO'], ['boca', 'LA CHOCOLATERA'], ['river', 'EL MONUMENTAZO'],
+  ['trapoBoca', 'TRAPO DE LA DOCENA'], ['trapoRiver', 'TRAPO DE LOS BORRACHOS'], ['hincha', 'BARRA CALIENTE'],
   ['rosada', 'CASA ROSADA'], ['obelisco', 'OBELISCO'],
   ['tranza', 'TRANZA'], ['tranzaMal', 'TRANZA CALIENTE'], ['famoso', 'FAMOSO'], ['yuta', 'YUTA'],
   ['patrullero', 'PATRULLERO'], ['guita', 'GUITA'], ['fierro', 'FIERRO'], ['comida', 'COMIDA'],
