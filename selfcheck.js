@@ -2007,7 +2007,7 @@ describe('multijugador', () => {
     assert.equal(new Set(ids).size, ids.length, 'no hay dos del mismo famoso: ' + ids);
   });
 
-  test('el famoso inmortal acusa los tiros y no cae; el otro suelta balones de oro', () => {
+  test('el famoso inmortal acusa los tiros y los otros sueltan sus premios', () => {
     startGame(CREW[0]);
     const P2 = addPlayer(CREW[1]);
     for (let f = 0; f < 5; f++) update(1/60);
@@ -2019,21 +2019,23 @@ describe('multijugador', () => {
     assert.ok(L.hp > 0, 'no se lo puede bajar');
     assert.ok(L.lineT > 0 && L.famous.hurt.includes(L.line), 'dice su frase: ' + L.line);
 
-    const M = makeFamous(FAMOUS.find(f => f.drop), G.me.x + 40, G.me.y);
-    G.peds.push(M);
-    const pk0 = G.pickups.length;
-    game.hurt(M, 999, P2);
-    const golds = G.pickups.slice(pk0).filter(pk => pk.kind === 'gold');
-    assert.equal(golds.length, M.famous.drop.n, 'suelta sus balones de oro');
-    // Se dibujan de dia y de noche, con los carteles de los famosos
-    for (const h of [0.5, 0]) { G.t = h * DAY; L.lineT = 1; render(); }
-    assert.ok(P2.wanted > 0, 'la busqueda es del que lo bajo');
-    // Los balones los levanta cualquiera: el local pasa por encima de uno
-    const m0 = G.me.money;
-    G.me.x = golds[0].x; G.me.y = golds[0].y;
-    update(1/60);
-    const got = G.me.money - m0;
-    assert.ok(got >= M.famous.drop.value && got % M.famous.drop.value === 0, 'cada balon vale guita: ' + got);
+    for (const id of ['messi', 'maradona']) {
+      const M = makeFamous(FAMOUS.find(f => f.id === id), G.me.x + 40, G.me.y);
+      G.peds.push(M);
+      const pk0 = G.pickups.length;
+      game.hurt(M, 999, P2);
+      const drops = G.pickups.slice(pk0).filter(pk => pk.kind === M.famous.drop.kind);
+      assert.equal(drops.length, M.famous.drop.n, M.famous.name + ' suelta sus premios');
+      // Se dibujan de dia y de noche, con los carteles de los famosos
+      for (const h of [0.5, 0]) { G.t = h * DAY; L.lineT = 1; render(); }
+      assert.ok(P2.wanted > 0, 'la busqueda es del que lo bajo');
+      // Los premios los levanta cualquiera: el local pasa por encima de uno
+      const m0 = G.me.money;
+      G.me.x = drops[0].x; G.me.y = drops[0].y;
+      update(1/60);
+      const got = G.me.money - m0;
+      assert.ok(got >= M.famous.drop.value && got % M.famous.drop.value === 0, 'cada premio vale guita: ' + got);
+    }
   });
 
   test('los famosos hablan al que se acerca y se van cuando nadie los ve', () => {

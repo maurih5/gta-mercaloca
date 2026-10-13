@@ -1031,10 +1031,10 @@ class Game {
   // Cayó un famoso: suelta lo suyo y el que lo bajó se entera
   famousDown(e, by) {
     const d = e.famous.drop;
-    if (d && d.kind === 'gold') {
+    if (d && (d.kind === 'gold' || d.kind === 'merca')) {
       for (let i = 0; i < d.n; i++) {
         const a = (i / d.n) * TAU + rnd(-0.3, 0.3), r = rnd(14, 26); // desparramados: se juntan de a uno
-        G.pickups.push({ x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r, kind: 'gold', value: d.value, t: 0, drop: true });
+        G.pickups.push({ x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r, kind: d.kind, value: d.value, t: 0, drop: true });
       }
     }
     this.say('BAJASTE A ' + e.famous.name, 2.6, by);
@@ -1924,9 +1924,9 @@ class Game {
           const v = pk.value || 150 + ((Math.random() * 8) | 0) * 50;
           P.money += v;
           this.say('+$' + v, 2.6, P);
-        } else if (pk.kind === 'gold') {
+        } else if (pk.kind === 'gold' || pk.kind === 'merca') {
           P.money += pk.value;
-          this.say('+$' + pk.value + ' BALON DE ORO', 2.6, P);
+          this.say('+$' + pk.value + (pk.kind === 'gold' ? ' BALON DE ORO' : ' MERCA'), 2.6, P);
         } else if (pk.kind === 'weapon') {
           this.giveWeapon(P, pk.w, pk.ammo);
           this.say(WEAPONS[pk.w].melee ? WEAPONS[pk.w].name : WEAPONS[pk.w].short + ' +' + pk.ammo, 2.6, P);
@@ -1939,8 +1939,8 @@ class Game {
           }
           this.say('+' + heal + ' VIDA (' + pk.food.toUpperCase() + ')', 2.6, P);
         }
-        sfxFor(P, { cash: 'guita', gold: 'guita', weapon: 'arma' }[pk.kind] || 'comida');
-        const col = { cash: '120,220,120', gold: '255,215,70', hp: '230,90,90', weapon: '255,200,90' }[pk.kind];
+        sfxFor(P, { cash: 'guita', gold: 'guita', merca: 'guita', weapon: 'arma' }[pk.kind] || 'comida');
+        const col = { cash: '120,220,120', gold: '255,215,70', merca: '245,245,255', hp: '230,90,90', weapon: '255,200,90' }[pk.kind];
         boom(pk.x, pk.y, 8, col);
         if (pk.drop) pk.gone = true;
         else Object.assign(pk, makePickup());

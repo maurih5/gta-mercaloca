@@ -1524,6 +1524,13 @@ class Renderer {
       ctx.fill();
       ctx.fillStyle = '#fff6c8';
       ctx.fillRect(px(x - 2), px(y - 2), 1.5, 1.5);
+    } else if (pk.kind === 'merca') {
+      ctx.fillStyle = '#2f3040';
+      ctx.fillRect(px(x - 4), px(y - 3), 9, 7);
+      ctx.fillStyle = '#f7f7ff';
+      ctx.fillRect(px(x - 4), px(y - 4), 8, 6);
+      ctx.fillStyle = '#d7dcff';
+      ctx.fillRect(px(x - 2), px(y - 2), 5, 1);
     } else if (pk.kind === 'cash') {
       ctx.fillStyle = '#1f5c23';
       ctx.fillRect(px(x - 5), px(y - 4), 10, 7);
@@ -2191,7 +2198,7 @@ class Renderer {
       ctx.fillStyle = col;
       ctx.fillRect(px(x), px(y), sz, sz);
     };
-    for (const pk of G.pickups) dot(pk, { cash: '#5ad25a', gold: '#ffd34a', hp: '#ff5a5a', weapon: '#ffc84a' }[pk.kind] || '#ffffff');
+    for (const pk of G.pickups) dot(pk, { cash: '#5ad25a', gold: '#ffd34a', merca: '#f0f0ff', hp: '#ff5a5a', weapon: '#ffc84a' }[pk.kind] || '#ffffff');
     for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
     for (const b of supers) dot({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, '#ff6a5a', 3);
     for (const g of parrillas) dot(g, g.cooking ? '#ff9a3a' : '#a8643a', 2);
