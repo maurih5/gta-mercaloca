@@ -159,6 +159,14 @@ const FAMOUS = [
     hurt: ['¿QUE MIRAS, BOBO?', 'BOBO!'],
     drop: { kind: 'gold', n: 5, value: 400 },
   },
+  {
+    id: 'maradona', name: 'DIEGO ARMANDO MERCADONA', hp: 70,
+    shirt: '#75aadb', pants: '#ffffff', stripes: '#ffffff', spd: 32,
+    look: { skin: '#c98962', hair: '#18120d', hairStyle: 'rulos', beard: '#18120d', smile: true },
+    near: ['LA PELOTA NO SE MANCHA', 'SE TE ESCAPO LA TORTUGA', 'YO ME EQUIVOQUE Y PAGUE'],
+    hurt: ['¿QUE HACES, NABO?', 'ME CORTARON LAS PIERNAS'],
+    drop: { kind: 'merca', n: 4, value: 300 },
+  },
 ];
 const FAMOUS_EVERY = [40, 80];          // cada cuánto (s, al azar) puede aparecer uno cerca de cada jugador
 const FAMOUS_LIFE = 150;                // segundos que pasea antes de irse (cuando nadie lo ve)
