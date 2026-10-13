@@ -460,7 +460,7 @@ class NetManager {
       const L = a[5] || ['ped0', '#888888', '#333333', 0];
       const p = { kind: 'ped', face: L[0], shirt: L[1], pants: L[2], r: 5, hp: 30, walk: 0, fade: 1, inside: null };
       const f = L[3] && FAMOUS.find(d => d.id === L[3]);
-      if (f) Object.assign(p, { famous: f, face: 'famous-' + f.id, line: '', lineT: 0 });
+      if (f) Object.assign(p, { famous: f, air: !!f.heli, face: 'famous-' + f.id, line: '', lineT: 0 });
       return p;
     }, (p, a) => {
       this.aim(p, a[1], a[2], a[3]);

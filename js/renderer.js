@@ -2174,6 +2174,20 @@ class Renderer {
       any = true;
     }
     if (night > 0.18 && this.drawBoatLights(k)) any = true; // luces de las lanchas
+    // Helicóptero de noche: reflector que barre el piso y luces de navegación
+    for (const p of G.peds) {
+      if (!p.air || p.hp <= 0 || night < 0.12) continue;
+      const x = p.x - G.cam.x, y = p.y - G.cam.y;
+      if (x < -120 || y < -120 || x > RW + 120 || y > RH + 120) continue;
+      const a = G.t * 0.8 + p.x * 0.01, gsz = 70;
+      ECTX.globalAlpha = 0.8 * k;
+      ECTX.drawImage(this.glow(235, 245, 255, gsz), x + 10 + Math.cos(a) * 30 - gsz / 2, y + 18 + Math.sin(a) * 20 - gsz / 2);
+      ECTX.globalAlpha = k;
+      const sn = Math.sin(p.ang) * 7, cs = Math.cos(p.ang) * 7;
+      ECTX.drawImage(this.glow(255, 50, 50, 18), x + sn - 9, y - cs - 9);
+      ECTX.drawImage(this.glow(60, 255, 100, 18), x - sn - 9, y + cs - 9);
+      any = true;
+    }
 
     ECTX.globalAlpha = 1;
     if (any) {
@@ -2459,12 +2473,118 @@ class Renderer {
     ctx.fillText(t, x, y);
   }
 
+  // Helicóptero de un famoso: sombra en el piso, fuselaje con su cara en la cabina y aspas girando
+  drawHeli(e) {
+    const ctx = this.ctx;
+    const x = e.x - G.cam.x, y = e.y - G.cam.y;
+    if (x < -50 || y < -50 || x > RW + 50 || y > RH + 50) return;
+    const t = G.t, sx = x + 10, sy = y + 18;
+    // Viento de las aspas en el piso: anillos que se abren bajo la sombra
+    ctx.strokeStyle = 'rgba(230,225,210,.35)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 2; i++) {
+      const k = (t * 1.6 + i / 2) % 1;
+      ctx.globalAlpha = 1 - k;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy, 8 + k * 18, 4 + k * 9, 0, 0, TAU);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(0,0,0,.25)';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, 12, 5, e.ang, 0, TAU);
+    ctx.fill();
+
+    const hov = Math.sin(t * 2.4) * 1.2; // se mece en el aire
+    ctx.save();
+    ctx.translate(x, y + hov);
+    ctx.rotate(e.ang + Math.sin(t * 1.3) * 0.05);
+    ctx.fillStyle = '#2a2a30'; // patines
+    ctx.fillRect(-7, -8, 15, 1.4);
+    ctx.fillRect(-7, 6.6, 15, 1.4);
+    ctx.fillStyle = shade(e.shirt, 0.7);
+    ctx.fillRect(-21, -1.5, 15, 3); // cola
+    ctx.fillStyle = '#f2f2f2';
+    ctx.fillRect(-16, -1.5, 2, 3); // franja blanca
+    ctx.fillRect(-12, -1.5, 2, 3);
+    ctx.fillStyle = shade(e.shirt, 0.6);
+    ctx.fillRect(-23, -5, 3, 10); // estabilizador
+    ctx.save(); // rotor de cola
+    ctx.translate(-21.5, 0);
+    ctx.rotate(t * 40);
+    ctx.fillStyle = 'rgba(40,40,40,.8)';
+    ctx.fillRect(-0.5, -4, 1, 8);
+    ctx.restore();
+    ctx.fillStyle = shade(e.shirt, 0.8);
+    ctx.beginPath();
+    ctx.ellipse(0.5, 0.8, 10.5, 7, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = e.shirt;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 10, 6.5, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.25)'; // brillo de la chapa
+    ctx.fillRect(-6, -5, 9, 1.5);
+    ctx.fillStyle = 'rgba(120,200,255,.9)'; // burbuja de la cabina
+    ctx.beginPath();
+    ctx.ellipse(6, 0, 4, 5, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.7)';
+    ctx.fillRect(7, -3, 1.5, 2);
+    // Luces de navegación: roja y verde en los costados, blanca que titila en la cola
+    ctx.fillStyle = '#ff3030';
+    ctx.fillRect(-2, -7.5, 2, 2);
+    ctx.fillStyle = '#30ff60';
+    ctx.fillRect(-2, 5.5, 2, 2);
+    if (t % 1 < 0.15) { ctx.fillStyle = '#ffffff'; ctx.fillRect(-24, -1, 2, 2); }
+    ctx.restore();
+
+    const f = G.faces['famous-' + e.famous.id];
+    if (f) ctx.drawImage(f, px(x - 5), px(y - 5 + hov), 10, 10);
+
+    // Aspas: disco borroso y dos palas girando
+    ctx.fillStyle = 'rgba(40,40,45,.12)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + hov, 19, 19, 0, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(25,25,30,.75)';
+    ctx.lineWidth = 1.6;
+    for (const a of [t * 24, t * 24 + Math.PI / 2]) {
+      const c = Math.cos(a) * 19, s = Math.sin(a) * 19;
+      ctx.beginPath();
+      ctx.moveTo(x - c, y + hov - s);
+      ctx.lineTo(x + c, y + hov + s);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#18181c';
+    ctx.fillRect(px(x - 1), px(y - 1 + hov), 3, 3);
+
+    // Cartel de EN VIVO que titila y el chat que le tira corazones
+    const bx = x - 11, by = y + 24;
+    ctx.fillStyle = t % 1 < 0.6 ? '#e8242c' : '#9a1418';
+    ctx.fillRect(px(bx), px(by), 22, 7);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(px(bx + 2), px(by + 2), 3, 3);
+    this.text('VIVO', px(bx + 14), px(by + 1.5), '#ffffff', 4, 'center');
+    for (let i = 0; i < 4; i++) {
+      const k = (t * 0.7 + i / 4) % 1;
+      const hx = x + 14 + Math.sin(k * 9 + i * 2) * 4, hy = y - 2 - k * 26 + hov;
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = ['#ff4d6d', '#ff9a3a', '#b46aff', '#3ad2ff'][i];
+      ctx.fillRect(px(hx - 2), px(hy - 1), 2, 2);
+      ctx.fillRect(px(hx + 1), px(hy - 1), 2, 2);
+      ctx.fillRect(px(hx - 2), px(hy), 5, 2);
+      ctx.fillRect(px(hx - 1), px(hy + 2), 3, 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // Nombre arriba de cada famoso y, si está hablando, su globito
   drawFamousTags() {
     const ctx = this.ctx;
     for (const p of G.peds) {
       if (!p.famous || p.hp <= 0 || p.inside) continue;
-      const x = p.x - G.cam.x, y = p.y - G.cam.y - 16;
+      const x = p.x - G.cam.x, y = p.y - G.cam.y - (p.air ? 26 : 16);
       if (x < -60 || y < -30 || x > RW + 60 || y > RH + 30) continue;
       this.text(p.famous.name, px(x), px(y), '#ffd34a', 4, 'center');
       if (p.lineT > 0) {
@@ -2716,7 +2836,7 @@ class Renderer {
       if (!driverOf(c)) this.drawCar(c, night);
     }
     for (const p of G.peds) {
-      if (p.hp <= 0 || p.inside) continue;
+      if (p.hp <= 0 || p.inside || p.air) continue;
       if (p.fade < 1) ctx.globalAlpha = p.fade;
       this.drawGuy(p, p.face, p.shirt, p.pants, false);
       ctx.globalAlpha = 1;
@@ -2766,6 +2886,7 @@ class Renderer {
     for (const B of G.barras) this.drawTrapoPole(B);
     for (const l of lamps) this.drawLamp(l, night);
     for (const L of lights) if (L) this.drawTrafficLight(L);
+    for (const p of G.peds) if (p.air && p.hp > 0) this.drawHeli(p);
 
     // Los jugadores van arriba de todo; el local al final, para que nunca lo tape otro
     for (const P of G.players.filter(q => q !== G.me).concat(G.me ? [G.me] : [])) {

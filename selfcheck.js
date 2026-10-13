@@ -2038,6 +2038,29 @@ describe('multijugador', () => {
     }
   });
 
+  test('gaspi vuela en helicoptero sobre el jugador, no se lo atropella y a tiros cae', () => {
+    startGame(CREW[0]);
+    for (let f = 0; f < 5; f++) update(1/60);
+    G.peds = []; G.cops = [];
+    const H = makeFamous(FAMOUS.find(f => f.id === 'gaspi'), G.me.x + 200, G.me.y);
+    G.peds.push(H);
+    for (let f = 0; f < 300; f++) update(1/60);
+    assert.ok(dist(H, G.me) < 110, 'vuela hasta el jugador y le da vueltas: ' + dist(H, G.me));
+    assert.ok(!game.targetsOf(G.me).includes(H), 'no se le pega de a pie ni se lo atropella');
+    const g0 = G.pickups.length, m0 = G.me.money;
+    H.giftT = 0;
+    update(1/60);
+    // El billete cae cerca: o queda en la calle o el jugador ya lo levantó
+    assert.ok((G.pickups.length > g0 || G.me.money > m0) && H.line === 'SORTEO PARA EL CHAT!', 'tira un sorteo para el chat');
+    for (const h of [0.5, 0]) { G.t = h * DAY; render(); }
+    const pk0 = G.pickups.length;
+    G.me.x += 200; // lejos, para que no levante los billetes en el mismo frame
+    G.bullets.push({ x: H.x - 20, y: H.y, vx: 600, vy: 0, life: 1, owner: G.me, dmg: 999 });
+    update(1/60);
+    assert.ok(H.hp <= 0, 'a tiros se viene abajo');
+    assert.equal(G.pickups.slice(pk0).filter(pk => pk.kind === 'cash').length, H.famous.drop.n, 'suelta su guita');
+  });
+
   test('los famosos hablan al que se acerca y se van cuando nadie los ve', () => {
     startGame(CREW[0]);
     const P2 = addPlayer(CREW[1]);
@@ -2330,6 +2353,24 @@ describe('multijugador online', () => {
     game.explode(P2.x + 30, P2.y, 10, 0);
     for (let f = 0; f < 4; f++) frame(red);
     assert.ok(C.G.fx.length > 20, 'el cliente ve la explosion cerca suyo: ' + C.G.fx.length);
+  });
+
+  test('el cliente ve a gaspi en su helicoptero y le llega el sorteo', async () => {
+    const { red, P2 } = await conectar();
+    G.peds = G.peds.filter(p => !p.famous);
+    G.me.x += SIM_R * 2; // el host lejos: Gaspi le da vueltas al cliente
+    const H = makeFamous(FAMOUS.find(f => f.id === 'gaspi'), P2.x + 60, P2.y);
+    G.peds.push(H);
+    for (let f = 0; f < 4; f++) frame(red);
+    const h = C.G.peds.find(p => p.famous && p.famous.id === 'gaspi');
+    assert.ok(h && h.air, 'el cliente lo recibe como helicoptero');
+    assert.ok(Math.hypot(h.x - H.x, h.y - H.y) < 3, 'donde lo simula el host');
+    const n0 = C.G.pickups.length, m0 = P2.money;
+    H.giftT = 0;
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.equal(h.line, 'SORTEO PARA EL CHAT!', 'el cliente ve el globito del sorteo');
+    assert.ok(C.G.pickups.length > n0 || P2.money > m0, 'y le llega el billete');
+    C.render();
   });
 
   test('las compras del cliente las hace el host', async () => {

@@ -167,6 +167,16 @@ const FAMOUS = [
     hurt: ['¿QUE HACES, NABO?', 'ME CORTARON LAS PIERNAS'],
     drop: { kind: 'merca', n: 4, value: 300 },
   },
+  {
+    // heli: vuela en helicóptero sobre los edificios, dando vueltas arriba del jugador
+    id: 'gaspi', name: 'GASPI EN VIVO', heli: true, hp: 90,
+    shirt: '#d23a3a', pants: '#2a2d36', spd: 70,
+    look: { skin: '#e2b896', hair: '#6a4a2a', hairStyle: 'corto', smile: true, cap: '#18181c', shades: true },
+    near: ['SALUDOS AL CHAT', 'MIREN ESTE NABO, CHAT', 'DONEN, MANGA DE RATAS', 'ACTIVEN LAS NOTIS',
+      'SE VIENE EL SORTEO', 'ESTO ES CONTENIDO, CHAT'],
+    hurt: ['ME ESTAN TIRANDO, CHAT!', 'CLIPEALO, CLIPEALO', 'BANEENLO YA', 'MODS! MODS!'],
+    drop: { kind: 'cash', n: 6, value: 250 },
+  },
 ];
 const FAMOUS_EVERY = [40, 80];          // cada cuánto (s, al azar) puede aparecer uno cerca de cada jugador
 const FAMOUS_LIFE = 150;                // segundos que pasea antes de irse (cuando nadie lo ve)

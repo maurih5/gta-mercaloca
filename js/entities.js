@@ -91,6 +91,7 @@ class EntityManager {
     const p = this.makePedAt(x, y);
     return Object.assign(p, {
       famous: def,
+      air: !!def.heli,
       def: null,
       face: 'famous-' + def.id,
       shirt: def.shirt,

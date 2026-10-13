@@ -420,6 +420,7 @@ class Game {
     if (e.hp <= 0) {
       decal(e.x, e.y, rnd(4, 7), 'rgba(95,12,12,.5)');
       if (e.famous) this.famousDown(e, by);
+      if (e.air) this.explode(e.x, e.y, 26, 40, by); // el helicóptero se viene abajo
       this.wantUp(by, e.kind === 'cop' ? 2 : 1);
       if (by) by.money += e.kind === 'cop' ? 120 : 40;
       if (e.kind === 'cop' && Math.random() < 0.3) G.pickups.push(makeDrop(e.x, e.y, 'escopeta', 6));
@@ -430,7 +431,7 @@ class Game {
   targetsOf(P) {
     const out = [];
     for (const list of [G.cops, G.peds, G.tranzas, G.hinchas]) {
-      for (const e of list) if (e.hp > 0 && !e.inside) out.push(e);
+      for (const e of list) if (e.hp > 0 && !e.inside && !e.air) out.push(e);
     }
     if (PVP) {
       for (const q of G.players) if (q !== P && inPlay(q) && !q.car) out.push(q);
@@ -1031,10 +1032,12 @@ class Game {
   // Cayó un famoso: suelta lo suyo y el que lo bajó se entera
   famousDown(e, by) {
     const d = e.famous.drop;
-    if (d && (d.kind === 'gold' || d.kind === 'merca')) {
+    if (d) {
       for (let i = 0; i < d.n; i++) {
         const a = (i / d.n) * TAU + rnd(-0.3, 0.3), r = rnd(14, 26); // desparramados: se juntan de a uno
-        G.pickups.push({ x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r, kind: d.kind, value: d.value, t: 0, drop: true });
+        let at = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
+        if (e.air) at = toSidewalk(at.x, at.y); // del helicóptero cae a la calle, no a un techo
+        G.pickups.push({ x: at.x, y: at.y, kind: d.kind, value: d.value, t: 0, drop: true });
       }
     }
     this.say('BAJASTE A ' + e.famous.name, 2.6, by);
@@ -1050,7 +1053,7 @@ class Game {
       p.lineT = Math.max(0, p.lineT - dt);
       p.talkT -= dt;
       const { p: P, d } = nearestPlayer(p, inPlay);
-      if (P && d < FAMOUS_TALK && p.talkT <= 0) {
+      if (P && d < (p.air ? FAMOUS_TALK * 3 : FAMOUS_TALK) && p.talkT <= 0) {
         this.famousLine(p, p.famous.near);
         p.talkT = rnd(5, 9);
       }
@@ -1075,7 +1078,34 @@ class Game {
         continue;
       }
       G.peds.push(makeFamous(def, sp.x, sp.y));
-      this.say(def.name + ' ANDA POR EL BARRIO', 2.8, P);
+      this.say(def.name + (def.heli ? ' SOBREVUELA EL BARRIO' : ' ANDA POR EL BARRIO'), 2.8, P);
+    }
+  }
+
+  // El helicóptero vuela por arriba de todo: da vueltas sobre el jugador más cercano y,
+  // cuando ya paseó, se aleja para irse sin que nadie lo vea desaparecer
+  flyHeli(p, dt) {
+    const { p: P } = nearestPlayer(p, inPlay);
+    if (!P) return;
+    p.orbit = (p.orbit || rnd(0, TAU)) + dt * 0.6;
+    const away = Math.atan2(p.y - P.y, p.x - P.x);
+    const tx = p.life > 0 ? P.x + Math.cos(p.orbit) * 70 : p.x + Math.cos(away) * 100;
+    const ty = p.life > 0 ? P.y + Math.sin(p.orbit) * 70 : p.y + Math.sin(away) * 100;
+    // Sorteo para el chat: cada tanto tira un billete a la calle, cerca del jugador
+    p.giftT = (p.giftT === undefined ? rnd(8, 14) : p.giftT) - dt;
+    if (p.giftT <= 0 && p.life > 0 && dist(p, P) < 110) {
+      p.giftT = rnd(14, 24);
+      const at = toSidewalk(P.x + rnd(-30, 30), P.y + rnd(-30, 30));
+      G.pickups.push({ x: at.x, y: at.y, kind: 'cash', value: 100, t: 0, drop: true });
+      p.line = 'SORTEO PARA EL CHAT!';
+      p.lineT = 2.6;
+    }
+    const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy);
+    if (d > 1) {
+      const s = Math.min(d, p.sped * dt);
+      p.x = clamp(p.x + (dx / d) * s, 8, WORLD - 8);
+      p.y = clamp(p.y + (dy / d) * s, 8, WORLD - 8);
+      p.ang = Math.atan2(dy, dx);
     }
   }
 
@@ -1351,6 +1381,13 @@ class Game {
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt;
+      // El helicóptero vuela sobre los techos: se le pega antes de que la bala dé en la pared
+      const heli = b.owner && G.peds.find(e => e.air && e.hp > 0 && segDist(b, e) < 12);
+      if (heli) {
+        b.life = 0;
+        this.hurt(heli, b.dmg, b.owner);
+        continue;
+      }
       if (hitBuilding(b.x, b.y, 1)) {
         b.life = 0;
         boom(b.x, b.y, 4, '220,220,200');
@@ -1360,7 +1397,7 @@ class Game {
       if (b.owner) {
         for (const list of [G.cops, G.peds, G.tranzas, G.hinchas]) {
           for (const e of list) {
-            if (b.life > 0 && e.hp > 0 && segDist(b, e) < 7) {
+            if (b.life > 0 && e.hp > 0 && !e.air && segDist(b, e) < 7) {
               b.life = 0;
               this.hurt(e, b.dmg, b.owner);
             }
@@ -1393,6 +1430,10 @@ class Game {
 
     for (const p of G.peds) {
       if (p.hp <= 0) continue;
+      if (p.air) {
+        this.flyHeli(p, dt);
+        continue;
+      }
 
       // Adentro de un edificio: invisible, sale al cumplirse el tiempo
       if (p.inside) {
@@ -1563,7 +1604,7 @@ class Game {
       }
 
       for (const q of G.peds) {
-        if (q === p || q.hp <= 0) continue;
+        if (q === p || q.hp <= 0 || q.air) continue;
         const dx2 = p.x - q.x, dy2 = p.y - q.y, d2 = dx2 * dx2 + dy2 * dy2;
         if (d2 > 0.01 && d2 < 64) {
           const d3 = Math.sqrt(d2), push = (8 - d3) * dt * 2.2;
@@ -1577,7 +1618,7 @@ class Game {
 
       if (!scared && p.chat <= 0 && Math.random() < 0.25 * dt) {
         for (const q of G.peds) {
-          if (q !== p && q.hp > 0 && dist(p, q) < 16) {
+          if (q !== p && q.hp > 0 && !q.air && dist(p, q) < 16) {
             p.chat = rnd(1.5, 4);
             q.chat = p.chat;
             break;

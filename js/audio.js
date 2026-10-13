@@ -315,7 +315,30 @@ class SoundManager {
       o.start();
       return { o };
     });
-    return { engine, skid, siren };
+    // Helicóptero: ruido grave cortado por el golpe de las aspas (LFO sobre el volumen)
+    const heli = loop(g => {
+      const src = c.createBufferSource();
+      src.buffer = this.noise;
+      src.loop = true;
+      const flt = c.createBiquadFilter();
+      flt.type = 'lowpass';
+      flt.frequency.value = 220;
+      const chop = c.createGain();
+      chop.gain.value = 0.5;
+      const lfo = c.createOscillator();
+      lfo.frequency.value = 13;
+      const depth = c.createGain();
+      depth.gain.value = 0.5;
+      lfo.connect(depth);
+      depth.connect(chop.gain);
+      src.connect(flt);
+      flt.connect(chop);
+      chop.connect(g);
+      src.start();
+      lfo.start();
+      return { src };
+    });
+    return { engine, skid, siren, heli };
   }
 
   // Una vez por frame: el motor y el derrape son del auto de G.me; la sirena, del
@@ -359,6 +382,11 @@ class SoundManager {
     } else {
       set(L.siren.g.gain, 0, 0.15);
     }
+
+    const H = live && G.peds.find(p => p.air && p.hp > 0);
+    const ha = H && audibleFor(P, H.x, H.y);
+    set(L.heli.g.gain, ha ? 0.35 * ha.vol : 0, 0.2);
+    if (ha && L.heli.p) set(L.heli.p.pan, ha.pan, 0.1);
   }
 }
 
