@@ -1767,6 +1767,11 @@ class Game {
       // Si su objetivo se fue de la partida, va por el más cercano
       if (!c.tgt || !G.players.includes(c.tgt)) c.tgt = nearestPlayer(c).p;
       const P = c.tgt;
+      // Su jugador ya no tiene estrellas: apaga la sirena y vuelve al tráfico (se va cuando nadie lo ve)
+      if (P.wanted <= 0) {
+        Object.assign(c, { chase: false, ai: true, nav: false, tgt: null, slot: undefined, bustT: 0, cruise: c.model.cruise * rnd(0.9, 1.1) });
+        continue;
+      }
       const d = dist(c, P);
       // Va por las calles hacia su jugador (js/traffic.js); sin camino por la grilla, derecho
       let nav = copNav.target(c, P, dt) || { x: P.x, y: P.y, turn: false };
