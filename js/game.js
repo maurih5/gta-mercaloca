@@ -1057,6 +1057,14 @@ class Game {
         this.famousLine(p, p.famous.near);
         p.talkT = rnd(5, 9);
       }
+      // Rastro cómico: solo si camina y alguien lo ve
+      const moved = p.lx !== undefined && Math.hypot(p.x - p.lx, p.y - p.ly) > 0.01;
+      p.lx = p.x; p.ly = p.y;
+      p.trailT = (p.trailT || 0) - dt;
+      if (p.famous.trail && moved && p.trailT <= 0 && !farFromPlayers(p, OFFSCREEN)) {
+        p.trailT = 0.12;
+        boom(p.x, p.y, 2, p.famous.trail, 0.4);
+      }
     }
     G.peds = G.peds.filter(p => !p.famous || p.hp <= 0 || p.life > 0 || !farFromPlayers(p, OFFSCREEN));
 
