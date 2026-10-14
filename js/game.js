@@ -1051,7 +1051,7 @@ class Game {
         const a = (i / d.n) * TAU + rnd(-0.3, 0.3), r = rnd(14, 26); // desparramados: se juntan de a uno
         let at = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
         if (e.air) at = toSidewalk(at.x, at.y); // del helicóptero cae a la calle, no a un techo
-        G.pickups.push({ x: at.x, y: at.y, kind: d.kind, value: d.value, t: 0, drop: true });
+        G.pickups.push({ x: at.x, y: at.y, kind: d.kind, value: d.value, food: d.food, t: 0, drop: true });
       }
     }
     this.say('BAJASTE A ' + e.famous.name, 2.6, by);
@@ -1110,14 +1110,24 @@ class Game {
       const pool = FAMOUS.filter(f => !around.some(q => q.famous === f));
       if (!pool.length) continue;
       const def = pool[(Math.random() * pool.length) | 0];
-      const sp = sidewalkSpot(OFFSCREEN, SIM_R * 0.8, P);
+      const sp = def.beach ? this.beachSpot(P) : sidewalkSpot(OFFSCREEN, SIM_R * 0.8, P);
       if (!sp || !offscreenForOthers(sp, P)) {
         P.famousT = 3; // no hubo lugar: se prueba de nuevo enseguida
         continue;
       }
       G.peds.push(makeFamous(def, sp.x, sp.y));
-      this.say(def.name + (def.heli ? ' SOBREVUELA EL BARRIO' : ' ANDA POR EL BARRIO'), 2.8, P);
+      this.say(def.name + (def.heli ? ' SOBREVUELA EL BARRIO' : def.beach ? ' ANDA POR LA PLAYA' : ' ANDA POR EL BARRIO'), 2.8, P);
     }
+  }
+
+  // Punto de arena fuera de pantalla cerca de P (null si no hay playa cerca)
+  beachSpot(P) {
+    for (let i = 0; i < 50; i++) {
+      const a = rnd(0, TAU), r = rnd(OFFSCREEN, SIM_R * 0.8);
+      const x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
+      if (onBeach(x, y) && !hitBuilding(x, y, 6)) return { x, y };
+    }
+    return null;
   }
 
   // El helicóptero vuela por arriba de todo: da vueltas sobre el jugador más cercano y,

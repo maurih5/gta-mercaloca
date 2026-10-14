@@ -2141,6 +2141,36 @@ describe('multijugador', () => {
     assert.equal(G.pickups.slice(pk0).filter(pk => pk.kind === 'cash').length, H.famous.drop.n, 'suelta su guita');
   });
 
+  const playa = () => { for (let x = 200; x < WORLD; x += 20) for (let y = 200; y < WORLD; y += 20) if (onBeach(x, y) && !hitBuilding(x, y, 6)) return { x, y }; };
+
+  test('el famoso de playa nace en la arena, suelta chocolates y curan', () => {
+    startGame(CREW[0]);
+    for (let f = 0; f < 5; f++) update(1/60);
+    G.peds = []; G.cops = [];
+    const B = playa();
+    G.me.x = B.x; G.me.y = B.y;
+    const real = FAMOUS.slice();
+    FAMOUS.length = 0; FAMOUS.push(real.find(f => f.id === 'fort'));
+    let F;
+    try {
+      for (let i = 0; i < 40 && !(F = G.peds.find(p => p.famous)); i++) { G.me.famousT = 0; update(1/60); }
+    } finally { FAMOUS.length = 0; FAMOUS.push(...real); }
+    assert.ok(F, 'aparece en la playa');
+    assert.ok(onBeach(F.x, F.y), 'y nace en la arena');
+    F.sped = 0;
+    const pk0 = G.pickups.length;
+    G.me.x -= 300; // lejos, para no levantar los chocolates en el mismo frame
+    G.bullets.push({ x: F.x - 6, y: F.y, vx: 600, vy: 0, life: 1, owner: G.me, dmg: 999 });
+    update(1/60);
+    assert.ok(F.hp <= 0, 'a tiros cae');
+    const ch = G.pickups.slice(pk0).filter(pk => pk.kind === 'hp' && pk.food === 'chocolate');
+    assert.equal(ch.length, F.famous.drop.n, 'suelta chocolates');
+    G.me.hp = 10; G.me.x = ch[0].x; G.me.y = ch[0].y;
+    update(1/60);
+    assert.ok(G.me.hp > 10, 'el chocolate cura: ' + G.me.hp);
+    for (const h of [0.5, 0]) { G.t = h * DAY; render(); }
+  });
+
   test('el conductor deja rastro de particulas al caminar, se lo baja y suelta guita', () => {
     startGame(CREW[0]);
     for (let f = 0; f < 5; f++) update(1/60);
@@ -2510,6 +2540,21 @@ describe('multijugador online', () => {
     for (let f = 0; f < 4; f++) frame(red);
     assert.equal(h.line, 'SORTEO PARA EL CHAT!', 'el cliente ve el globito del sorteo');
     assert.ok(C.G.pickups.length > n0 || P2.money > m0, 'y le llega el billete');
+    C.render();
+  });
+
+  test('el cliente ve al famoso de playa y sus chocolates', async () => {
+    const { red, P2 } = await conectar();
+    G.peds = G.peds.filter(p => !p.famous);
+    G.me.x += SIM_R * 2;
+    const F = makeFamous(FAMOUS.find(f => f.id === 'fort'), P2.x + 60, P2.y);
+    F.sped = 0;
+    G.peds.push(F);
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(C.G.peds.some(p => p.famous && p.famous.id === 'fort'), 'el cliente lo ve');
+    G.pickups.push({ x: P2.x + 300, y: P2.y, kind: 'hp', food: 'chocolate', t: 0, drop: true });
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(C.G.pickups.some(pk => pk.food === 'chocolate'), 'le llega el chocolate');
     C.render();
   });
 
