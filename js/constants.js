@@ -263,6 +263,17 @@ const SHOP_ITEMS = [
   {id:'chaleco',  price:500,                          desc:'Chaleco antibalas. Aguanta la yuta.'},
 ];
 
+// Banco: lo que está adentro (P.bank) no se pierde al morir ni al caer en cana.
+// Cada fila mueve hasta esa plata (dep > 0 deposita, < 0 saca; Infinity es todo).
+const BANK_ITEMS = [
+  {id:'dep100',  name:'DEPOSITAR $100',   dep:100,       desc:'Depositar $100.'},
+  {id:'dep1000', name:'DEPOSITAR $1000',  dep:1000,      desc:'Depositar $1000.'},
+  {id:'depall',  name:'DEPOSITAR TODO',   dep:Infinity,  desc:'Depositar toda la guita que llevas encima.'},
+  {id:'ret100',  name:'SACAR $100',       dep:-100,      desc:'Sacar $100.'},
+  {id:'ret1000', name:'SACAR $1000',      dep:-1000,     desc:'Sacar $1000.'},
+  {id:'retall',  name:'SACAR TODO',       dep:-Infinity, desc:'Sacar todo lo que tenes en el banco.'},
+];
+
 // Fierros tirados en la calle: arma, balas que trae y peso del sorteo
 const LOOT = [
   {id:'escopeta', ammo:8,  w:3},
