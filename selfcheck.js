@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -1743,6 +1743,26 @@ describe('novedades', () => {
   });
 });
 
+describe('corralito', () => {
+  test('te saca la mitad de la guita y te avisa', () => {
+    startGame(CREW[0]);
+    G.me.money = 700; G.me.bank = 1001; G.corralitoT = 0; G.msg = '';
+    game.updateCorralito(0.1);
+    assert.equal(G.me.bank, 501);
+    assert.equal(G.me.money, 700, 'el efectivo no se toca');
+    assert.ok(G.msg.includes('CORRALITO'), G.msg);
+  });
+  test('sin guita no pasa nada y se reintenta', () => {
+    startGame(CREW[0]);
+    G.me.money = 5000; G.me.bank = CORRALITO_MIN - 1; G.corralitoT = 0; G.msg = '';
+    game.updateCorralito(0.1);
+    assert.equal(G.me.bank, CORRALITO_MIN - 1);
+    assert.equal(G.me.money, 5000);
+    assert.equal(G.msg, '');
+    assert.ok(G.corralitoT > 0);
+  });
+});
+
 describe('multijugador', () => {
   // Pone a P sobre la calle, a d px de G.me (en una dirección donde haya calle libre)
   const lejos = (P, d) => {
@@ -2744,5 +2764,19 @@ describe('multijugador online', () => {
     assert.equal(G.players.length, MAX_PLAYERS);
     net.leave();
     net.role = null;
+  });
+
+  test('corralito: cada jugador pierde la mitad de lo suyo', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]), vistos = [];
+    const orig = game.say; game.say = (t, s, P) => vistos.push(P);
+    try {
+      G.me.bank = 1000; P2.bank = 300; G.me.money = P2.money = 80; G.corralitoT = 0;
+      game.updateCorralito(0.1);
+    } finally { game.say = orig; net.leave(); net.role = null; }
+    assert.equal(G.me.bank, 500);
+    assert.equal(P2.bank, 150);
+    assert.ok(G.me.money === 80 && P2.money === 80, 'el efectivo no se toca');
+    assert.ok(vistos.includes(G.me) && vistos.includes(P2), 'a los dos les avisan');
   });
 });
