@@ -223,6 +223,7 @@ class NetManager {
     if (!K || !inPlay(P) || P.car) return;
     const ok = d.k === 'armeria' ? P.nearShop && P.wanted < 2
       : d.k === 'tranza' ? P.nearTranza
+      : d.k === 'banco' ? P.nearBank && P.wanted < 2
       : P.nearSuper && P.nearSuper.super === d.k && P.wanted < 2 && !P.nearSuper.robbing && !(P.nearSuper.closed > 0);
     if (!ok) {
       this.to(P, ['sm', 'YA NO ESTAS EN EL LOCAL', true]);
@@ -296,11 +297,11 @@ class NetManager {
     const players = G.players.map(q => [
       q.id, CREW.indexOf(q.def), r1(q.x), r1(q.y), r2(q.ang), Math.ceil(q.hp), q.maxhp,
       q.car ? id(q.car) : 0, q.wpn, r2(q.muzzle), r2(q.swing),
-      (q.dead ? 1 : 0) | (q.busted ? 2 : 0) | (q.healing ? 4 : 0) | (q.nearShop ? 8 : 0) | (q.nearTranza ? 16 : 0) | (q.nearSuper ? 32 : 0) | (q.nearGrill ? 64 : 0) | (q.nearTrapo ? 128 : 0) | (q.nearBoliche ? 256 : 0),
+      (q.dead ? 1 : 0) | (q.busted ? 2 : 0) | (q.healing ? 4 : 0) | (q.nearShop ? 8 : 0) | (q.nearTranza ? 16 : 0) | (q.nearSuper ? 32 : 0) | (q.nearGrill ? 64 : 0) | (q.nearTrapo ? 128 : 0) | (q.nearBoliche ? 256 : 0) | (q.nearBank ? 512 : 0),
       r1(q.bustT), r1(q.healT), q.money, q.wanted, Math.round(q.armor), q.porros, r1(q.slowmo), q.bustFine,
       q === P ? packInv(q.inv) : 0,
       Math.round(q.food), Math.round(q.drink), q === P ? q.bag : 0,
-      q.respect || 0, q.trapo ? G.barras.indexOf(q.trapo) + 1 : 0, r1(q.trapoT || 0), q.party || 0, r1(q.partyT || 0),
+      q.respect || 0, q.trapo ? G.barras.indexOf(q.trapo) + 1 : 0, r1(q.trapoT || 0), q.party || 0, r1(q.partyT || 0), q.bank,
     ]);
     // Los hinchas: como la yuta, en el radar y el mapa de todos
     const hinchas = G.hinchas.filter(h => h.hp > 0).map(h => [id(h), r1(h.x), r1(h.y), r2(h.ang), G.barras.indexOf(h.barra), r2(h.swing || 0)]);
@@ -542,6 +543,7 @@ class NetManager {
       q.nearGrill = a[11] & 64 ? true : null;
       q.nearTrapo = a[11] & 128 ? true : null;
       q.nearBoliche = a[11] & 256 ? true : null;
+      q.nearBank = a[11] & 512 ? true : null;
       q.bustT = a[12];
       q.healT = a[13];
       q.money = a[14];
@@ -559,6 +561,7 @@ class NetManager {
       q.trapoT = a[26] || 0;
       q.party = a[27] || 0;
       q.partyT = a[28] || 0;
+      q.bank = a[29] || 0;
     });
 
     const me = G.players.find(q => q.id === this.myId) || null;

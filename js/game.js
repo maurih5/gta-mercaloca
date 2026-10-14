@@ -153,6 +153,7 @@ class Game {
     this.resetSupers();
     for (const g of parrillas) Object.assign(g, { cooking: false, t: 0, portions: 0, owner: null });
     copNav.reset();
+    G.corralitoT = undefined;
     G.peds = [];
     G.guards = [];
     G.cops = [];
@@ -225,11 +226,12 @@ class Game {
   }
 
   // Volver al barrio después de morir con otros jugando: no se reinicia el mundo de
-  // todos, reaparece solo él, sin fierros ni estrellas pero con su guita
+  // todos, reaparece solo él, sin fierros, ni estrellas, ni la guita que llevaba encima
+  // (la del banco la conserva)
   respawn(P) {
     const s = freeRoadSpot();
     Object.assign(P, {
-      x: s.x, y: s.y, hp: P.maxhp, dead: false, car: null, cool: 0.5,
+      x: s.x, y: s.y, hp: P.maxhp, dead: false, car: null, cool: 0.5, money: 0,
       inv: { pistola: Infinity }, wpn: 'pistola', armor: 0,
       wanted: 0, wantCool: 0, wantPeak: 0, slowmo: 0, food: 80, drink: 80, bag: {}, trapo: null,
     });
@@ -1076,6 +1078,22 @@ class Game {
 
   // Aparecen cerca de cada jugador cada tanto (sin que otro jugador los vea aparecer),
   // hablan cuando alguien se les acerca y se van cuando ya pasearon y nadie los mira
+  // Corralito: timer del mundo; le saca la mitad de la plata del BANCO (no del efectivo) a todos los que estan jugando (no a muertos/arrestados/en hospital)
+  updateCorralito(dt) {
+    if (G.corralitoT === undefined) G.corralitoT = rnd(CORRALITO_EVERY[0], CORRALITO_EVERY[1]);
+    G.corralitoT -= dt;
+    if (G.corralitoT > 0) return;
+    const hit = G.players.filter(P => inPlay(P) && P.bank >= CORRALITO_MIN);
+    if (!hit.length) { G.corralitoT = 5; return; } // nadie con plata en el banco: se prueba de nuevo enseguida
+    G.corralitoT = rnd(CORRALITO_EVERY[0], CORRALITO_EVERY[1]);
+    for (const P of hit) {
+      const loss = Math.floor(P.bank / 2);
+      P.bank -= loss;
+      this.say('CORRALITO! EL GOBIERNO TE AGARRO LA MITAD DEL BANCO (-$' + loss + ')', 4, P);
+      this.shakeFor(P, 4);
+    }
+  }
+
   updateFamous(dt) {
     for (const p of G.peds) {
       if (!p.famous || p.hp <= 0) continue;
@@ -1086,6 +1104,14 @@ class Game {
       if (P && d < (p.air ? FAMOUS_TALK * 3 : FAMOUS_TALK) && p.talkT <= 0) {
         this.famousLine(p, p.famous.near);
         p.talkT = rnd(5, 9);
+      }
+      // Rastro cómico: solo si camina y alguien lo ve
+      const moved = p.lx !== undefined && Math.hypot(p.x - p.lx, p.y - p.ly) > 0.01;
+      p.lx = p.x; p.ly = p.y;
+      p.trailT = (p.trailT || 0) - dt;
+      if (p.famous.trail && moved && p.trailT <= 0 && !farFromPlayers(p, OFFSCREEN)) {
+        p.trailT = 0.12;
+        boom(p.x, p.y, 2, p.famous.trail, 0.4);
       }
     }
     G.peds = G.peds.filter(p => !p.famous || p.hp <= 0 || p.life > 0 || !farFromPlayers(p, OFFSCREEN));
@@ -1178,6 +1204,7 @@ class Game {
     P.nearShop = null;
     P.nearTranza = null;
     P.nearSuper = null;
+    P.nearBank = null;
     P.nearGrill = null;
     P.nearTrapo = null;
     P.nearBoliche = null;
@@ -1215,6 +1242,7 @@ class Game {
         // Solo: se arranca de cero como siempre. Con otros jugando, reaparece él nomás.
         if (G.players.length <= 1) {
           this.startGame(P.def);
+          G.me.bank = P.bank;
           return 'reset';
         }
         this.respawn(P);
@@ -1313,6 +1341,10 @@ class Game {
         const d = b.door;
         if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearBoliche = b;
       }
+      for (const b of banks) {
+        const d = b.door;
+        if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearBank = b;
+      }
       for (const g of parrillas) {
         if (dist(g, P) < GRILL_R) P.nearGrill = g;
       }
@@ -1334,6 +1366,10 @@ class Game {
         if (P.nearSuper.robbing || P.nearSuper.closed > 0) this.say('CERRADO POR ROBO', 2.6, P);
         else if (P.wanted >= 2) this.say('EL DE SEGURIDAD NO TE DEJA PASAR', 2.6, P);
         else this.openShop(P, P.nearSuper.super);
+      } else if (ctl.use && P.cool <= 0 && P.nearBank) {
+        P.cool = 0.4;
+        if (P.wanted >= 2) this.say('EL BANCO NO ATIENDE CON LA YUTA ENCIMA', 2.6, P);
+        else this.openShop(P, 'banco');
       } else if (ctl.use && P.cool <= 0 && P.nearTrapo) {
         P.cool = 0.4;
         this.takeTrapo(P, P.nearTrapo);
@@ -1699,6 +1735,7 @@ class Game {
     }
 
     this.updateFamous(dt);
+    this.updateCorralito(dt);
     this.updateSupers(dt);
     this.updateGrills(dt);
     this.updateBarras(dt);
@@ -1812,6 +1849,11 @@ class Game {
       // Si su objetivo se fue de la partida, va por el más cercano
       if (!c.tgt || !G.players.includes(c.tgt)) c.tgt = nearestPlayer(c).p;
       const P = c.tgt;
+      // Su jugador ya no tiene estrellas: apaga la sirena y vuelve al tráfico (se va cuando nadie lo ve)
+      if (P.wanted <= 0) {
+        Object.assign(c, { chase: false, ai: true, nav: false, tgt: null, slot: undefined, bustT: 0, cruise: c.model.cruise * rnd(0.9, 1.1) });
+        continue;
+      }
       const d = dist(c, P);
       // Va por las calles hacia su jugador (js/traffic.js); sin camino por la grilla, derecho
       let nav = copNav.target(c, P, dt) || { x: P.x, y: P.y, turn: false };
