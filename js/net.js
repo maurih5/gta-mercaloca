@@ -316,7 +316,8 @@ class NetManager {
 
     return {
       t: r2(G.t), c: cars, p: peds, k: cops, z: tranzas, va: villas.map(v => r1(v.angry)),
-      ba: G.barras.map(B => [B.trapo === 'hung' ? 0 : B.trapo === 'carried' ? 1 : 2, B.angry > 0 ? 1 : 0]),
+      ba: G.barras.map(B => [B.trapo === 'hung' ? 0 : B.trapo === 'carried' ? 1 : 2, B.angry > 0 ? 1 : 0,
+        B.owner ? G.players.indexOf(B.owner) + 1 : 0, r2(B.ctl), B.chal ? G.players.indexOf(B.chal) + 1 : 0]),
       hi: hinchas,
       pa: parrillas.map(g => [r1(g.t), g.cooking ? g.portions : 0]),
       sp: supers.map(b => [r1(b.robT || 0), Math.ceil(b.closed || 0), (b.robbing ? 1 : 0) | (b.alarm > 0 ? 2 : 0)]),
@@ -489,7 +490,8 @@ class NetManager {
     s.va.forEach((v, i) => { if (villas[i]) villas[i].angry = v; });
     (s.ba || []).forEach((a, i) => {
       const B = G.barras[i];
-      if (B) Object.assign(B, { trapo: ['hung', 'carried', 'gone'][a[0]], angry: a[1] ? 1 : 0 });
+      if (B) Object.assign(B, { trapo: ['hung', 'carried', 'gone'][a[0]], angry: a[1] ? 1 : 0,
+        owner: G.players[a[2] - 1] || null, ctl: a[3] || 0, chal: G.players[a[4] - 1] || null });
     });
     G.hinchas = this.sync('h', s.hi || [], a => ({ kind: 'hincha', r: 5, hp: HINCHA_HP, walk: 0, swing: 0,
       face: 'ped' + (a[0] % 4), barra: G.barras[a[4]] || G.barras[0] }), (h, a) => {

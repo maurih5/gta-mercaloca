@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,EVENTS,EVENT_EVERY,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,EVENTS,EVENT_EVERY,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,TERR_R,TERR_TIME,TERR_PAY,TERR_CASH,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,EVENTS,EVENT_EVERY,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,EVENTS,EVENT_EVERY,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,TERR_R,TERR_TIME,TERR_PAY,TERR_CASH,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -1329,6 +1329,32 @@ describe('jugador', () => {
     assert.ok(!P.trapo && B.trapo === 'gone' && P.trapos === 1, 'el trapo es suyo');
     game.updateBarras(TRAPO_BACK + 1);
     assert.equal(B.trapo, 'hung', 'al rato cuelgan otro');
+  });
+
+  test('territorios: sin dueno al empezar; se toma tras TERR_TIME, cobra, y otro jugador lo disputa', () => {
+    startGame(CREW[0]);
+    assert.ok(G.barras.every(B => !B.owner && B.ctl === 0), 'nadie es dueno');
+    const P = G.me, B = G.barras[0];
+    const Q = addPlayer(CREW[1]);
+    Object.assign(Q, { x: 5, y: 5 });
+    Object.assign(P, { x: B.flag.x, y: B.flag.y + 6, car: null, dead: false });
+    game.updateTerritorios(TERR_TIME / 2);
+    assert.equal(B.owner, null, 'con la barra de guardia no se toma');
+    for (const h of G.hinchas) if (h.barra === B) h.hp = 0;
+    game.updateTerritorios(TERR_TIME / 2);
+    assert.ok(!B.owner && B.ctl > 0 && B.ctl < 1, 'sube de a poco');
+    game.updateTerritorios(TERR_TIME);
+    assert.equal(B.owner, P, 'tomado');
+    const m0 = P.money;
+    game.updateTerritorios(TERR_PAY);
+    assert.equal(P.money, m0 + TERR_CASH, 'cobra');
+    // Q lo disputa mientras P esta lejos
+    Object.assign(P, { x: 5, y: 5 });
+    Object.assign(Q, { x: B.flag.x, y: B.flag.y + 6, car: null, dead: false });
+    game.updateTerritorios(TERR_TIME / 2);
+    assert.ok(B.owner === P && B.ctl < 0.6, 'baja el control');
+    game.updateTerritorios(TERR_TIME);
+    assert.equal(B.owner, Q, 'se lo saca');
   });
 
   test('si te bajan o caes preso con el trapo, vuelve a su barra', () => {
@@ -2837,6 +2863,17 @@ describe('multijugador online', () => {
     assert.equal(C.G.me.respect, P2.respect, 'y su respeto');
     C.render();
     game.dropTrapo(P2);
+  });
+
+  test('el cliente ve de quien es el territorio y cuanto control hay', async () => {
+    const { red, P2 } = await conectar();
+    const B = G.barras[0];
+    Object.assign(B, { owner: P2, ctl: 0.5 });
+    P2.x = 5; P2.y = 5;
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(C.G.barras[0].owner === C.G.me && C.G.barras[0].ctl > 0.4, 'el cliente es el dueno');
+    C.render();
+    Object.assign(B, { owner: null, ctl: 0 });
   });
 
   test('el cliente le roba el auto a uno: lo ve salir corriendo, y ve las balizas de los abandonados', async () => {

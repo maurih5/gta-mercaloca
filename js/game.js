@@ -851,7 +851,59 @@ class Game {
     Object.assign(B, { trapo: 'hung', by: null });
   }
 
+  // Territorio de cada barra: ver TERR_*. Un solo jugador en la zona toma o disputa; dos, se traban.
+  updateTerritorios(dt) {
+    for (const B of G.barras) {
+      if (B.owner && !G.players.includes(B.owner)) Object.assign(B, { owner: null, ctl: 0 });
+      if (B.chal && !G.players.includes(B.chal)) B.chal = null;
+      const inside = G.players.filter(p => inPlay(p) && dist(p, B.flag) < TERR_R);
+      const guards = !B.owner && G.hinchas.some(h => h.barra === B && h.hp > 0 && dist(h, B.flag) < TERR_R);
+      const rivals = inside.filter(p => p !== B.owner);
+      const ownerIn = !!B.owner && inside.includes(B.owner);
+      if (B.owner) {
+        B.chal = null;
+        if (ownerIn && !rivals.length) B.ctl = 1;
+        else if (!ownerIn && rivals.length === 1) {
+          B.ctl -= dt / TERR_TIME;
+          if (B.ctl <= 0) {
+            const old = B.owner, P = rivals[0];
+            Object.assign(B, { owner: P, ctl: 1, payT: 0 });
+            this.say('TE SACARON ' + B.def.club, 3, old);
+            this.takenMsg(P, B);
+          }
+        } else if (!inside.length && (B.ctl -= dt / TERR_HOLD) <= 0) {
+          this.say('LA BARRA RECUPERO ' + B.def.stadium.toUpperCase(), 3, B.owner);
+          Object.assign(B, { owner: null, ctl: 0 });
+        }
+        if (B.owner && (B.payT += dt) >= TERR_PAY) {
+          B.payT = 0;
+          B.owner.money += TERR_CASH;
+          sfxFor(B.owner, 'guita');
+          this.say('TERRITORIO: +$' + TERR_CASH, 2, B.owner);
+          this.gainRespect(B.owner, TERR_RESPECT, '', true);
+        }
+      } else if (guards || !rivals.length) {
+        B.ctl = Math.max(0, B.ctl - dt / TERR_TIME);
+        if (!B.ctl) B.chal = null;
+        if (guards && rivals.length) { B.angry = Math.max(B.angry, 20); B.tgt = rivals[0]; }
+      } else if (rivals.length === 1) {
+        if (B.chal !== rivals[0]) Object.assign(B, { chal: rivals[0], ctl: 0 });
+        if ((B.ctl += dt / TERR_TIME) >= 1) {
+          Object.assign(B, { owner: rivals[0], ctl: 1, chal: null, payT: 0 });
+          this.takenMsg(rivals[0], B);
+        }
+      }
+    }
+  }
+
+  takenMsg(P, B) {
+    this.say('TOMASTE ' + B.def.stadium.toUpperCase() + '! COBRAS $' + TERR_CASH + ' CADA ' + TERR_PAY + 's', 3.2, P);
+    for (const q of G.players) if (q !== P) this.say(P.def.name + ' SE QUEDO CON EL TERRITORIO DE ' + B.def.name, 2.8, q);
+    sfx('arma', B.flag.x, B.flag.y);
+  }
+
   updateBarras(dt) {
+    this.updateTerritorios(dt);
     for (const B of G.barras) {
       B.angry = Math.max(0, B.angry - dt);
       if (B.trapo === 'gone' && (B.backT -= dt) <= 0) Object.assign(B, { trapo: 'hung', by: null });
@@ -887,7 +939,7 @@ class Game {
       // El que cayó vuelve al rato, si nadie lo está mirando
       if (h.hp <= 0) {
         h.dead += dt;
-        if (h.dead > 60 && h.barra.angry <= 0 && farFromPlayers(h.home, OFFSCREEN)) {
+        if (h.dead > 60 && !h.barra.owner && h.barra.angry <= 0 && farFromPlayers(h.home, OFFSCREEN)) {
           Object.assign(h, { x: h.home.x, y: h.home.y, hp: HINCHA_HP, dead: 0 });
         }
         continue;
