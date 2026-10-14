@@ -437,6 +437,9 @@ const BARRAS = [
 const TRAPO_TIME = 60;
 const TRAPO_BACK = 180;
 const TRAPO_R = 16;         // distancia para agarrarlo
+// Territorio: la zona de TERR_R alrededor del trapo es de la barra hasta que un jugador, sin hinchas
+// vivos en la zona, la aguanta TERR_TIME segundos. Dueño: cobra TERR_CASH cada TERR_PAY segundos.
+const TERR_R = 130, TERR_TIME = 30, TERR_HOLD = 240, TERR_PAY = 30, TERR_CASH = 60, TERR_RESPECT = 2;
 const BARRA_ANGRY = 90;     // cuánto dura la bronca
 const BARRA_CHASE = 420;    // hasta dónde te siguen
 // Corren más que vos caminando y menos que corriendo (SHIFT); pegan los HINCHA_FRONT más cerca
