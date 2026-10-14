@@ -523,12 +523,15 @@ class Radio {
   // agendando las notas del tema sintetizado un poquito antes de que suenen
   update() {
     const P = G.me;
-    const car = G.state === 'play' && P && !P.dead && P.car ? P.car : null;
+    // Adentro de un boliche suena la música de la casa
+    const club = G.state === 'play' && P && P.party ? boliches[P.party - 1] : null;
+    const car = G.state === 'play' && P && !P.dead && P.car ? P.car : club;
     if (car !== this.car) {
       const was = this.car;
       this.car = car;
       if (!car) this.tune(-1, false);
-      else if (!was) this.tune((Math.random() * STATIONS.length) | 0);
+      else if (club) this.tune(bolicheOf(club).radio, false);
+      else if (!was || was.boliche) this.tune((Math.random() * STATIONS.length) | 0);
     }
     const on = this.car && !G.paused;
     if (this.el) {

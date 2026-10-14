@@ -890,7 +890,7 @@ class TrafficAI {
       if (gap < s) { s = gap; v = vo; who = o; obj = o; }
     }
     for (const P of G.players) {
-      if (P.dead || P.healing || P.car || P === skip || !near(P, 10)) continue;
+      if (P.dead || P.healing || P.party || P.car || P === skip || !near(P, 10)) continue;
       if (onSidewalk(P.x, P.y)) continue;
       const { p, lat, lon } = proj(P);
       if (lat > c.h / 2 + 4.5) continue;
