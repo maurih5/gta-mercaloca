@@ -186,6 +186,15 @@ const FAMOUS = [
     hurt: ['¡MAIAMEEE!', 'MI CIRUJANO SE ENTERA', 'AY, EL BRONCEADO!'],
     drop: { kind: 'hp', food: 'chocolate', n: 5 },
   },
+  {
+    // trail: color RGB del rastro de partículas que deja al caminar
+    id: 'conductor', name: 'MARCELO TINELI-BOCHA', hp: 60, trail: '255,80,200',
+    shirt: '#7a1fa2', pants: '#1a1a24', spd: 30,
+    look: { skin: '#e2b896', hair: '#3a2a1a', hairStyle: 'corto', smile: true, shades: true },
+    near: ['BIENVENIDOS AL PROGRAMA!', 'VOLVEMOS DESPUES DE LA TANDA', 'NO SE VAYAN, QUEDA LO MEJOR', 'APLAUSOS PARA EL PUBLICO'],
+    hurt: ['CORTE, CORTE!', 'ESTO NO ESTABA EN EL GUION', 'VOLVEMOS EN UN MOMENTO'],
+    drop: { kind: 'cash', n: 5, value: 200 },
+  },
 ];
 const FAMOUS_EVERY = [40, 80];          // cada cuánto (s, al azar) puede aparecer uno cerca de cada jugador
 const FAMOUS_LIFE = 150;                // segundos que pasea antes de irse (cuando nadie lo ve)
@@ -261,6 +270,17 @@ const SHOP_ITEMS = [
   {id:'ak',       price:2600, ammo:90,  refill:450,   desc:'La que manda. Pega y llega lejos.'},
   {id:'granada',  price:700,  ammo:4,   refill:450,   desc:'Revienta autos y patrulleros.'},
   {id:'chaleco',  price:500,                          desc:'Chaleco antibalas. Aguanta la yuta.'},
+];
+
+// Banco: lo que está adentro (P.bank) no se pierde al morir ni al caer en cana.
+// Cada fila mueve hasta esa plata (dep > 0 deposita, < 0 saca; Infinity es todo).
+const BANK_ITEMS = [
+  {id:'dep100',  name:'DEPOSITAR $100',   dep:100,       desc:'Depositar $100.'},
+  {id:'dep1000', name:'DEPOSITAR $1000',  dep:1000,      desc:'Depositar $1000.'},
+  {id:'depall',  name:'DEPOSITAR TODO',   dep:Infinity,  desc:'Depositar toda la guita que llevas encima.'},
+  {id:'ret100',  name:'SACAR $100',       dep:-100,      desc:'Sacar $100.'},
+  {id:'ret1000', name:'SACAR $1000',      dep:-1000,     desc:'Sacar $1000.'},
+  {id:'retall',  name:'SACAR TODO',       dep:-Infinity, desc:'Sacar todo lo que tenes en el banco.'},
 ];
 
 // Fierros tirados en la calle: arma, balas que trae y peso del sorteo
