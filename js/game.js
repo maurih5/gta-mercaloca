@@ -153,6 +153,7 @@ class Game {
     this.resetSupers();
     for (const g of parrillas) Object.assign(g, { cooking: false, t: 0, portions: 0, owner: null });
     copNav.reset();
+    G.corralitoT = undefined;
     G.peds = [];
     G.guards = [];
     G.cops = [];
@@ -1046,6 +1047,22 @@ class Game {
 
   // Aparecen cerca de cada jugador cada tanto (sin que otro jugador los vea aparecer),
   // hablan cuando alguien se les acerca y se van cuando ya pasearon y nadie los mira
+  // Corralito: timer del mundo; le saca la mitad a todos los que estan jugando (no a muertos/arrestados/en hospital)
+  updateCorralito(dt) {
+    if (G.corralitoT === undefined) G.corralitoT = rnd(CORRALITO_EVERY[0], CORRALITO_EVERY[1]);
+    G.corralitoT -= dt;
+    if (G.corralitoT > 0) return;
+    const hit = G.players.filter(P => inPlay(P) && P.money >= CORRALITO_MIN);
+    if (!hit.length) { G.corralitoT = 5; return; } // nadie con guita: se prueba de nuevo enseguida
+    G.corralitoT = rnd(CORRALITO_EVERY[0], CORRALITO_EVERY[1]);
+    for (const P of hit) {
+      const loss = Math.floor(P.money / 2);
+      P.money -= loss;
+      this.say('CORRALITO! EL GOBIERNO TE AGARRO LA MITAD DE LA GUITA (-$' + loss + ')', 4, P);
+      this.shakeFor(P, 4);
+    }
+  }
+
   updateFamous(dt) {
     for (const p of G.peds) {
       if (!p.famous || p.hp <= 0) continue;
@@ -1654,6 +1671,7 @@ class Game {
     }
 
     this.updateFamous(dt);
+    this.updateCorralito(dt);
     this.updateSupers(dt);
     this.updateGrills(dt);
     this.updateBarras(dt);

@@ -179,6 +179,8 @@ const FAMOUS = [
   },
 ];
 const FAMOUS_EVERY = [40, 80];          // cada cuánto (s, al azar) puede aparecer uno cerca de cada jugador
+const CORRALITO_EVERY = [240, 480];   // cada cuánto (s, al azar) el gobierno se queda con la mitad de la guita
+const CORRALITO_MIN = 100;            // guita mínima para que valga el corralito
 const FAMOUS_LIFE = 150;                // segundos que pasea antes de irse (cuando nadie lo ve)
 const FAMOUS_TALK = 34;                 // distancia a la que te habla
 
