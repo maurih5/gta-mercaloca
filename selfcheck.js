@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -188,6 +188,14 @@ describe('edificios', () => {
     }
     const noches = supers.filter(b => b.super === 'noche');
     assert.ok(dist(noches[0], noches[1]) > CELL * 6, 'los dos NOCHE % no estan pegados');
+  });
+
+  test('hay un banco con la puerta a la calle', () => {
+    assert.equal(banks.length, 1, 'un banco');
+    const b = banks[0], d = b.door;
+    assert.ok(buildings.includes(b) && !b.hospital && !b.shop && !b.super && !b.villa, 'edificio real que no pisa otro lugar');
+    assert.ok(onRoad(d.x + d.ox * 4, d.y + d.oy * 4), 'la puerta da a la calle');
+    assert.ok(renderer.mapLegend(renderer.mapItems()).some(r => r[0] === 'banco'), 'en las referencias del mapa');
   });
 
   test('hay parrillas en las plazas y en los potreros de las villas', () => {
@@ -1735,6 +1743,26 @@ describe('novedades', () => {
   });
 });
 
+describe('corralito', () => {
+  test('te saca la mitad de la guita y te avisa', () => {
+    startGame(CREW[0]);
+    G.me.money = 700; G.me.bank = 1001; G.corralitoT = 0; G.msg = '';
+    game.updateCorralito(0.1);
+    assert.equal(G.me.bank, 501);
+    assert.equal(G.me.money, 700, 'el efectivo no se toca');
+    assert.ok(G.msg.includes('CORRALITO'), G.msg);
+  });
+  test('sin guita no pasa nada y se reintenta', () => {
+    startGame(CREW[0]);
+    G.me.money = 5000; G.me.bank = CORRALITO_MIN - 1; G.corralitoT = 0; G.msg = '';
+    game.updateCorralito(0.1);
+    assert.equal(G.me.bank, CORRALITO_MIN - 1);
+    assert.equal(G.me.money, 5000);
+    assert.equal(G.msg, '');
+    assert.ok(G.corralitoT > 0);
+  });
+});
+
 describe('multijugador', () => {
   // Pone a P sobre la calle, a d px de G.me (en una dirección donde haya calle libre)
   const lejos = (P, d) => {
@@ -2113,6 +2141,24 @@ describe('multijugador', () => {
     assert.equal(G.pickups.slice(pk0).filter(pk => pk.kind === 'cash').length, H.famous.drop.n, 'suelta su guita');
   });
 
+  test('el conductor deja rastro de particulas al caminar, se lo baja y suelta guita', () => {
+    startGame(CREW[0]);
+    for (let f = 0; f < 5; f++) update(1/60);
+    G.peds = []; G.cops = [];
+    const F = makeFamous(FAMOUS.find(f => f.id === 'conductor'), G.me.x + 60, G.me.y);
+    G.peds.push(F);
+    let max = 0;
+    for (let f = 0; f < 120; f++) { update(1/60); max = Math.max(max, G.fx.length); }
+    assert.ok(max > 0, 'deja rastro al caminar');
+    assert.ok(game.targetsOf(G.me).includes(F), 'se lo puede bajar');
+    const pk0 = G.pickups.length;
+    G.me.x += 200;
+    G.bullets.push({ x: F.x - 6, y: F.y, vx: 600, vy: 0, life: 1, owner: G.me, dmg: 999 });
+    update(1/60);
+    assert.ok(F.hp <= 0, 'a tiros cae');
+    assert.equal(G.pickups.slice(pk0).filter(pk => pk.kind === 'cash').length, F.famous.drop.n, 'suelta su guita');
+  });
+
   test('los famosos hablan al que se acerca y se van cuando nadie los ve', () => {
     startGame(CREW[0]);
     const P2 = addPlayer(CREW[1]);
@@ -2133,6 +2179,46 @@ describe('multijugador', () => {
     assert.ok(!G.peds.includes(F), 'ya paseo y nadie lo ve: se va');
   });
 
+  test('el banco es de cada uno: deposita, muere y conserva el saldo', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    const b = banks[0], d = b.door;
+    for (let f = 0; f < 10; f++) update(1/60);
+    const abiertos = [], orig = game.openShop;
+    game.openShop = (Q, kind) => abiertos.push([Q, kind]);
+    try {
+      lejos(G.me, CELL * 3);
+      P2.x = d.x + d.ox; P2.y = d.y + d.oy; P2.car = null; P2.wanted = 0; P2.cool = 0;
+      P2.ctl = { ...idleControls(), use: true };
+      update(1/60);
+      assert.ok(P2.nearBank && !G.me.nearBank, 'solo el de la puerta esta en el banco');
+      assert.deepEqual(abiertos, [[P2, 'banco']], 'se le abre a el, no al local');
+    } finally {
+      game.openShop = orig;
+    }
+    G.me.money = 300; G.me.bank = 0;
+    P2.money = 1500;
+    const it = id => BANK_ITEMS.find(q => q.id === id);
+    shop.purchase(P2, it('dep1000'));
+    assert.ok(P2.money === 500 && P2.bank === 1000, 'deposita 1000');
+    assert.ok(shop.purchase(P2, it('ret100')) && P2.money === 600 && P2.bank === 900, 'saca 100');
+    shop.purchase(P2, it('depall'));
+    assert.ok(P2.money === 0 && P2.bank === 1500, 'deposita todo');
+    assert.ok(!shop.status(it('dep100'), P2).can, 'sin guita encima no deposita');
+    P2.money = 200;
+    P2.ctl = idleControls(); P2.prev = idleControls();
+    P2.hp = -1; update(1/60);
+    assert.ok(P2.dead, 'muere');
+    P2.ctl = { ...idleControls(), respawn: true };
+    update(1/60);
+    assert.ok(!P2.dead && P2.money === 0 && P2.bank === 1500, 'pierde lo de encima, conserva el banco');
+    assert.ok(G.me.money === 300 && G.me.bank === 0, 'al otro no le toca nada');
+    P2.wanted = 3; game.bust(P2); game.finishBust(P2);
+    assert.equal(P2.bank, 1500, 'la cana tampoco le saca el banco');
+    shop.purchase(P2, it('retall'));
+    assert.ok(P2.bank === 0 && P2.money === 1500, 'saca todo');
+  });
+
   test('con otros jugando, morir reaparece solo al muerto', () => {
     startGame(CREW[0]);
     const P2 = addPlayer(CREW[1]);
@@ -2145,7 +2231,7 @@ describe('multijugador', () => {
     P2.ctl = { ...idleControls(), respawn: true };
     update(1/60);
     assert.ok(!P2.dead && P2.hp === P2.maxhp, 'reaparece con la vida llena');
-    assert.equal(P2.money, 500, 'reaparece con su guita');
+    assert.equal(P2.money, 0, 'la guita que llevaba encima se pierde');
     assert.ok(G.me === me && G.me.money === 777, 'al local no le paso nada');
     assert.ok(G.players.length === 2, 'la partida sigue con los dos');
     assert.ok(G.cars === cars || G.cars.length > 0, 'el mundo no se reinicio');
@@ -2425,6 +2511,24 @@ describe('multijugador online', () => {
     C.render();
   });
 
+  test('el cliente deposita por el host y ve su saldo en la foto', async () => {
+    const { red, P2 } = await conectar();
+    const d = banks[0].door;
+    P2.x = d.x + d.ox; P2.y = d.y + d.oy; P2.car = null;
+    P2.money = 800; P2.bank = 0; P2.wanted = 0;
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(C.G.me.nearBank, 'el cliente sabe que esta en la puerta');
+    C.input.keys.KeyE = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = false;
+    assert.ok(C.G.shopOpen && C.shop.kind === 'banco' && !G.shopOpen, 'el banco se abre solo en el cliente');
+    C.shop.buy(C.shop.items.findIndex(it => it.id === 'depall'));
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(P2.bank === 800 && P2.money === 0, 'el host le guarda la guita');
+    assert.ok(C.G.me.bank === 800 && C.G.me.money === 0, 'el cliente ve el saldo');
+    C.shop.close();
+  });
+
   test('las compras del cliente las hace el host', async () => {
     const { red, P2 } = await conectar();
     const b = shops[0], d = b.door;
@@ -2680,5 +2784,19 @@ describe('multijugador online', () => {
     assert.equal(G.players.length, MAX_PLAYERS);
     net.leave();
     net.role = null;
+  });
+
+  test('corralito: cada jugador pierde la mitad de lo suyo', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]), vistos = [];
+    const orig = game.say; game.say = (t, s, P) => vistos.push(P);
+    try {
+      G.me.bank = 1000; P2.bank = 300; G.me.money = P2.money = 80; G.corralitoT = 0;
+      game.updateCorralito(0.1);
+    } finally { game.say = orig; net.leave(); net.role = null; }
+    assert.equal(G.me.bank, 500);
+    assert.equal(P2.bank, 150);
+    assert.ok(G.me.money === 80 && P2.money === 80, 'el efectivo no se toca');
+    assert.ok(vistos.includes(G.me) && vistos.includes(P2), 'a los dos les avisan');
   });
 });

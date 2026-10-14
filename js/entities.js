@@ -39,6 +39,7 @@ class EntityManager {
       hitBy: null,     // el último jugador que le pegó (para darle el respeto si cae)
       hitT: 0,
       money: 0,
+      bank: 0,         // guita en el banco: no se pierde al morir ni al caer
       wanted: 0,
       wantCool: 0,
       busted: 0,
@@ -49,6 +50,7 @@ class EntityManager {
       nearShop: null,
       nearTranza: null,
       nearSuper: null,
+      nearBank: null,
       nearGrill: null,
       nearTrapo: null,
       zone: null,
