@@ -1902,6 +1902,19 @@ describe('multijugador', () => {
     assert.equal(G.me.wanted, 0, 'el otro sigue sin estrellas');
   });
 
+  test('sin estrellas, los patrulleros sueltan solo a ese jugador', () => {
+    startGame(CREW[0]);
+    alejarDeVillas(G.me);
+    const P2 = addPlayer(CREW[1]);
+    lejos(P2, 900); alejarDeVillas(P2);
+    G.cars.push(makeChaser(G.me), makeChaser(P2));
+    G.me.wanted = 0; P2.wanted = 3;
+    update(1/60);
+    assert.ok(!G.cars.some(c => c.chase && c.tgt === G.me), 'el que perdio las estrellas ya no tiene patrullero encima');
+    assert.ok(G.cars.some(c => c.cop && c.ai && !c.chase), 'el patrullero vuelve al trafico');
+    assert.ok(G.cars.some(c => c.chase && c.tgt === P2), 'el buscado sigue perseguido');
+  });
+
   test('el arresto de uno no toca al otro ni frena el mundo', () => {
     startGame(CREW[0]);
     const P2 = addPlayer(CREW[1]);
@@ -2067,6 +2080,24 @@ describe('multijugador', () => {
     update(1/60);
     assert.ok(H.hp <= 0, 'a tiros se viene abajo');
     assert.equal(G.pickups.slice(pk0).filter(pk => pk.kind === 'cash').length, H.famous.drop.n, 'suelta su guita');
+  });
+
+  test('el conductor deja rastro de particulas al caminar, se lo baja y suelta guita', () => {
+    startGame(CREW[0]);
+    for (let f = 0; f < 5; f++) update(1/60);
+    G.peds = []; G.cops = [];
+    const F = makeFamous(FAMOUS.find(f => f.id === 'conductor'), G.me.x + 60, G.me.y);
+    G.peds.push(F);
+    let max = 0;
+    for (let f = 0; f < 120; f++) { update(1/60); max = Math.max(max, G.fx.length); }
+    assert.ok(max > 0, 'deja rastro al caminar');
+    assert.ok(game.targetsOf(G.me).includes(F), 'se lo puede bajar');
+    const pk0 = G.pickups.length;
+    G.me.x += 200;
+    G.bullets.push({ x: F.x - 6, y: F.y, vx: 600, vy: 0, life: 1, owner: G.me, dmg: 999 });
+    update(1/60);
+    assert.ok(F.hp <= 0, 'a tiros cae');
+    assert.equal(G.pickups.slice(pk0).filter(pk => pk.kind === 'cash').length, F.famous.drop.n, 'suelta su guita');
   });
 
   test('los famosos hablan al que se acerca y se van cuando nadie los ve', () => {
