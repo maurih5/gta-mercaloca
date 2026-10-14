@@ -2780,6 +2780,16 @@ class Renderer {
       ctx.fillStyle = P.trapo.def.band;
       ctx.fillRect(X, Y, W * k2, 5);
     }
+    // Territorio: de quién es y cuánto control hay
+    const T = !P.dead && G.barras.find(B => dist(B.flag, P) < TERR_R && (B.owner || B.chal));
+    if (T) {
+      const W = 140, X = RW / 2 - W / 2, Y = P.trapo ? 50 : 30;
+      this.text(T.owner ? (T.owner === P ? 'ES TUYO: ' : 'DE ' + T.owner.def.name + ': ') + T.def.stadium.toUpperCase() : 'TOMANDO ' + T.def.stadium.toUpperCase(), RW / 2, Y - 4, T.def.band, 6, 'center');
+      ctx.fillStyle = '#000';
+      ctx.fillRect(X - 1, Y - 1, W + 2, 7);
+      ctx.fillStyle = T.def.band;
+      ctx.fillRect(X, Y, W * clamp(T.ctl, 0, 1), 5);
+    }
     if (P.nearTrapo && !P.car && !P.dead && !G.shopOpen) {
       const B = G.barras.find(q => q.trapo === 'hung' && dist(q.flag, P) < TRAPO_R);
       if (B) this.text('E: ROBAR EL TRAPO DE ' + B.def.name, RW / 2, RH - 44, Math.floor(G.t * 3) % 2 ? '#ff6a5a' : '#ffd34a', 7, 'center');
