@@ -183,7 +183,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
   - [ ] Rugbiers que te persiguen y te cagan a palos (#76)
   - [ ] Tren que descarrila y corta calles (#77)
   - [ ] Festejos del Mundial en el Obelisco (#78)
-  - [ ] Corralito que te saca la mitad de la guita (#79)
+  - [x] Corralito que te saca la mitad de la plata del banco (#79)
   - [ ] Operativo policial en tu casa (#80)
 
 ### 📜 Misiones
