@@ -440,7 +440,8 @@ class NetManager {
 
   applySnap(s) {
     this.quiet = 0;
-    G.t = Math.abs(s.t - G.t) > 2 ? s.t : G.t + (s.t - G.t) * 0.3;
+    const first = !G.me;
+    G.t = first || Math.abs(s.t - G.t) > 2 ? s.t : G.t + (s.t - G.t) * 0.3;
 
     G.cars = this.sync('c', s.c, a => {
       const L = a[9] || ['#888888', 22, 10];

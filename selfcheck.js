@@ -2457,6 +2457,7 @@ describe('multijugador online', () => {
   };
 
   test('el cliente arma la misma ciudad con la semilla del host y entra a la sala', async () => {
+    G.t = 123;
     const { info, P2 } = await conectar();
     assert.equal(info.seed, world.seed, 'el host pasa su semilla');
     assert.equal(ciudad(C.buildings), ciudad(buildings), 'misma semilla, misma ciudad');
@@ -2468,6 +2469,7 @@ describe('multijugador online', () => {
     assert.ok(C.G.cars.length > 5 && C.G.peds.length > 5, 've los autos y la gente de alrededor');
     assert.ok(C.G.pickups.length === G.pickups.length, 've todos los fierros y la guita del mapa');
     assert.equal(C.G.tranzas.length, G.tranzas.length, 'los tranzas son los mismos');
+    assert.ok(Math.abs(C.G.t - G.t) < 0.1, 'y entra con la hora del universo del host: ' + C.G.t.toFixed(2));
     C.render();
   });
 
