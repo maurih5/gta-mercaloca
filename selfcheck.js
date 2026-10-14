@@ -1956,6 +1956,45 @@ describe('multijugador', () => {
     assert.ok(!G.cops.some(c => c.tgt === P2), 'se fue la yuta del arrestado');
   });
 
+  test('dos jugadores en el mismo auto: uno maneja y el otro tira', () => {
+    startGame(CREW[0]);
+    const D = addPlayer(CREW[1]), P2 = addPlayer(CREW[2]); // remotos: D lee el teclado
+    G.me.x = 40; G.me.y = 40;
+    G.peds = []; G.cops = []; G.pickups = [];
+    const c = makeCar(D.x, D.y);
+    c.ai = false;
+    G.cars = [c];
+    Object.assign(D, { x: c.x, y: c.y + 6, cool: 0, ctl: { ...idleControls(), use: true } });
+    update(1/60);
+    assert.ok(D.car === c && driverOf(c) === D, 'el primero maneja');
+    D.ctl = idleControls();
+    Object.assign(P2, { x: c.x, y: c.y - 6, cool: 0, ctl: { ...idleControls(), use: true } });
+    update(1/60);
+    assert.ok(P2.car === c && P2.seat === 1 && driverOf(c) === D, 'el segundo va de acompañante');
+    const ang = c.ang;
+    P2.cool = 0;
+    P2.ctl = { ...idleControls(), x: 0, y: 1, fire: true };
+    D.ctl = { ...idleControls(), y: -1 };
+    const n0 = G.bullets.length;
+    update(1/60);
+    assert.ok(Math.abs(P2.ang - Math.PI / 2) < 0.01, 'el acompañante apunta con sus controles');
+    assert.ok(Math.abs(c.ang - ang) < 0.01 && c.spd > 0, 'el auto sigue lo del conductor');
+    const mias = G.bullets.slice(n0).filter(b => b.owner === P2);
+    assert.ok(mias.length > 0, 'las balas son del acompañante');
+    const hp1 = D.hp, chapa = c.hp;
+    for (let f = 0; f < 10; f++) { P2.ctl = idleControls(); D.ctl = idleControls(); update(1/60); }
+    assert.ok(D.hp >= hp1 && c.hp >= chapa, 'no le pega al propio auto ni al conductor');
+    assert.ok(P2.x === c.x && P2.y === c.y, 'el acompañante viaja con el auto');
+    D.cool = 0;
+    D.ctl = { ...idleControls(), use: true };
+    update(1/60);
+    assert.ok(!D.car && driverOf(c) === P2 && P2.seat === 0, 'si se baja el conductor, maneja el otro');
+    P2.cool = 0;
+    P2.ctl = { ...idleControls(), use: true };
+    update(1/60);
+    assert.ok(!P2.car && !driverOf(c) && c.parked === P2, 'al bajarse todos el auto queda libre');
+  });
+
   test('las balas premian al que tiro y con PVP lastiman a los otros', () => {
     startGame(CREW[0]);
     const P2 = addPlayer(CREW[1]);
@@ -2312,7 +2351,7 @@ describe('multijugador', () => {
     P2.ctl = { ...idleControls(), use: true };
     update(1/60);
     assert.ok(G.me.car === car, 'el local sigue en su auto');
-    assert.ok(P2.car !== car, 'el otro no se lo puede robar');
+    assert.ok(P2.seat > 0, 'el otro no se lo puede robar: sube de acompañante');
     assert.ok(driverOf(car) === G.me);
   });
 });
@@ -2680,6 +2719,32 @@ describe('multijugador online', () => {
     const visto = C.G.cars.slice().sort((a, b) => dist(a, o) - dist(b, o))[0];
     assert.ok(visto && dist(visto, o) < 12 && visto.hazard, 'el cliente ve las balizas');
     C.render();
+  });
+
+  test('el cliente sube de acompañante al auto del host y tira por su cuenta', async () => {
+    const { red, P2 } = await conectar();
+    const c = G.cars.find(c => c.ai && c.hp > 0 && !c.chase);
+    trafficAI.release(c);
+    Object.assign(c, { ai: false, spd: 0 });
+    Object.assign(G.me, { car: c, seat: 0, x: c.x, y: c.y });
+    Object.assign(P2, { x: c.x, y: c.y + 10, car: null, cool: 0, wanted: 0 });
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = false;
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(P2.car === c && P2.seat === 1 && driverOf(c) === G.me, 'el host lo sienta de acompañante');
+    assert.ok(C.G.me.car && C.G.me.seat === 1, 'el cliente se ve de acompañante');
+    assert.ok(C.G.players.find(q => q.id !== C.G.me.id).car === C.G.me.car, 'en el mismo auto que el host');
+    C.render();
+    const n0 = G.bullets.filter(b => b.owner === P2).length;
+    P2.cool = 0;
+    C.input.keys.Space = true;
+    for (let f = 0; f < 3; f++) frame(red);
+    C.input.keys.Space = false;
+    assert.ok(G.bullets.filter(b => b.owner === P2).length > n0, 'las balas del cliente son suyas');
+    G.me.car = null;
+    P2.car = null; P2.seat = 0;
   });
 
   test('las fotos son chicas y lo que no cambia se manda una vez', async () => {

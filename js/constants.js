@@ -459,4 +459,5 @@ const SLOWMO = 0.38;      // velocidad del mundo mientras dura
 
 // Multijugador
 const MAX_PLAYERS = 4;
+const CAR_SEATS = 4;      // el primero que sube maneja, el resto va de acompañante y tira por su cuenta
 const PVP = true;         // las balas, granadas y atropellos de un jugador lastiman a los otros
