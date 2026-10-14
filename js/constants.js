@@ -198,6 +198,7 @@ const FAMOUS = [
 ];
 const FAMOUS_EVERY = [40, 80];          // cada cuánto (s, al azar) puede aparecer uno cerca de cada jugador
 const CORRALITO_EVERY = [240, 480];   // cada cuánto (s, al azar) el gobierno se queda con la mitad de la plata del banco
+const EVENT_EVERY = [90, 180];        // cada cuánto (s, al azar) el mundo intenta disparar un evento aleatorio registrado
 const CORRALITO_MIN = 100;            // plata mínima en el banco para que valga el corralito
 const FAMOUS_LIFE = 150;                // segundos que pasea antes de irse (cuando nadie lo ve)
 const FAMOUS_TALK = 34;                 // distancia a la que te habla

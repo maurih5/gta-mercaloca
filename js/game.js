@@ -45,6 +45,9 @@ function inPlay(P) {
   return !!P && !P.dead && !P.busted && !P.healing && !P.party;
 }
 
+// Eventos aleatorios: cada uno es { id, weight, when?(), run() }. Solo corren en el host.
+const EVENTS = [];
+
 // El jugador más cercano a o (entre los que cumplen ok), con su distancia
 function nearestPlayer(o, ok = null) {
   let p = null, d = Infinity;
@@ -156,6 +159,8 @@ class Game {
     for (const g of parrillas) Object.assign(g, { cooking: false, t: 0, portions: 0, owner: null });
     copNav.reset();
     G.corralitoT = undefined;
+    G.eventT = undefined;
+    G.lastEvent = null;
     G.peds = [];
     G.guards = [];
     G.cops = [];
@@ -1106,6 +1111,25 @@ class Game {
     }
   }
 
+  registerEvent(def) {
+    EVENTS.push({ weight: 1, ...def });
+  }
+
+  // Timer del mundo: al llegar a 0 elige por peso entre los eventos que cumplan when() (sin repetir el ultimo si hay otro) y lo corre
+  updateEvents(dt) {
+    if (G.eventT === undefined) G.eventT = rnd(EVENT_EVERY[0], EVENT_EVERY[1]);
+    G.eventT -= dt;
+    if (G.eventT > 0) return;
+    let ok = G.players.some(inPlay) ? EVENTS.filter(e => e.weight > 0 && (!e.when || e.when())) : [];
+    if (ok.length > 1) ok = ok.filter(e => e.id !== G.lastEvent);
+    if (!ok.length) { G.eventT = 5; return; } // nada para disparar: se prueba de nuevo enseguida
+    G.eventT = rnd(EVENT_EVERY[0], EVENT_EVERY[1]);
+    let r = Math.random() * ok.reduce((a, e) => a + e.weight, 0), ev = ok[ok.length - 1];
+    for (const e of ok) { if ((r -= e.weight) < 0) { ev = e; break; } }
+    G.lastEvent = ev.id;
+    ev.run();
+  }
+
   updateFamous(dt) {
     for (const p of G.peds) {
       if (!p.famous || p.hp <= 0) continue;
@@ -1783,6 +1807,7 @@ class Game {
 
     this.updateFamous(dt);
     this.updateCorralito(dt);
+    this.updateEvents(dt);
     this.updateSupers(dt);
     this.updateGrills(dt);
     this.updateBarras(dt);
