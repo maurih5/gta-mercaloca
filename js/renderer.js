@@ -28,6 +28,8 @@ function foodIcon(g, id, x, y) {
   } else if (id === 'asado' || id === 'crudo' || id === 'quemado') {
     const c = { asado: ['#7a3a1e', '#a85a2e'], crudo: ['#9a2424', '#d05050'], quemado: ['#1e1612', '#3a2a1e'] }[id];
     r(c[0], -6, -3, 12, 7); r(c[1], -6, -3, 12, 3); r('#d8d0c0', 3, 1, 3, 1);
+  } else if (id === 'chocolate') {
+    r('#4a2a18', -6, -3, 12, 7); r('#6b3f26', -6, -3, 12, 3); r('#2e1a0e', -2, -3, 1, 7); r('#2e1a0e', 2, -3, 1, 7);
   } else if (id === 'agua') {
     r('#a8d8f0', -2, -6, 5, 12); r('#e8f6ff', -1, -5, 1, 9); r('#3a7ab8', -2, -7, 5, 2); r('#3a7ab8', -2, 0, 5, 2);
   } else if (id === 'gaseosa') {

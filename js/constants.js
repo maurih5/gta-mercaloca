@@ -136,7 +136,7 @@ const LIGHT_CYCLE = 11, GREEN = 4.6, AMBER = 0.9;  // por eje: 4.6s verde, 0.9 a
 const HOSPITAL_TIME = 3.2;
 
 // Items de curacion desperdigados por el mapa: cuanta vida da cada uno
-const FOOD_HEAL = { pernil: 45, choripan: 30, mate: 15 };
+const FOOD_HEAL = { pernil: 45, choripan: 30, mate: 15, chocolate: 20 };
 const FOODS = Object.keys(FOOD_HEAL);
 
 // Famosos: NPCs con nombre (parodias) que aparecen cada tanto cerca de algún jugador,
@@ -176,6 +176,15 @@ const FAMOUS = [
       'SE VIENE EL SORTEO', 'ESTO ES CONTENIDO, CHAT'],
     hurt: ['ME ESTAN TIRANDO, CHAT!', 'CLIPEALO, CLIPEALO', 'BANEENLO YA', 'MODS! MODS!'],
     drop: { kind: 'cash', n: 6, value: 250 },
+  },
+  {
+    // beach: solo nace en la arena
+    id: 'fort', name: 'RICARDO FORTE', beach: true, hp: 60,
+    shirt: '#ff7ab8', pants: '#f4f4f4', spd: 30,
+    look: { skin: '#e2b896', hair: '#e8c860', hairStyle: 'corto', smile: true, shades: true },
+    near: ['¡MAIAMEEE!', 'ESTO ES MAIAMEEE, BEBE', 'TODO ES PLATINO, MI AMOR', 'TRAIGAN OTRO CHOCOLATE'],
+    hurt: ['¡MAIAMEEE!', 'MI CIRUJANO SE ENTERA', 'AY, EL BRONCEADO!'],
+    drop: { kind: 'hp', food: 'chocolate', n: 5 },
   },
   {
     // trail: color RGB del rastro de partículas que deja al caminar
@@ -328,6 +337,7 @@ const FOOD = {
   fideos:     { food: 40, drink: 0,  heal: 10 },
   galletitas: { food: 20, drink: 0,  heal: 5 },
   mate:       { food: 0,  drink: 30, heal: 10 },
+  chocolate:  { food: 10, drink: 0,  heal: 20 },
   agua:       { food: 0,  drink: 50, heal: 0 },
   gaseosa:    { food: 5,  drink: 35, heal: 0 },
   asado:      { food: 100, drink: 0, heal: 60 }, // sacado a punto
@@ -349,7 +359,7 @@ const GRILL_R = 18;
 
 const FOOD_NAME = { carne: 'UN VACIO', pernil: 'UN PERNIL', choripan: 'UN CHORI', fideos: 'UNOS FIDEOS',
   galletitas: 'UNAS CRIOLLITAS', mate: 'UNOS MATES', agua: 'UN AGUA', gaseosa: 'UNA CHOCA-COLA',
-  asado: 'UN ASADO A PUNTO', crudo: 'UN ASADO CRUDO', quemado: 'UN ASADO QUEMADO' };
+  chocolate: 'UN CHOCOLATE', asado: 'UN ASADO A PUNTO', crudo: 'UN ASADO CRUDO', quemado: 'UN ASADO QUEMADO' };
 
 // Supermercados: lo que se compra va a la mochila. El CHOTO tiene carne; el NOCHE % es
 // más barato y no tiene. El CHOTO de Lanús vende lo mismo que el CHOTO, pero la carne
