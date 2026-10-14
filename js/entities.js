@@ -17,6 +17,7 @@ class EntityManager {
       hp: 100,
       maxhp: 100,
       car: null,
+      seat: 0,         // en el auto: 0 maneja, 1+ acompañante
       cool: 0,
       walk: 0,
       dead: false,
