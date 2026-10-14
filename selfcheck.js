@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -1854,6 +1854,35 @@ describe('multijugador', () => {
     assert.ok(!b.robbing && b.closed > 0, 'termino antes de ROB_TIME segundos');
   });
 
+  test('boliche: abre de noche, se paga la entrada y adentro el otro sigue jugando', () => {
+    startGame(CREW[0]);
+    assert.equal(boliches.length, BOLICHES.length, 'estan todos en la ciudad');
+    const P2 = addPlayer(CREW[1]), b = boliches.find(q => q.boliche === 'bailanta'), d = b.door;
+    lejos(G.me, CELL * 3);
+    const entrar = () => {
+      P2.x = d.x + d.ox; P2.y = d.y + d.oy; P2.cool = 0; P2.wanted = 0;
+      P2.ctl = { ...idleControls(), use: true };
+      update(1/60);
+      P2.ctl = idleControls();
+    };
+    G.t = DAY * 0.16; // mediodía
+    P2.money = 500;
+    entrar();
+    assert.ok(P2.nearBoliche === b && !P2.party && P2.money === 500, 'de dia esta cerrado');
+    G.t = DAY * 0.66; // medianoche
+    assert.ok(bolicheOpen());
+    entrar();
+    assert.ok(P2.party && P2.money === 500 - BOLICHES[0].entry, 'de noche se entra pagando');
+    assert.ok(!inPlay(P2) && inPlay(G.me), 'adentro no lo persigue nadie; el otro sigue en juego');
+    const x0 = G.me.x, r0 = P2.respect;
+    input.keys.KeyD = true;
+    try { for (let f = 0; f < 30; f++) update(1/60); } finally { input.keys.KeyD = false; }
+    assert.ok(G.me.x !== x0, 'el mundo no se frena');
+    for (let f = 0; f < BOLICHE_TIME * 60 + 10; f++) update(1/60);
+    assert.ok(!P2.party && P2.respect > r0, 'sale con respeto');
+    G.t = 0;
+  });
+
   test('se suman jugadores hasta el maximo, cada uno con lo suyo', () => {
     startGame(CREW[0]);
     assert.equal(G.players.length, 1);
@@ -2139,6 +2168,36 @@ describe('multijugador', () => {
     update(1/60);
     assert.ok(H.hp <= 0, 'a tiros se viene abajo');
     assert.equal(G.pickups.slice(pk0).filter(pk => pk.kind === 'cash').length, H.famous.drop.n, 'suelta su guita');
+  });
+
+  const playa = () => { for (let x = 200; x < WORLD; x += 20) for (let y = 200; y < WORLD; y += 20) if (onBeach(x, y) && !hitBuilding(x, y, 6)) return { x, y }; };
+
+  test('el famoso de playa nace en la arena, suelta chocolates y curan', () => {
+    startGame(CREW[0]);
+    for (let f = 0; f < 5; f++) update(1/60);
+    G.peds = []; G.cops = [];
+    const B = playa();
+    G.me.x = B.x; G.me.y = B.y;
+    const real = FAMOUS.slice();
+    FAMOUS.length = 0; FAMOUS.push(real.find(f => f.id === 'fort'));
+    let F;
+    try {
+      for (let i = 0; i < 40 && !(F = G.peds.find(p => p.famous)); i++) { G.me.famousT = 0; update(1/60); }
+    } finally { FAMOUS.length = 0; FAMOUS.push(...real); }
+    assert.ok(F, 'aparece en la playa');
+    assert.ok(onBeach(F.x, F.y), 'y nace en la arena');
+    F.sped = 0;
+    const pk0 = G.pickups.length;
+    G.me.x -= 300; // lejos, para no levantar los chocolates en el mismo frame
+    G.bullets.push({ x: F.x - 6, y: F.y, vx: 600, vy: 0, life: 1, owner: G.me, dmg: 999 });
+    update(1/60);
+    assert.ok(F.hp <= 0, 'a tiros cae');
+    const ch = G.pickups.slice(pk0).filter(pk => pk.kind === 'hp' && pk.food === 'chocolate');
+    assert.equal(ch.length, F.famous.drop.n, 'suelta chocolates');
+    G.me.hp = 10; G.me.x = ch[0].x; G.me.y = ch[0].y;
+    update(1/60);
+    assert.ok(G.me.hp > 10, 'el chocolate cura: ' + G.me.hp);
+    for (const h of [0.5, 0]) { G.t = h * DAY; render(); }
   });
 
   test('el conductor deja rastro de particulas al caminar, se lo baja y suelta guita', () => {
@@ -2428,6 +2487,7 @@ describe('multijugador online', () => {
   };
 
   test('el cliente arma la misma ciudad con la semilla del host y entra a la sala', async () => {
+    G.t = 123;
     const { info, P2 } = await conectar();
     assert.equal(info.seed, world.seed, 'el host pasa su semilla');
     assert.equal(ciudad(C.buildings), ciudad(buildings), 'misma semilla, misma ciudad');
@@ -2439,6 +2499,7 @@ describe('multijugador online', () => {
     assert.ok(C.G.cars.length > 5 && C.G.peds.length > 5, 've los autos y la gente de alrededor');
     assert.ok(C.G.pickups.length === G.pickups.length, 've todos los fierros y la guita del mapa');
     assert.equal(C.G.tranzas.length, G.tranzas.length, 'los tranzas son los mismos');
+    assert.ok(Math.abs(C.G.t - G.t) < 0.1, 'y entra con la hora del universo del host: ' + C.G.t.toFixed(2));
     C.render();
   });
 
@@ -2511,6 +2572,21 @@ describe('multijugador online', () => {
     C.render();
   });
 
+  test('el cliente ve al famoso de playa y sus chocolates', async () => {
+    const { red, P2 } = await conectar();
+    G.peds = G.peds.filter(p => !p.famous);
+    G.me.x += SIM_R * 2;
+    const F = makeFamous(FAMOUS.find(f => f.id === 'fort'), P2.x + 60, P2.y);
+    F.sped = 0;
+    G.peds.push(F);
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(C.G.peds.some(p => p.famous && p.famous.id === 'fort'), 'el cliente lo ve');
+    G.pickups.push({ x: P2.x + 300, y: P2.y, kind: 'hp', food: 'chocolate', t: 0, drop: true });
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(C.G.pickups.some(pk => pk.food === 'chocolate'), 'le llega el chocolate');
+    C.render();
+  });
+
   test('el cliente deposita por el host y ve su saldo en la foto', async () => {
     const { red, P2 } = await conectar();
     const d = banks[0].door;
@@ -2549,6 +2625,24 @@ describe('multijugador online', () => {
     assert.ok(C.G.me.inv.ak > 0 && C.G.me.money === P2.money, 'el cliente ve el fierro y la guita');
     assert.equal(C.G.me.inv.pistola, Infinity, 'la 9mm sigue con balas infinitas');
     C.shop.close();
+  });
+
+  test('el cliente entra a un boliche y ve la pista', async () => {
+    const { red, P2 } = await conectar();
+    const b = boliches[0], d = b.door;
+    G.t = DAY * 0.66;
+    P2.x = d.x + d.ox; P2.y = d.y + d.oy; P2.car = null; P2.money = 1000; P2.wanted = 0;
+    for (let f = 0; f < 6; f++) frame(red);
+    assert.ok(C.G.me.nearBoliche, 'el cliente ve el cartel de la puerta');
+    C.input.keys.KeyE = true;
+    for (let f = 0; f < 4; f++) frame(red);
+    C.input.keys.KeyE = false;
+    for (let f = 0; f < 3; f++) frame(red);
+    assert.ok(P2.party && C.G.me.party === P2.party, 'entra en el host y el cliente lo sabe');
+    C.render();
+    for (let f = 0; f < BOLICHE_TIME * 60 + 10; f++) frame(red);
+    assert.ok(!P2.party && !C.G.me.party, 'y sale');
+    G.t = 0;
   });
 
   test('en el super el cliente compra y come, y lo hace el host', async () => {

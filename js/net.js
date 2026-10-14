@@ -297,11 +297,11 @@ class NetManager {
     const players = G.players.map(q => [
       q.id, CREW.indexOf(q.def), r1(q.x), r1(q.y), r2(q.ang), Math.ceil(q.hp), q.maxhp,
       q.car ? id(q.car) : 0, q.wpn, r2(q.muzzle), r2(q.swing),
-      (q.dead ? 1 : 0) | (q.busted ? 2 : 0) | (q.healing ? 4 : 0) | (q.nearShop ? 8 : 0) | (q.nearTranza ? 16 : 0) | (q.nearSuper ? 32 : 0) | (q.nearGrill ? 64 : 0) | (q.nearTrapo ? 128 : 0) | (q.nearBank ? 256 : 0),
+      (q.dead ? 1 : 0) | (q.busted ? 2 : 0) | (q.healing ? 4 : 0) | (q.nearShop ? 8 : 0) | (q.nearTranza ? 16 : 0) | (q.nearSuper ? 32 : 0) | (q.nearGrill ? 64 : 0) | (q.nearTrapo ? 128 : 0) | (q.nearBoliche ? 256 : 0) | (q.nearBank ? 512 : 0),
       r1(q.bustT), r1(q.healT), q.money, q.wanted, Math.round(q.armor), q.porros, r1(q.slowmo), q.bustFine,
       q === P ? packInv(q.inv) : 0,
       Math.round(q.food), Math.round(q.drink), q === P ? q.bag : 0,
-      q.respect || 0, q.trapo ? G.barras.indexOf(q.trapo) + 1 : 0, r1(q.trapoT || 0), q.bank,
+      q.respect || 0, q.trapo ? G.barras.indexOf(q.trapo) + 1 : 0, r1(q.trapoT || 0), q.party || 0, r1(q.partyT || 0), q.bank,
       q.seat || 0,
     ]);
     // Los hinchas: como la yuta, en el radar y el mapa de todos
@@ -440,7 +440,8 @@ class NetManager {
 
   applySnap(s) {
     this.quiet = 0;
-    G.t = Math.abs(s.t - G.t) > 2 ? s.t : G.t + (s.t - G.t) * 0.3;
+    const first = !G.me;
+    G.t = first || Math.abs(s.t - G.t) > 2 ? s.t : G.t + (s.t - G.t) * 0.3;
 
     G.cars = this.sync('c', s.c, a => {
       const L = a[9] || ['#888888', 22, 10];
@@ -543,7 +544,8 @@ class NetManager {
       q.nearSuper = a[11] & 32 ? true : null;
       q.nearGrill = a[11] & 64 ? true : null;
       q.nearTrapo = a[11] & 128 ? true : null;
-      q.nearBank = a[11] & 256 ? true : null;
+      q.nearBoliche = a[11] & 256 ? true : null;
+      q.nearBank = a[11] & 512 ? true : null;
       q.bustT = a[12];
       q.healT = a[13];
       q.money = a[14];
@@ -559,8 +561,10 @@ class NetManager {
       q.respect = a[24] || 0;
       q.trapo = (a[25] && G.barras[a[25] - 1]) || null;
       q.trapoT = a[26] || 0;
-      q.bank = a[27] || 0;
-      q.seat = q.car ? a[28] || 0 : 0;
+      q.party = a[27] || 0;
+      q.partyT = a[28] || 0;
+      q.bank = a[29] || 0;
+      q.seat = q.car ? a[30] || 0 : 0;
     });
 
     const me = G.players.find(q => q.id === this.myId) || null;

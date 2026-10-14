@@ -28,6 +28,8 @@ function foodIcon(g, id, x, y) {
   } else if (id === 'asado' || id === 'crudo' || id === 'quemado') {
     const c = { asado: ['#7a3a1e', '#a85a2e'], crudo: ['#9a2424', '#d05050'], quemado: ['#1e1612', '#3a2a1e'] }[id];
     r(c[0], -6, -3, 12, 7); r(c[1], -6, -3, 12, 3); r('#d8d0c0', 3, 1, 3, 1);
+  } else if (id === 'chocolate') {
+    r('#4a2a18', -6, -3, 12, 7); r('#6b3f26', -6, -3, 12, 3); r('#2e1a0e', -2, -3, 1, 7); r('#2e1a0e', 2, -3, 1, 7);
   } else if (id === 'agua') {
     r('#a8d8f0', -2, -6, 5, 12); r('#e8f6ff', -1, -5, 1, 9); r('#3a7ab8', -2, -7, 5, 2); r('#3a7ab8', -2, 0, 5, 2);
   } else if (id === 'gaseosa') {
@@ -434,6 +436,7 @@ class Renderer {
 
     if (b.stadium) this.drawStadium(b, rx, ry);
     if (b.super) this.drawSuperSign(b, rx, ry);
+    if (b.boliche) this.drawBolicheSign(b, rx, ry);
     if (b.super && b.closed > 0 && b.door) {
       // Persiana baja: chapa gris con canaletas
       const d = b.door, dxp = d.x - G.cam.x, dyp = d.y - G.cam.y, hz = d.s === 'n' || d.s === 's';
@@ -607,6 +610,18 @@ class Renderer {
       const k = Math.floor(G.t / 5), on = (G.t % 5) < 2.6;
       if (on) this.text(B.def.chant[k % B.def.chant.length], x, y - 26, B.def.band, 5, 'center');
     }
+  }
+
+  // Cartel del boliche en el techo: de noche titila el neón, de día queda apagado
+  drawBolicheSign(b, rx, ry) {
+    const ctx = this.ctx, D = bolicheOf(b), on = bolicheOpen();
+    const sx = rx + b.w / 2, sy = ry + b.h / 2, w = D.name.length * 5 + 8;
+    ctx.fillStyle = '#0a080c';
+    ctx.fillRect(px(sx - w / 2), px(sy - 6), w, 12);
+    ctx.font = '5px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = on && Math.floor(G.t * 3) % 4 ? 'rgb(' + D.glow + ')' : '#4a4450';
+    ctx.fillText(D.name, px(sx), px(sy + 2.5));
   }
 
   // Cartel del super en el techo. Al de Lanús se le cayó la O y quedó tirada al lado
@@ -2176,6 +2191,16 @@ class Renderer {
       ECTX.drawImage(b.super ? this.glow(255, 90, 70, gsz) : this.glow(255, 150, 50, gsz), x - gsz / 2, y - gsz / 2);
       any = true;
     }
+    if (bolicheOpen()) {
+      for (const b of boliches) {
+        const d = b.door, x = d.x + d.ox - G.cam.x, y = d.y + d.oy - G.cam.y;
+        if (x < -40 || y < -40 || x > RW + 40 || y > RH + 40) continue;
+        const gsz = 56, c = bolicheOf(b).glow;
+        ECTX.globalAlpha = (0.5 + Math.sin(G.t * 8) * 0.2) * Math.max(k, 0.5);
+        ECTX.drawImage(this.glow(c[0], c[1], c[2], gsz), x - gsz / 2, y - gsz / 2);
+        any = true;
+      }
+    }
     for (const g of parrillas) {
       if (!g.cooking) continue;
       const x = g.x - G.cam.x, y = g.y - G.cam.y;
@@ -2623,7 +2648,7 @@ class Renderer {
   // El nombre de los otros jugadores arriba de la cabeza, con el color de su remera
   drawPlayerTags() {
     for (const q of G.players) {
-      if (q === G.me || q.dead || q.healing) continue;
+      if (q === G.me || q.dead || q.healing || q.party) continue;
       const x = q.x - G.cam.x, y = q.y - G.cam.y - (q.car ? 14 : 18);
       if (x < -60 || y < -30 || x > RW + 60 || y > RH + 30) continue;
       this.text(q.def.name, px(x), px(y), q.def.shirt, 4, 'center');
@@ -2703,6 +2728,15 @@ class Renderer {
       const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
       const what = g && g.cooking ? 'SACAR UNA PORCION' : 'PRENDER EL ASADO (CARNE + CARBON)';
       this.text(key + ': ' + what, RW / 2, RH - 34, Math.floor(G.t * 3) % 2 ? '#ffb04a' : '#ffd34a', 7, 'center');
+    }
+    if (P.nearBoliche && !P.nearShop && !P.nearSuper && !G.shopOpen && !P.dead && !P.busted && !P.car && !P.party) {
+      const b = boliches.find(q => Math.hypot(q.door.x + q.door.ox - P.x, q.door.y + q.door.oy - P.y) < 16);
+      const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
+      if (b) {
+        const D = bolicheOf(b);
+        this.text(bolicheOpen() ? key + ': ENTRAR A ' + D.name + ' ($' + D.entry + ')' : D.name + ' ABRE A LA NOCHE',
+          RW / 2, RH - 34, Math.floor(G.t * 3) % 2 ? 'rgb(' + D.glow + ')' : '#fff', 7, 'center');
+      }
     }
     if (P.nearBank && !P.nearShop && !P.nearSuper && !G.shopOpen && !P.dead && !P.busted && !P.car) {
       const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
@@ -2799,6 +2833,20 @@ class Renderer {
       const pct = Math.min(100, Math.round(P.healT / HOSPITAL_TIME * 100));
       this.text(pct + '%', RW / 2, RH / 2 + 16, '#ffd34a', 9, 'center');
       ctx.globalAlpha = 1;
+    }
+
+    if (P.party) {
+      // Adentro del boliche: luces que giran y la gente bailando
+      const D = bolicheOf(boliches[P.party - 1]), c = D.glow;
+      ctx.fillStyle = 'rgba(8,4,14,.88)';
+      ctx.fillRect(0, 0, RW, RH);
+      for (let i = 0; i < 18; i++) {
+        const a = G.t * 1.3 + i * 2.4, x = RW / 2 + Math.cos(a) * (40 + i * 9), y = RH / 2 + Math.sin(a * 0.7) * (20 + i * 3);
+        ctx.fillStyle = i % 3 ? 'rgba(' + c + ',.5)' : 'rgba(255,255,255,.35)';
+        ctx.fillRect(px(x), px(y + Math.abs(Math.sin(G.t * 8 + i)) * -4), 4, 7);
+      }
+      this.text(D.name, RW / 2, RH / 2 - 30, 'rgb(' + c + ')', 12, 'center');
+      this.text(D.doing + '...', RW / 2, RH / 2 + 34, '#fff', 8, 'center');
     }
 
     if (!P.busted && !P.dead && P.car) {
@@ -2910,7 +2958,7 @@ class Renderer {
     // Los jugadores van arriba de todo; el local al final, para que nunca lo tape otro
     for (const P of G.players.filter(q => q !== G.me).concat(G.me ? [G.me] : [])) {
       if (P.car) { if (!P.seat) this.drawCar(P.car, night); }
-      else if (!P.dead && !P.healing) this.drawGuy(P, P.def.id, P.def.shirt, P.def.pants, P.hp < 35);
+      else if (!P.dead && !P.healing && !P.party) this.drawGuy(P, P.def.id, P.def.shirt, P.def.pants, P.hp < 35);
       if (P.trapo && !P.dead) this.drawFlag(P.trapo.def.k, P.x - G.cam.x + 3, P.y - G.cam.y - 16, 0.8);
     }
 
