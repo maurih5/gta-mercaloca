@@ -1,5 +1,5 @@
 /* =========================================================================
-   GTA MERCALOCA - Tiendas: armería (fierros, balas, chaleco), tranza de la villa y supers
+   GTA MERCALOCA - Tiendas: armería (fierros, balas, chaleco), tranza de la villa, supers y el banco
    ========================================================================= */
 
 const SHOP_KINDS = {
@@ -8,6 +8,7 @@ const SHOP_KINDS = {
   choto:   { title: 'CHOTO', sub: 'SUPERMERCADO · yo te conozco', items: CHOTO_ITEMS, super: true },
   noche:   { title: 'NOCHE %', sub: 'SUPERMERCADO · precios bajos, gondolas vacias', items: NOCHE_ITEMS, super: true },
   lanus:   { title: 'CHOTO LANUS', sub: 'SUCURSAL LANUS · hoy no hay carne (de nuevo)', items: LANUS_ITEMS, super: true },
+  banco:   { title: 'BANCO DEL BARRIO', sub: 'BANCO · lo de adentro no te lo saca nadie', items: BANK_ITEMS, bank: true },
 };
 
 class ShopManager {
@@ -47,6 +48,7 @@ class ShopManager {
     if (el) {
       el.classList.toggle('tranza', kind === 'tranza');
       el.classList.toggle('super', !!K.super);
+      el.classList.toggle('banco', !!K.bank);
       el.classList.add('on');
     }
   }
@@ -63,6 +65,10 @@ class ShopManager {
   // Qué se puede hacer con cada ítem según lo que ya tiene el jugador.
   // La ventana es del jugador local (G.me); en red la compra la hace el host (purchase)
   status(it, P = G.me) {
+    if (it.dep) {
+      const n = it.dep > 0 ? Math.min(it.dep, P.money) : Math.min(-it.dep, P.bank);
+      return n > 0 ? { can: true, n, label: '$' + n } : { can: false, label: it.dep > 0 ? 'SIN GUITA' : 'SIN SALDO' };
+    }
     if (inBag(it.id)) {
       if (it.out) return { can: false, label: 'NO HAY' };
       const n = P.bag[it.id] || 0;
@@ -109,6 +115,12 @@ class ShopManager {
   purchase(P, it) {
     const st = it && this.status(it, P);
     if (!st || !st.can) return null;
+    if (it.dep) {
+      const n = it.dep > 0 ? st.n : -st.n;
+      P.money -= n;
+      P.bank += n;
+      return { msg: (n > 0 ? 'DEPOSITASTE $' : 'SACASTE $') + Math.abs(n) + '. EN EL BANCO: $' + P.bank };
+    }
     if (P.money < st.price) return { msg: 'NO TE ALCANZA LA GUITA', bad: true };
     P.money -= st.price;
     if (inBag(it.id)) {
@@ -139,14 +151,15 @@ class ShopManager {
   render() {
     const list = $('shop-list'), money = $('shop-money');
     if (!list) return;
-    const off = !SHOP_KINDS[this.kind].super && game.rankOf(G.me) > 0 ? '  -' + Math.round(RANK_DISCOUNT * game.rankOf(G.me) * 100) + '% POR RESPETO' : '';
+    const K = SHOP_KINDS[this.kind];
+    const off = K.bank ? '  BANCO $' + G.me.bank : !K.super && game.rankOf(G.me) > 0 ? '  -' + Math.round(RANK_DISCOUNT * game.rankOf(G.me) * 100) + '% POR RESPETO' : '';
     if (money) money.textContent = '$' + G.me.money + off;
     list.innerHTML = '';
     this.items.forEach((it, i) => {
       const st = this.status(it);
       const F = FOOD[it.id];
-      const name = WEAPONS[it.id] ? WEAPONS[it.id].name : it.id.toUpperCase()
-        + (F ? (F.food ? ' +' + F.food + ' HAMBRE' : '') + (F.drink ? ' +' + F.drink + ' SED' : '') : '');
+      const name = it.name || (WEAPONS[it.id] ? WEAPONS[it.id].name : it.id.toUpperCase()
+        + (F ? (F.food ? ' +' + F.food + ' HAMBRE' : '') + (F.drink ? ' +' + F.drink + ' SED' : '') : ''));
       const row = document.createElement('div');
       row.className = 'shop-row' + (i === this.sel ? ' sel' : '') + (st.can ? '' : ' off');
 
@@ -154,7 +167,13 @@ class ShopManager {
       icon.width = 28;
       icon.height = 16;
       icon.className = 'shop-icon';
-      if (inBag(it.id)) foodIcon(icon.getContext('2d'), it.id, 14, 8);
+      if (it.dep) {
+        const g = icon.getContext('2d');
+        g.fillStyle = '#2f8a3a';
+        g.fillRect(6, 3, 16, 10);
+        g.fillStyle = '#7de07d';
+        g.fillRect(12, 6, 4, 4);
+      } else if (inBag(it.id)) foodIcon(icon.getContext('2d'), it.id, 14, 8);
       else weaponIcon(icon.getContext('2d'), it.id, 14, 8);
 
       const info = document.createElement('div');

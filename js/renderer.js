@@ -316,6 +316,18 @@ class Renderer {
       ctx.fillRect(px(rx + b.w * 0.12), px(ry + b.h * 0.62), 10, 2.5);
     }
 
+    if (b.bank) {
+      const sx = rx + b.w / 2, sy = ry + b.h / 2;
+      ctx.fillStyle = '#0e2a12';
+      ctx.fillRect(px(sx - 17), px(sy - 6), 34, 12);
+      ctx.fillStyle = '#2f8a3a';
+      ctx.fillRect(px(sx - 16), px(sy - 5), 32, 10);
+      ctx.font = '5px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('BANCO', px(sx), px(sy + 2.5));
+    }
+
     if (b.hospital) {
       const ccx = rx + b.w / 2, ccy = ry + b.h / 2, cs = Math.min(b.w, b.h) * 0.22;
       ctx.fillStyle = '#ffffff';
@@ -2272,6 +2284,7 @@ class Renderer {
     for (const g of parrillas) add(g.cooking ? 'asado' : 'parrilla', g.x, g.y);
     for (const h of hospitals) add('hospital', ...mid(h));
     for (const b of shops) add('armeria', b.door.x + b.door.ox, b.door.y + b.door.oy);
+    for (const b of banks) add('banco', ...mid(b));
     for (const b of supers) add(b.closed > 0 || b.robbing ? 'cerrado' : b.super === 'noche' ? 'noche' : 'choto', ...mid(b));
     for (const cr of casaRosada) add('rosada', ...mid(cr));
     for (const b of stadiums) add('st_' + b.stadium, ...mid(b));
@@ -2340,6 +2353,7 @@ class Renderer {
         r('#000', -3, -3, 7, 7); r(q ? q.def.shirt : '#5ad25a', -2, -2, 5, 5);
         break;
       case 'hospital': box('#f4f4f4'); r('#d8342c', -1, -3, 3, 7); r('#d8342c', -3, -1, 7, 3); break;
+      case 'banco': box('#2f7a3a'); r('#7de07d', -3, -2, 7, 5); r('#2f7a3a', -1, -1, 3, 3); break;
       case 'armeria': box('#e8892a'); r('#14100c', -3, -2, 7, 2); r('#14100c', -3, 0, 2, 3); break;
       case 'choto': box('#c8302a'); cart('#fff'); break;
       case 'noche': box('#2a4fa8'); cart('#ff6a5a'); break;
@@ -2379,7 +2393,7 @@ class Renderer {
     ctx.globalAlpha = 1;
     // Primero lo chico (guita, yuta), arriba los lugares
     const order = ['guita', 'fierro', 'comida', 'hincha', 'yuta', 'parrilla', 'asado', 'tranza', 'tranzaMal', 'patrullero',
-      'cerrado', 'noche', 'choto', 'armeria', 'hospital', ...STADIUMS.map(S => 'st_' + S.k), 'rosada', 'obelisco',
+      'cerrado', 'noche', 'choto', 'armeria', 'banco', 'hospital', ...STADIUMS.map(S => 'st_' + S.k), 'rosada', 'obelisco',
       ...BARRAS.map(B => 'tr_' + B.k), 'famoso', 'jugador'];
     for (const kind of order) {
       for (const e of items) {
@@ -2644,6 +2658,7 @@ class Renderer {
     // Respeto: el rango y cuánto tiene
     const rank = RANKS[game.rankOf(P)][1];
     this.text(rank + ' ' + (P.respect || 0), RW - 8, needY + 17, '#e8c86a', 5, 'right');
+    if (P.bank > 0) this.text('BANCO $' + P.bank, RW - 8, needY + 25, '#7de07d', 5, 'right');
     // Hambre (naranja) y sed (celeste): titilan cuando están bajas
     const blink = Math.floor(G.t * 4) % 2;
     [[P.food, '#e8a23a', RW - 79], [P.drink, '#4ab0e8', RW - 42]].forEach(([v, col, x]) => {
@@ -2688,6 +2703,10 @@ class Renderer {
       const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
       const what = g && g.cooking ? 'SACAR UNA PORCION' : 'PRENDER EL ASADO (CARNE + CARBON)';
       this.text(key + ': ' + what, RW / 2, RH - 34, Math.floor(G.t * 3) % 2 ? '#ffb04a' : '#ffd34a', 7, 'center');
+    }
+    if (P.nearBank && !P.nearShop && !P.nearSuper && !G.shopOpen && !P.dead && !P.busted && !P.car) {
+      const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
+      this.text(key + ': ENTRAR AL BANCO', RW / 2, RH - 34, Math.floor(G.t * 3) % 2 ? '#7de07d' : '#ffd34a', 7, 'center');
     }
     if ((P.nearShop || P.nearTranza || P.nearSuper) && !G.shopOpen && !P.dead && !P.busted) {
       const bl = Math.floor(G.t * 3) % 2;
@@ -2793,7 +2812,7 @@ class Renderer {
       ctx.fillStyle = 'rgba(70,0,0,.55)';
       ctx.fillRect(0, 0, RW, RH);
       this.text('TE MATARON', RW / 2, RH / 2 - 10, '#ff4a4a', 16, 'center');
-      this.text('GUITA: $' + P.money, RW / 2, RH / 2 + 12, '#ffd34a', 9, 'center');
+      this.text('GUITA: $' + P.money + (P.bank > 0 ? '  BANCO: $' + P.bank : ''), RW / 2, RH / 2 + 12, '#ffd34a', 9, 'center');
       this.text('ENTER PARA VOLVER AL BARRIO', RW / 2, RH / 2 + 32, '#fff', 8, 'center');
     }
 
@@ -2820,12 +2839,12 @@ class Renderer {
 
     for (const pk of G.pickups) this.drawPickup(pk);
 
-    // Marca en la vereda frente a cada armería y cada super abierto
-    for (const b of shops.concat(supers.filter(q => !(q.closed > 0)))) {
+    // Marca en la vereda frente a cada armería, cada super abierto y el banco
+    for (const b of shops.concat(supers.filter(q => !(q.closed > 0)), banks)) {
       const d = b.door, x = d.x + d.ox - G.cam.x, y = d.y + d.oy - G.cam.y;
       if (x < -20 || y < -20 || x > RW + 20 || y > RH + 20) continue;
       const pulse = 6 + Math.sin(G.t * 4) * 1.5;
-      ctx.strokeStyle = b.super ? 'rgba(255,110,90,.9)' : 'rgba(255,170,60,.9)';
+      ctx.strokeStyle = b.bank ? 'rgba(110,230,120,.9)' : b.super ? 'rgba(255,110,90,.9)' : 'rgba(255,170,60,.9)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.ellipse(x, y, pulse, pulse * 0.6, 0, 0, TAU);
@@ -2982,7 +3001,7 @@ const drawMap = () => renderer.drawMap();
 
 // Qué muestra cada ícono del mapa (en este orden van las referencias)
 const MAP_LEGEND = [
-  ['vos', 'VOS'], ['jugador', 'OTRO JUGADOR'], ['hospital', 'HOSPITAL'], ['armeria', 'ARMERIA'],
+  ['vos', 'VOS'], ['jugador', 'OTRO JUGADOR'], ['hospital', 'HOSPITAL'], ['armeria', 'ARMERIA'], ['banco', 'BANCO'],
   ['choto', 'SUPER CHOTO'], ['noche', 'SUPER NOCHE %'], ['cerrado', 'SUPER CERRADO'],
   ['parrilla', 'PARRILLA'], ['asado', 'ASADO PRENDIDO'], ...STADIUMS.map(S => ['st_' + S.k, S.name]),
   ...BARRAS.map(B => ['tr_' + B.k, 'TRAPO ' + B.short]), ['hincha', 'BARRA CALIENTE'],
