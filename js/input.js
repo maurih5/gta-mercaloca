@@ -8,7 +8,7 @@ class InputManager {
     this.touchAxis = { x: 0, y: 0 };
     this.wheel = 0;
     this.drag = { x: 0, y: 0, on: false, lx: 0, ly: 0 }; // arrastrar el mapa (px del canvas)
-    this._preventCodes = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+    this._preventCodes = new Set(['Space', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
     this._boundDown = this.onKeyDown.bind(this);
     this._boundUp = this.onKeyUp.bind(this);
     this._boundWheel = this.onWheel.bind(this);
