@@ -448,6 +448,17 @@ const SUPERS = [
   { k: 'noche', name: 'NOCHE %', at: [0.86, 0.36], col: '#e4e6ec', roof: '#2a4fa8', sign: '#d8302a', ink: '#fff' },
   { k: 'lanus', name: 'CH TO', at: [0.70, 0.86], col: '#d6cdbd', roof: '#a8342e', sign: '#a8342e', ink: '#f2e6d8' },
 ];
+// Boliches: abren de noche (darkness() > BOLICHE_DARK). Con E en la puerta se paga la entrada
+// y se pasan BOLICHE_TIME segundos adentro (quieto, como en el hospital) con la música de la
+// casa (radio: emisora de STATIONS). Al salir cada uno da lo suyo: respeto, comida y bebida,
+// o una apuesta al pool (bet: se gana o se pierde, mitad y mitad). glow: color del neón.
+const BOLICHES = [
+  { k: 'bailanta', name: 'LA BAILANTA', at: [0.42, 0.74], entry: 100, radio: 0, glow: [255, 58, 208], doing: 'BAILANDO CUMBIA', respect: 4 },
+  { k: 'cuarteto', name: 'CUARTETAZO', at: [0.60, 0.22], entry: 60, radio: 3, glow: [58, 230, 255], doing: 'TIRANDO PASOS', food: 50, drink: 100 },
+  { k: 'pool', name: 'BAR EL TANO', at: [0.14, 0.30], entry: 40, radio: 1, glow: [255, 200, 60], doing: 'JUGANDO AL POOL', bet: 300 },
+];
+const BOLICHE_TIME = 5;
+const BOLICHE_DARK = 0.55;
 // Robo al super: se arranca disparando en la puerta y hay que quedarse ROB_TIME segundos
 // ahí (si roban dos, va el doble de rápido). Si nadie queda en la puerta ROB_GRACE
 // segundos, se corta. Después el local queda con la persiana baja SUPER_CLOSED segundos.

@@ -42,7 +42,7 @@ const G = {
 // En juego: ni muerto, ni en la secuencia de arresto, ni adentro del hospital.
 // La IA solo persigue, apunta y arresta a los que están en juego.
 function inPlay(P) {
-  return !!P && !P.dead && !P.busted && !P.healing;
+  return !!P && !P.dead && !P.busted && !P.healing && !P.party;
 }
 
 // El jugador más cercano a o (entre los que cumplen ok), con su distancia
@@ -766,6 +766,36 @@ class Game {
     }
   }
 
+  // Boliche: abre de noche, sin la yuta encima y pagando la entrada
+  enterBoliche(P, b) {
+    const D = bolicheOf(b);
+    if (!bolicheOpen()) return this.say(D.name + ' ABRE A LA NOCHE', 2.4, P);
+    if (P.wanted >= 2) return this.say('EL PATOVICA NO TE DEJA PASAR', 2.6, P);
+    if (P.money < D.entry) return this.say('LA ENTRADA SALE $' + D.entry, 2.4, P);
+    P.money -= D.entry;
+    P.party = boliches.indexOf(b) + 1;
+    P.partyT = 0;
+    sfxFor(P, 'puerta');
+    this.say('ADENTRO DE ' + D.name + '...', 2.4, P);
+  }
+
+  leaveBoliche(P) {
+    const D = bolicheOf(boliches[P.party - 1]);
+    P.party = 0;
+    if (D.respect) this.gainRespect(P, D.respect, D.name);
+    if (D.food) {
+      P.food = Math.max(P.food, D.food);
+      P.drink = Math.max(P.drink, D.drink);
+      this.say('SALISTE COMIDO Y CON LA SED SACADA', 2.6, P);
+    }
+    if (D.bet) {
+      const won = Math.random() < 0.5;
+      if (won) P.money += D.bet;
+      sfxFor(P, won ? 'guita' : 'puerta');
+      this.say(won ? 'LE GANASTE LA MESA: +$' + D.bet : 'TE LIMPIARON EN EL POOL', 2.6, P);
+    }
+  }
+
   loseRespect(P, frac, n = 0) {
     P.respect = Math.max(0, Math.round((P.respect || 0) * (1 - frac)) - n);
   }
@@ -1181,6 +1211,13 @@ class Game {
       return;
     }
 
+    // ---- Adentro de un boliche: unos segundos y sale con lo que da el lugar
+    if (P.party) {
+      P.partyT += dt;
+      if (P.partyT > BOLICHE_TIME) this.leaveBoliche(P);
+      return;
+    }
+
     const ctl = P.ctl;
     const ix = ctl.x;
     const iy = ctl.y;
@@ -1192,6 +1229,7 @@ class Game {
     P.nearBank = null;
     P.nearGrill = null;
     P.nearTrapo = null;
+    P.nearBoliche = null;
     if (!P.dead) this.switchWeapon(P);
 
     if (!P.dead) this.updateNeeds(P, dt);
@@ -1332,6 +1370,10 @@ class Game {
         const d = b.door;
         if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearSuper = b;
       }
+      for (const b of boliches) {
+        const d = b.door;
+        if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearBoliche = b;
+      }
       for (const b of banks) {
         const d = b.door;
         if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearBank = b;
@@ -1367,6 +1409,9 @@ class Game {
       } else if (ctl.use && P.cool <= 0 && P.nearGrill) {
         P.cool = 0.4;
         this.useGrill(P, P.nearGrill);
+      } else if (ctl.use && P.cool <= 0 && P.nearBoliche) {
+        P.cool = 0.4;
+        this.enterBoliche(P, P.nearBoliche);
       } else if (ctl.use && P.cool <= 0) {
         P.cool = 0.4;
         let best = null, bd = 26;

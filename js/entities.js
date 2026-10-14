@@ -53,6 +53,9 @@ class EntityManager {
       nearBank: null,
       nearGrill: null,
       nearTrapo: null,
+      nearBoliche: null,
+      party: 0,        // boliche donde está adentro (índice en boliches + 1)
+      partyT: 0,
       zone: null,
       slowmo: 0,
       high: 0,
