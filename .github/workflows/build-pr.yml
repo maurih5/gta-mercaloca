@@ -69,10 +69,12 @@ jobs:
             if (labels.includes('breaking')) tipo = 'breaking';
             else if (labels.includes('feature')) tipo = 'feature';
 
-            // A main solo se publica lo que viene de dev; el resto de las PRs a main
-            // (p. ej. un hotfix) pasan el check sin generar artefacto ni release.
-            const aplica = pr.base.ref === 'dev' || pr.head.ref === 'dev';
-            if (!aplica) core.notice(`PR a main desde '${pr.head.ref}': no genera release`);
+            // A main solo entra lo que viene de dev: features y arreglos van primero a dev.
+            if (pr.base.ref === 'main' && pr.head.ref !== 'dev') {
+              core.setFailed(`Las PRs a main tienen que venir de dev, no de '${pr.head.ref}'. Cambiá la base de la PR a dev.`);
+              return;
+            }
+            const aplica = true;
 
             core.setOutput('numero', numero);
             core.setOutput('titulo', pr.title);
