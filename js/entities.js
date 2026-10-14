@@ -231,6 +231,7 @@ class EntityManager {
         flag: { x: d.x + d.ox * 1.6, y: d.y + d.oy * 1.6 }, // en la vereda, frente a la puerta
         trapo: 'hung', // 'hung' colgado · 'carried' lo lleva alguien · 'gone' robado
         by: null, backT: 0, angry: 0, tgt: null,
+        owner: null, ctl: 0, chal: null, payT: 0, // territorio: dueño (jugador), control 0..1, el que lo está tomando
       });
     }
     return out;
