@@ -135,7 +135,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
 - [x] Sistema base de NPCs con nombre y parodias de famosos: spawn, diálogo, comportamiento único, recompensas y despawn (#9)
   - [x] Parodia de crack del fútbol (Messi): diálogo propio, suelta "balones de oro" (guita) al caer (#10)
   - [x] Parodia de ídolo del fútbol (Maradona): diálogo propio, suelta merca al caer (#11)
-  - [ ] Parodia de conductor de TV (Marley): deja un rastro de partículas cómico al caminar (#12)
+  - [x] Parodia de conductor de TV (Marley): deja un rastro de partículas cómico al caminar (#12)
   - [ ] Parodia de celebridad de playa (Ricardo Fort): solo aparece en la playa, suelta chocolates (#13)
   - [x] NPC cómico inmortal (Listorti): no se puede eliminar, reacciona con una frase propia a los disparos (#14)
   - [x] Parodia volando en helicóptero (Gaspi): pathing aéreo, aparece como encuentro especial (#2)
@@ -183,7 +183,7 @@ Lista de características planificadas y mejoras en desarrollo. Cada ítem linke
   - [ ] Rugbiers que te persiguen y te cagan a palos (#76)
   - [ ] Tren que descarrila y corta calles (#77)
   - [ ] Festejos del Mundial en el Obelisco (#78)
-  - [ ] Corralito que te saca la mitad de la guita (#79)
+  - [x] Corralito que te saca la mitad de la plata del banco (#79)
   - [ ] Operativo policial en tu casa (#80)
 
 ### 📜 Misiones
@@ -238,7 +238,7 @@ Agregados a la dirección (por ejemplo `http://localhost:8000/?famoso=messi`):
 | `?play` | Arranca directo a jugar, sin menú |
 | `?novedades` | Abre el cartel de novedades aunque ya lo hayas tildado. Con datos de verdad: `node .github/scripts/novedades.js local > js/novedades.js` (no commitearlo) |
 | `?sala=7X9HJ` | Entra a esa sala online (es el link que se comparte) |
-| `?famoso=messi` | Arranca con ese famoso al lado (`listorti`, `messi`, `maradona`, `gaspi`) |
+| `?famoso=messi` | Arranca con ese famoso al lado (`listorti`, `messi`, `maradona`, `gaspi`, `conductor`) |
 | `&h=22` | Hora del día (0-24) |
 | `&x=1200&y=800` | Arranca parado en ese punto del mapa |
 | `&w=3` | Arranca con ese nivel de búsqueda |
