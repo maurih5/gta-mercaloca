@@ -2061,6 +2061,24 @@ describe('multijugador', () => {
     assert.equal(G.pickups.slice(pk0).filter(pk => pk.kind === 'cash').length, H.famous.drop.n, 'suelta su guita');
   });
 
+  test('el conductor deja rastro de particulas al caminar, se lo baja y suelta guita', () => {
+    startGame(CREW[0]);
+    for (let f = 0; f < 5; f++) update(1/60);
+    G.peds = []; G.cops = [];
+    const F = makeFamous(FAMOUS.find(f => f.id === 'conductor'), G.me.x + 60, G.me.y);
+    G.peds.push(F);
+    let max = 0;
+    for (let f = 0; f < 120; f++) { update(1/60); max = Math.max(max, G.fx.length); }
+    assert.ok(max > 0, 'deja rastro al caminar');
+    assert.ok(game.targetsOf(G.me).includes(F), 'se lo puede bajar');
+    const pk0 = G.pickups.length;
+    G.me.x += 200;
+    G.bullets.push({ x: F.x - 6, y: F.y, vx: 600, vy: 0, life: 1, owner: G.me, dmg: 999 });
+    update(1/60);
+    assert.ok(F.hp <= 0, 'a tiros cae');
+    assert.equal(G.pickups.slice(pk0).filter(pk => pk.kind === 'cash').length, F.famous.drop.n, 'suelta su guita');
+  });
+
   test('los famosos hablan al que se acerca y se van cuando nadie los ve', () => {
     startGame(CREW[0]);
     const P2 = addPlayer(CREW[1]);

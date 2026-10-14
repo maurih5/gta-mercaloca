@@ -177,6 +177,15 @@ const FAMOUS = [
     hurt: ['ME ESTAN TIRANDO, CHAT!', 'CLIPEALO, CLIPEALO', 'BANEENLO YA', 'MODS! MODS!'],
     drop: { kind: 'cash', n: 6, value: 250 },
   },
+  {
+    // trail: color RGB del rastro de partículas que deja al caminar
+    id: 'conductor', name: 'MARCELO TINELI-BOCHA', hp: 60, trail: '255,80,200',
+    shirt: '#7a1fa2', pants: '#1a1a24', spd: 30,
+    look: { skin: '#e2b896', hair: '#3a2a1a', hairStyle: 'corto', smile: true, shades: true },
+    near: ['BIENVENIDOS AL PROGRAMA!', 'VOLVEMOS DESPUES DE LA TANDA', 'NO SE VAYAN, QUEDA LO MEJOR', 'APLAUSOS PARA EL PUBLICO'],
+    hurt: ['CORTE, CORTE!', 'ESTO NO ESTABA EN EL GUION', 'VOLVEMOS EN UN MOMENTO'],
+    drop: { kind: 'cash', n: 5, value: 200 },
+  },
 ];
 const FAMOUS_EVERY = [40, 80];          // cada cuánto (s, al azar) puede aparecer uno cerca de cada jugador
 const FAMOUS_LIFE = 150;                // segundos que pasea antes de irse (cuando nadie lo ve)
