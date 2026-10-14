@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,boliches,BOLICHES,BOLI_NIGHT,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,boliches,BOLICHES,BOLI_NIGHT,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -188,6 +188,18 @@ describe('edificios', () => {
     }
     const noches = supers.filter(b => b.super === 'noche');
     assert.ok(dist(noches[0], noches[1]) > CELL * 6, 'los dos NOCHE % no estan pegados');
+  });
+
+  test('hay bolichitos con puerta a la calle, y dan lo suyo de noche', () => {
+    assert.ok(boliches.length >= 2, 'boliches: ' + boliches.length);
+    for (const b of boliches) assert.ok(world.onRoad(b.door.x + b.door.ox * 4, b.door.y + b.door.oy * 4));
+    const b = boliches[0], S = b.boliche, P = { money: 0, hp: 50, maxhp: 100, food: 50, drink: 10, respect: 0 };
+    Object.assign(P, { money: 500, drink: 10, boliT: 0, wanted: 0 });
+    game.useBoliche(P, b);
+    assert.equal(P.money, 500 - S.cost);
+    assert.ok(P.drink > 10 && P.boliT > 0);
+    game.useBoliche(P, b);
+    assert.equal(P.money, 500 - S.cost, 'cooldown: no cobra dos veces');
   });
 
   test('hay parrillas en las plazas y en los potreros de las villas', () => {

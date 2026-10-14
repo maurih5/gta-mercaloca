@@ -325,6 +325,16 @@ const ASADO_CARBON = 75;
 const ASADO_PORCIONES = 3;
 const GRILL_R = 18;
 
+// Bolichitos: locales chicos que abren de noche. E en la puerta: pagás la entrada y cada uno
+// da lo suyo (trago = sed, comida = hambre, hp = vida, respeto). Un solo cooldown por jugador.
+const BOLICHES = [
+  { k: 'bailanta', name: 'BAILANTA EL GATO', at: [0.25, 0.3], col: '#6a2a7a', roof: '#c040e0', neon: [255, 60, 220], cost: 80, drink: 40, hp: 0, food: 0, respect: 4, msg: 'BAILASTE CUMBIA HASTA LAS 6' },
+  { k: 'pool', name: 'BAR EL TAPON', at: [0.7, 0.25], col: '#3a4a2a', roof: '#5a7a3a', neon: [80, 255, 120], cost: 50, drink: 25, hp: 0, food: 35, respect: 2, msg: 'PICADA Y FERNET CON LOS PIBES' },
+  { k: 'karaoke', name: 'KARAOKE LA VOZ', at: [0.3, 0.75], col: '#2a3a6a', roof: '#4a6ad0', neon: [70, 170, 255], cost: 60, drink: 15, hp: 30, food: 0, respect: 3, msg: 'CANTASTE Y TE ACLAMARON' },
+  { k: 'cantina', name: 'CANTINA DON PEPE', at: [0.75, 0.7], col: '#6a3a1a', roof: '#d0802a', neon: [255, 170, 60], cost: 70, drink: 30, hp: 15, food: 20, respect: 3, msg: 'RONDA DE LA CASA' },
+];
+const BOLI_R = 16, BOLI_COOL = 45, BOLI_NIGHT = 0.45;
+
 const FOOD_NAME = { carne: 'UN VACIO', pernil: 'UN PERNIL', choripan: 'UN CHORI', fideos: 'UNOS FIDEOS',
   galletitas: 'UNAS CRIOLLITAS', mate: 'UNOS MATES', agua: 'UN AGUA', gaseosa: 'UNA CHOCA-COLA',
   asado: 'UN ASADO A PUNTO', crudo: 'UN ASADO CRUDO', quemado: 'UN ASADO QUEMADO' };

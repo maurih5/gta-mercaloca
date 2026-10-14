@@ -49,6 +49,8 @@ class EntityManager {
       nearTranza: null,
       nearSuper: null,
       nearGrill: null,
+      nearBoliche: null,
+      boliT: 0,        // espera para volver a pagar un boliche
       nearTrapo: null,
       zone: null,
       slowmo: 0,

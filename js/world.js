@@ -427,6 +427,7 @@ function rectHitsWater(x, y, w, h) {
 const shops = [];
 const supers = []; // supermercados (CHOTO, NOCHE %, CHOTO de Lanús)
 const stadiums = []; // LA CHOCOLATERA y EL MONUMENTAZO
+const boliches = []; // bolichitos nocturnos (BOLICHES)
 const parrillas = []; // parrillas de las plazas y los potreros: ahí se hace el asado
 
 // Villas con su rectángulo en coordenadas del mundo (incluye las calles que las cruzan)
@@ -463,6 +464,7 @@ class World {
     this.supers = supers;
     this.stadiums = stadiums;
     this.parrillas = parrillas;
+    this.boliches = boliches;
     this.bgrid = null;
   }
 
@@ -600,6 +602,7 @@ class World {
       if (c) cancha.set(c, S);
     }
     this.parrillas.length = 0;
+    this.boliches.length = 0;
 
     let id = 0;
     for (let cy = 0; cy < GRID; cy++) {
@@ -1201,6 +1204,22 @@ class World {
       });
       this.supers.push(best);
       this.superProps(best);
+    }
+
+    // Bolichitos: el edificio chico más cercano a cada punto, con la puerta a la calle
+    for (const S of BOLICHES) {
+      const tx = S.at[0] * WORLD, ty = S.at[1] * WORLD;
+      let best = null, bs = Infinity;
+      for (const b of this.buildings) {
+        const d = b.door;
+        if (!d || b.super || b.shop || b.hospital || b.villa || b.casaRosada || b.cabildo || b.stadium || b.boliche || b.ty.k === 'torre') continue;
+        if (!this.onRoad(d.x + d.ox * 4, d.y + d.oy * 4)) continue;
+        const dd = Math.hypot(b.x + b.w / 2 - tx, b.y + b.h / 2 - ty);
+        if (dd < CELL * 3 && dd + b.w * b.h / 40 < bs) { bs = dd + b.w * b.h / 40; best = b; }
+      }
+      if (!best) continue;
+      Object.assign(best, { boliche: S, col: S.col, roofCol: S.roof, H: Math.min(best.H, 16), ac: false, tank: false });
+      this.boliches.push(best);
     }
 
     // Parrillas: en una de cada tres plazas, más o menos, y siempre en el potrero de la villa

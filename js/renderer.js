@@ -666,6 +666,27 @@ class Renderer {
 
   // Parrilla de plaza: base de ladrillo y la parrilla arriba. Prendida: brasas, los
   // pedazos de carne (uno por porción) que se van dorando y quemando, y humo.
+  // Neón y gente bailando en la vereda: solo de noche y solo si está en pantalla (todo calculado, sin entidades)
+  drawBoliche(b, night) {
+    if (night <= BOLI_NIGHT) return;
+    const ctx = this.ctx, d = b.door, S = b.boliche;
+    const x = d.x + d.ox - G.cam.x, y = d.y + d.oy - G.cam.y;
+    if (x < -40 || y < -40 || x > RW + 40 || y > RH + 40) return;
+    const beat = Math.floor(G.t * 4 + b.id) % 2;
+    ctx.fillStyle = 'rgba(' + S.neon + ',' + (beat ? 0.35 : 0.2) + ')';
+    ctx.fillRect(px(x - 14), px(y - 7), 28, 14);
+    const shirts = ['#e8e2d2', '#d94f4f', '#4f7fd9', '#e0b83a'];
+    for (let i = 0; i < 4; i++) {
+      const bob = Math.sin(G.t * 8 + i * 1.7 + b.id) * 1.5;
+      const gx = x - 9 + i * 6, gy = y - 2 + (i % 2) * 4 + bob;
+      ctx.fillStyle = shirts[i];
+      ctx.fillRect(px(gx), px(gy), 3, 4);
+      ctx.fillStyle = '#e8bf98';
+      ctx.fillRect(px(gx), px(gy - 2), 3, 2);
+    }
+    this.text(S.name, x, y - 14, beat ? '#fff' : 'rgb(' + S.neon + ')', 5, 'center');
+  }
+
   drawParrilla(g) {
     const ctx = this.ctx;
     const x = g.x - G.cam.x, y = g.y - G.cam.y;
@@ -2271,6 +2292,7 @@ class Renderer {
     for (const pk of G.pickups) add(pk.kind === 'cash' || pk.kind === 'gold' ? 'guita' : pk.kind === 'weapon' ? 'fierro' : 'comida', pk.x, pk.y);
     for (const g of parrillas) add(g.cooking ? 'asado' : 'parrilla', g.x, g.y);
     for (const h of hospitals) add('hospital', ...mid(h));
+    if (world.darkness() > BOLI_NIGHT) for (const b of boliches) add('boliche', ...mid(b));
     for (const b of shops) add('armeria', b.door.x + b.door.ox, b.door.y + b.door.oy);
     for (const b of supers) add(b.closed > 0 || b.robbing ? 'cerrado' : b.super === 'noche' ? 'noche' : 'choto', ...mid(b));
     for (const cr of casaRosada) add('rosada', ...mid(cr));
@@ -2344,6 +2366,7 @@ class Renderer {
       case 'choto': box('#c8302a'); cart('#fff'); break;
       case 'noche': box('#2a4fa8'); cart('#ff6a5a'); break;
       case 'cerrado': box('#5a5e64'); cart('#9aa0a6'); break;
+      case 'boliche': box('#6a2a7a'); r('#ff7aea', -3, -2, 7, 1); r('#7af0ff', -3, 0, 7, 1); r('#ffe07a', -1, 2, 3, 1); break;
       case 'parrilla': box('#6a3a22'); r('#c8c8c8', -3, -1, 7, 1); r('#c8c8c8', -3, 1, 7, 1); r('#c8c8c8', -2, -3, 1, 6); r('#c8c8c8', 1, -3, 1, 6); break;
       case 'asado': box('#2a1610'); r('#ff7a2a', -2, -1, 5, 4); r('#ffd34a', -1, -3, 3, 4); r('#fff2a0', 0, -1, 1, 2); break;
       case 'rosada': box('#ff8fc0'); r('#fff', -3, 0, 7, 3); r('#fff', -2, -1, 5, 1); r('#fff', -1, -2, 3, 1); r('#ff8fc0', 0, 1, 1, 2); break;
@@ -2379,7 +2402,7 @@ class Renderer {
     ctx.globalAlpha = 1;
     // Primero lo chico (guita, yuta), arriba los lugares
     const order = ['guita', 'fierro', 'comida', 'hincha', 'yuta', 'parrilla', 'asado', 'tranza', 'tranzaMal', 'patrullero',
-      'cerrado', 'noche', 'choto', 'armeria', 'hospital', ...STADIUMS.map(S => 'st_' + S.k), 'rosada', 'obelisco',
+      'cerrado', 'noche', 'choto', 'armeria', 'hospital', 'boliche', ...STADIUMS.map(S => 'st_' + S.k), 'rosada', 'obelisco',
       ...BARRAS.map(B => 'tr_' + B.k), 'famoso', 'jugador'];
     for (const kind of order) {
       for (const e of items) {
@@ -2683,6 +2706,13 @@ class Renderer {
     const h = Math.floor(dayT() * 24), mm = Math.floor(((dayT() * 24) % 1) * 60);
     this.text(String(h).padStart(2, '0') + ':' + String(mm).padStart(2, '0'), 7, 26, '#cfcfcf', 7);
 
+    if (world.darkness() > BOLI_NIGHT && !G.shopOpen && !P.dead && !P.busted && !P.car) {
+      const bo = boliches.find(q => Math.hypot(q.door.x + q.door.ox - P.x, q.door.y + q.door.oy - P.y) < BOLI_R);
+      if (bo) {
+        const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
+        this.text(key + ': ENTRAR A ' + bo.boliche.name + ' ($' + bo.boliche.cost + ')', RW / 2, RH - 24, Math.floor(G.t * 3) % 2 ? '#ff7aea' : '#ffd34a', 7, 'center');
+      }
+    }
     if (P.nearGrill && !P.nearShop && !P.nearSuper && !G.shopOpen && !P.dead && !P.busted && !P.car) {
       const g = parrillas.find(q => dist(q, P) < GRILL_R);
       const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
@@ -2864,6 +2894,7 @@ class Renderer {
     );
 
     for (const b of vis) this.drawBuilding(b, night);
+    for (const b of boliches) this.drawBoliche(b, night);
     for (const p of props) {
       if (p.t === 'palm') this.drawPalm(p);
       else if (p.t === 'arbol') this.drawArbol(p);
@@ -2982,7 +3013,7 @@ const drawMap = () => renderer.drawMap();
 
 // Qué muestra cada ícono del mapa (en este orden van las referencias)
 const MAP_LEGEND = [
-  ['vos', 'VOS'], ['jugador', 'OTRO JUGADOR'], ['hospital', 'HOSPITAL'], ['armeria', 'ARMERIA'],
+  ['vos', 'VOS'], ['jugador', 'OTRO JUGADOR'], ['hospital', 'HOSPITAL'], ['boliche', 'BOLICHE (DE NOCHE)'], ['armeria', 'ARMERIA'],
   ['choto', 'SUPER CHOTO'], ['noche', 'SUPER NOCHE %'], ['cerrado', 'SUPER CERRADO'],
   ['parrilla', 'PARRILLA'], ['asado', 'ASADO PRENDIDO'], ...STADIUMS.map(S => ['st_' + S.k, S.name]),
   ...BARRAS.map(B => ['tr_' + B.k, 'TRAPO ' + B.short]), ['hincha', 'BARRA CALIENTE'],

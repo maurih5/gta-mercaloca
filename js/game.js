@@ -914,6 +914,22 @@ class Game {
     return true;
   }
 
+  // Boliche: entrada a cambio de trago, comida, vida y respeto propios de cada lugar
+  useBoliche(P, b) {
+    const S = b.boliche;
+    if (P.wanted >= 2) return this.say('EL PORTERO NO TE DEJA ENTRAR CON LA YUTA ENCIMA', 2.6, P);
+    if (P.boliT > 0) return this.say('YA ESTUVISTE ADENTRO. VOLVE EN ' + Math.ceil(P.boliT) + 's', 2.2, P);
+    if (P.money < S.cost) return this.say('LA ENTRADA CUESTA $' + S.cost, 2.2, P);
+    P.money -= S.cost;
+    P.boliT = BOLI_COOL;
+    P.drink = Math.min(100, P.drink + S.drink);
+    P.food = Math.min(100, P.food + S.food);
+    P.hp = Math.min(P.maxhp, P.hp + S.hp);
+    sfxFor(P, 'guita');
+    this.say(S.msg + ' (-$' + S.cost + ')', 3, P);
+    this.gainRespect(P, S.respect, S.name, true);
+  }
+
   // El asado se va haciendo solo: avisos al dueño cuando está a punto y cuando se quema
   updateGrills(dt) {
     for (const g of parrillas) {
@@ -1142,6 +1158,8 @@ class Game {
     P.nearTranza = null;
     P.nearSuper = null;
     P.nearGrill = null;
+    P.nearBoliche = null;
+    P.boliT = Math.max(0, (P.boliT || 0) - rdt);
     P.nearTrapo = null;
     if (!P.dead) this.switchWeapon(P);
 
@@ -1271,6 +1289,12 @@ class Game {
         const d = b.door;
         if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearSuper = b;
       }
+      if (world.darkness() > BOLI_NIGHT) {
+        for (const b of boliches) {
+          const d = b.door;
+          if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < BOLI_R) P.nearBoliche = b;
+        }
+      }
       for (const g of parrillas) {
         if (dist(g, P) < GRILL_R) P.nearGrill = g;
       }
@@ -1295,6 +1319,9 @@ class Game {
       } else if (ctl.use && P.cool <= 0 && P.nearTrapo) {
         P.cool = 0.4;
         this.takeTrapo(P, P.nearTrapo);
+      } else if (ctl.use && P.cool <= 0 && P.nearBoliche) {
+        P.cool = 0.4;
+        this.useBoliche(P, P.nearBoliche);
       } else if (ctl.use && P.cool <= 0 && P.nearGrill) {
         P.cool = 0.4;
         this.useGrill(P, P.nearGrill);
