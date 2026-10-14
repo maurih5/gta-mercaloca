@@ -225,11 +225,12 @@ class Game {
   }
 
   // Volver al barrio después de morir con otros jugando: no se reinicia el mundo de
-  // todos, reaparece solo él, sin fierros ni estrellas pero con su guita
+  // todos, reaparece solo él, sin fierros, ni estrellas, ni la guita que llevaba encima
+  // (la del banco la conserva)
   respawn(P) {
     const s = freeRoadSpot();
     Object.assign(P, {
-      x: s.x, y: s.y, hp: P.maxhp, dead: false, car: null, cool: 0.5,
+      x: s.x, y: s.y, hp: P.maxhp, dead: false, car: null, cool: 0.5, money: 0,
       inv: { pistola: Infinity }, wpn: 'pistola', armor: 0,
       wanted: 0, wantCool: 0, wantPeak: 0, slowmo: 0, food: 80, drink: 80, bag: {}, trapo: null,
     });
@@ -1141,6 +1142,7 @@ class Game {
     P.nearShop = null;
     P.nearTranza = null;
     P.nearSuper = null;
+    P.nearBank = null;
     P.nearGrill = null;
     P.nearTrapo = null;
     if (!P.dead) this.switchWeapon(P);
@@ -1177,6 +1179,7 @@ class Game {
         // Solo: se arranca de cero como siempre. Con otros jugando, reaparece él nomás.
         if (G.players.length <= 1) {
           this.startGame(P.def);
+          G.me.bank = P.bank;
           return 'reset';
         }
         this.respawn(P);
@@ -1271,6 +1274,10 @@ class Game {
         const d = b.door;
         if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearSuper = b;
       }
+      for (const b of banks) {
+        const d = b.door;
+        if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearBank = b;
+      }
       for (const g of parrillas) {
         if (dist(g, P) < GRILL_R) P.nearGrill = g;
       }
@@ -1292,6 +1299,10 @@ class Game {
         if (P.nearSuper.robbing || P.nearSuper.closed > 0) this.say('CERRADO POR ROBO', 2.6, P);
         else if (P.wanted >= 2) this.say('EL DE SEGURIDAD NO TE DEJA PASAR', 2.6, P);
         else this.openShop(P, P.nearSuper.super);
+      } else if (ctl.use && P.cool <= 0 && P.nearBank) {
+        P.cool = 0.4;
+        if (P.wanted >= 2) this.say('EL BANCO NO ATIENDE CON LA YUTA ENCIMA', 2.6, P);
+        else this.openShop(P, 'banco');
       } else if (ctl.use && P.cool <= 0 && P.nearTrapo) {
         P.cool = 0.4;
         this.takeTrapo(P, P.nearTrapo);
