@@ -84,10 +84,12 @@ function carOverlap(a, b) {
   return { o, ux: nx, uy: ny };
 }
 
+// El que maneja es el del asiento 0; los demás que tengan P.car === car van de acompañantes
 function driverOf(car) {
-  for (const P of G.players) if (P.car === car) return P;
+  for (const P of G.players) if (P.car === car && !P.seat) return P;
   return null;
 }
+const ridersOf = car => G.players.filter(P => P.car === car);
 
 class Game {
   constructor() {
@@ -231,7 +233,7 @@ class Game {
   respawn(P) {
     const s = freeRoadSpot();
     Object.assign(P, {
-      x: s.x, y: s.y, hp: P.maxhp, dead: false, car: null, cool: 0.5, money: 0,
+      x: s.x, y: s.y, hp: P.maxhp, dead: false, car: null, seat: 0, cool: 0.5, money: 0,
       inv: { pistola: Infinity }, wpn: 'pistola', armor: 0,
       wanted: 0, wantCool: 0, wantPeak: 0, slowmo: 0, food: 80, drink: 80, bag: {}, trapo: null,
     });
@@ -284,19 +286,27 @@ class Game {
 
   // Bajarse: el auto queda ahí, sin nadie adentro (rueda hasta frenar si venía andando),
   // y es tuyo para volver a subirte sin que nadie llame a la yuta
+  // Si se baja el que maneja y quedan acompañantes, pasa a manejar el de asiento más bajo
   exitCar(P = G.me) {
     if (!P || !P.car) return;
-    const car = P.car;
+    const car = P.car, seat = P.seat;
     sfx('puerta', car.x, car.y);
+    const side = Math.PI / 2 * (seat % 2 ? -1 : 1);
+    P.x = car.x + Math.cos(car.ang + side) * 15;
+    P.y = car.y + Math.sin(car.ang + side) * 15;
+    P.car = null;
+    P.seat = 0;
+    const rest = ridersOf(car);
+    if (rest.length) {
+      if (!seat) rest.reduce((a, b) => (b.seat < a.seat ? b : a)).seat = 0;
+      return;
+    }
     car.ai = false;
     car.chase = false;
     car.nav = false;
     car.parked = P;
     car.brake = false;
     car.steer = 0;
-    P.x = car.x + Math.cos(car.ang + Math.PI / 2) * 15;
-    P.y = car.y + Math.sin(car.ang + Math.PI / 2) * 15;
-    P.car = null;
   }
 
   wantUp(P, n) {
@@ -312,17 +322,19 @@ class Game {
   }
 
   wreckCar(car) {
-    const P = driverOf(car);
+    const P = driverOf(car), riders = ridersOf(car);
     sfx('explosion', car.x, car.y);
     trafficAI.alarm(car.x, car.y, 170, P, 2);
     boom(car.x, car.y, P ? 34 : 24, '255,150,40', 2);
     puff(car.x, car.y, '40,40,40', 10, 26);
     decal(car.x, car.y, P ? 14 : 12, 'rgba(10,10,10,.5)');
     if (P) {
-      this.shakeFor(P, 12);
-      this.flashFor(P, 0.8);
-      P.hp -= 25;
-      this.exitCar(P);
+      for (const q of riders) {
+        this.shakeFor(q, 12);
+        this.flashFor(q, 0.8);
+        q.hp -= 25;
+        this.exitCar(q);
+      }
     } else {
       this.shakeAt(car.x, car.y, 4);
     }
@@ -1219,6 +1231,15 @@ class Game {
         }
         this.respawn(P);
       }
+    } else if (P.car && P.seat) {
+      // Acompañante: el auto lo maneja otro; con sus controles apunta (y tira más abajo)
+      P.x = P.car.x;
+      P.y = P.car.y;
+      if (Math.abs(ix) > 0.1 || Math.abs(iy) > 0.1) P.ang = Math.atan2(iy, ix);
+      if (ctl.use && P.cool <= 0) {
+        this.exitCar(P);
+        P.cool = 0.4;
+      }
     } else if (P.car) {
       const car = P.car;
       const acc = ctl.run ? 200 : 145;
@@ -1256,8 +1277,10 @@ class Game {
         car.x = clamp(nx, 8, WORLD - 8);
         car.y = clamp(ny, 8, WORLD - 8);
       }
-      P.x = car.x;
-      P.y = car.y;
+      for (const q of ridersOf(car)) {
+        q.x = car.x;
+        q.y = car.y;
+      }
       P.ang = car.ang;
 
       if (car.hp < 45) {
@@ -1348,14 +1371,26 @@ class Game {
         P.cool = 0.4;
         let best = null, bd = 26;
         for (const c of G.cars) {
-          if (driverOf(c)) continue; // el auto de otro jugador no se roba
           const d = dist(c, P);
           if (d < bd) {
             bd = d;
             best = c;
           }
         }
-        if (best) {
+        const riders = best ? ridersOf(best) : [];
+        if (riders.length) {
+          // El auto de otro jugador no se roba: si hay lugar, se sube de acompañante
+          if (riders.length >= CAR_SEATS) {
+            this.say('NO HAY LUGAR', 1.6, P);
+          } else {
+            const used = new Set(riders.map(q => q.seat));
+            P.seat = 1;
+            while (used.has(P.seat)) P.seat++;
+            P.car = best;
+            sfx('puerta', best.x, best.y);
+            this.say('DE ACOMPAÑANTE', 1.8, P);
+          }
+        } else if (best) {
           // Con chofer: lo bajás de una y sale corriendo (y alguien llama a la yuta).
           // Uno estacionado o abandonado se agarra sin escándalo.
           const jacked = best.ai && !best.cop && best.hp > 0, mine = best.parked === P;
@@ -1368,6 +1403,7 @@ class Game {
           best.hazard = false;
           best.parked = null;
           P.car = best;
+          P.seat = 0;
           sfx('puerta', best.x, best.y);
           if (jacked) this.wantUp(P, 1);
           if (!mine) this.say(best.cop ? 'AUTO DE LA YUTA' : 'AUTO ROBADO', 2.6, P);
@@ -1465,7 +1501,7 @@ class Game {
       // jugador, con PVP, a los otros (nunca a él mismo)
       for (const P of G.players) {
         if (b.life <= 0) break;
-        if (P === b.owner || (b.owner && !PVP) || !inPlay(P)) continue;
+        if (P === b.owner || (b.owner && !PVP) || !inPlay(P) || (b.owner && P.car && b.owner.car === P.car)) continue;
         if (segDist(b, P) < (P.car ? 12 : 7)) {
           b.life = 0;
           this.shootPlayer(P, b.dmg, b.owner);
@@ -1815,7 +1851,7 @@ class Game {
       if (!c.tgt || !G.players.includes(c.tgt)) c.tgt = nearestPlayer(c).p;
       const P = c.tgt;
       // Su jugador ya no tiene estrellas: apaga la sirena y vuelve al tráfico (se va cuando nadie lo ve)
-      if (P.wanted <= 0) {
+      if (!P || P.wanted <= 0) {
         Object.assign(c, { chase: false, ai: true, nav: false, tgt: null, slot: undefined, bustT: 0, cruise: c.model.cruise * rnd(0.9, 1.1) });
         continue;
       }

@@ -2911,7 +2911,7 @@ class Renderer {
 
     // Los jugadores van arriba de todo; el local al final, para que nunca lo tape otro
     for (const P of G.players.filter(q => q !== G.me).concat(G.me ? [G.me] : [])) {
-      if (P.car) this.drawCar(P.car, night);
+      if (P.car) { if (!P.seat) this.drawCar(P.car, night); }
       else if (!P.dead && !P.healing) this.drawGuy(P, P.def.id, P.def.shirt, P.def.pants, P.hp < 35);
       if (P.trapo && !P.dead) this.drawFlag(P.trapo.def.k, P.x - G.cam.x + 3, P.y - G.cam.y - 16, 0.8);
     }

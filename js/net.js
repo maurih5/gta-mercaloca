@@ -302,6 +302,7 @@ class NetManager {
       q === P ? packInv(q.inv) : 0,
       Math.round(q.food), Math.round(q.drink), q === P ? q.bag : 0,
       q.respect || 0, q.trapo ? G.barras.indexOf(q.trapo) + 1 : 0, r1(q.trapoT || 0), q.bank,
+      q.seat || 0,
     ]);
     // Los hinchas: como la yuta, en el radar y el mapa de todos
     const hinchas = G.hinchas.filter(h => h.hp > 0).map(h => [id(h), r1(h.x), r1(h.y), r2(h.ang), G.barras.indexOf(h.barra), r2(h.swing || 0)]);
@@ -559,6 +560,7 @@ class NetManager {
       q.trapo = (a[25] && G.barras[a[25] - 1]) || null;
       q.trapoT = a[26] || 0;
       q.bank = a[27] || 0;
+      q.seat = q.car ? a[28] || 0 : 0;
     });
 
     const me = G.players.find(q => q.id === this.myId) || null;
