@@ -1894,6 +1894,19 @@ describe('multijugador', () => {
     assert.equal(G.me.wanted, 0, 'el otro sigue sin estrellas');
   });
 
+  test('sin estrellas, los patrulleros sueltan solo a ese jugador', () => {
+    startGame(CREW[0]);
+    alejarDeVillas(G.me);
+    const P2 = addPlayer(CREW[1]);
+    lejos(P2, 900); alejarDeVillas(P2);
+    G.cars.push(makeChaser(G.me), makeChaser(P2));
+    G.me.wanted = 0; P2.wanted = 3;
+    update(1/60);
+    assert.ok(!G.cars.some(c => c.chase && c.tgt === G.me), 'el que perdio las estrellas ya no tiene patrullero encima');
+    assert.ok(G.cars.some(c => c.cop && c.ai && !c.chase), 'el patrullero vuelve al trafico');
+    assert.ok(G.cars.some(c => c.chase && c.tgt === P2), 'el buscado sigue perseguido');
+  });
+
   test('el arresto de uno no toca al otro ni frena el mundo', () => {
     startGame(CREW[0]);
     const P2 = addPlayer(CREW[1]);
