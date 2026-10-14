@@ -1212,6 +1212,7 @@ class Game {
     }
 
     // ---- Adentro de un boliche: unos segundos y sale con lo que da el lugar
+    if (P.party && (P.dead || P.busted)) P.party = 0;
     if (P.party) {
       P.partyT += dt;
       if (P.partyT > BOLICHE_TIME) this.leaveBoliche(P);
