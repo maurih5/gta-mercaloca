@@ -31,6 +31,7 @@ class EntityManager {
       food: 100,       // hambre: 100 lleno, 0 muerto de hambre
       drink: 100,      // sed
       bag: {},         // mochila: comida y bebida por id (FOOD)
+      score: 0,        // puntos del ranking (SCORE)
       respect: 0,      // respeto (RANKS)
       wantPeak: 0,     // estrellas máximas desde la última vez en 0 (para el respeto al perderlos)
       trapo: null,     // la barra cuyo trapo lleva encima

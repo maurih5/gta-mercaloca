@@ -2501,6 +2501,23 @@ class Renderer {
     });
   }
 
+  // Tabla de posiciones (mantener Tab): todos los jugadores por score
+  drawRanking() {
+    const ctx = this.ctx, rows = G.players.slice().sort((a, b) => (b.score || 0) - (a.score || 0));
+    const w = 260, h = 40 + rows.length * 12, x0 = (RW - w) / 2, y0 = (RH - h) / 2;
+    ctx.fillStyle = 'rgba(8,8,10,.92)';
+    ctx.fillRect(x0, y0, w, h);
+    ctx.fillStyle = '#e8b53a';
+    ctx.fillRect(x0, y0, w, 1);
+    this.text('RANKING', RW / 2, y0 + 12, '#ffd34a', 7, 'center');
+    rows.forEach((q, i) => {
+      const y = y0 + 28 + i * 12, col = q === G.me ? '#ffd34a' : '#e8e8e8';
+      this.text((i + 1) + '. ' + q.def.name.replace(/^EL /, ''), x0 + 10, y, col, 5);
+      this.text(String(q.score || 0), x0 + w - 10, y, '#e8c86a', 5, 'right');
+    });
+    this.text(SCORE_RULES, RW / 2, y0 + h - 6, '#9a9a9a', 3, 'center');
+  }
+
   text(t, x, y, col = '#fff', size = 8, align = 'left') {
     const ctx = this.ctx;
     ctx.font = size + 'px "Press Start 2P", monospace';
@@ -3024,6 +3041,7 @@ class Renderer {
     this.drawRadar();
     this.drawHUD();
     if (G.mapOpen) this.drawMap();
+    if (G.rankOpen) this.drawRanking();
   }
 }
 

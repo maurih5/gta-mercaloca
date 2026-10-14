@@ -271,6 +271,7 @@ class Game {
     P.cool = 0.5;
     this.dropTrapo(P);
     this.loseRespect(P, RESPECT_BUST);
+    this.addScore(P, -SCORE.bust);
     P.wantPeak = 0;
     // En la comisaria te sacan los fierros y el chaleco, y te dan un mate cocido
     P.food = Math.max(P.food, 50);
@@ -796,6 +797,10 @@ class Game {
     }
   }
 
+  addScore(P, n) {
+    if (P && n) P.score = Math.max(0, (P.score || 0) + n);
+  }
+
   loseRespect(P, frac, n = 0) {
     P.respect = Math.max(0, Math.round((P.respect || 0) * (1 - frac)) - n);
   }
@@ -810,8 +815,10 @@ class Game {
   playerDown(P) {
     const by = P.hitBy && G.t - P.hitT < 6 && G.players.includes(P.hitBy) && inPlay(P.hitBy) ? P.hitBy : null;
     this.loseRespect(P, RESPECT_DEATH, by ? RESPECT.pvpLoss : 0);
+    this.addScore(P, -SCORE.death - (by ? SCORE.pvpLoss : 0));
     P.wantPeak = 0;
     if (by) {
+      this.addScore(by, SCORE.pvp);
       this.gainRespect(by, RESPECT.pvp, 'BAJASTE A ' + P.def.name);
       if (P.trapo && !by.trapo) {
         const B = P.trapo;
@@ -866,7 +873,7 @@ class Game {
         P.trapoT = 0;
         P.trapos++;
         Object.assign(B, { trapo: 'gone', by: null, backT: TRAPO_BACK, angry: BARRA_ANGRY });
-        this.gainRespect(P, RESPECT.trapo, 'EL TRAPO DE ' + B.def.name);
+        { this.gainRespect(P, RESPECT.trapo, 'EL TRAPO DE ' + B.def.name); this.addScore(P, SCORE.trapo); }
         for (const q of G.players) if (q !== P) this.say(P.def.name + ' SE QUEDO CON EL TRAPO DE ' + B.def.name, 2.8, q);
       }
     }
@@ -1053,7 +1060,7 @@ class Game {
     const msg = b.super === 'lanus' ? 'LA CAJA ESTABA VACIA. YA LA ROBARON AYER' : 'CAJA VACIA! JUNTA LA GUITA Y RAJA';
     for (const q of b.robbers) {
       this.say(msg, 3, q);
-      if (G.players.includes(q)) this.gainRespect(q, RESPECT[b.super], 'ROBO');
+      if (G.players.includes(q)) { this.gainRespect(q, RESPECT[b.super], 'ROBO'); this.addScore(q, SCORE[b.super]); }
     }
     boom(d.x + ax * 12, d.y + ay * 12, 10, '120,220,120');
     b.witnessT = ROB_WITNESS;
@@ -1085,7 +1092,7 @@ class Game {
       }
     }
     this.say('BAJASTE A ' + e.famous.name, 2.6, by);
-    if (by && by.kind === 'player') this.gainRespect(by, RESPECT.famoso, e.famous.name);
+    if (by && by.kind === 'player') { this.gainRespect(by, RESPECT.famoso, e.famous.name); this.addScore(by, SCORE.famoso); }
   }
 
   // Aparecen cerca de cada jugador cada tanto (sin que otro jugador los vea aparecer),
@@ -2085,7 +2092,7 @@ class Game {
         P.wanted--;
         this.say(P.wanted ? 'BAJO LA BUSQUEDA' : 'LOS PERDISTE', 2.6, P);
         if (!P.wanted) {
-          if (P.wantPeak >= 3) this.gainRespect(P, RESPECT.star * P.wantPeak, 'LOS PERDISTE');
+          if (P.wantPeak >= 3) { this.gainRespect(P, RESPECT.star * P.wantPeak, 'LOS PERDISTE'); this.addScore(P, SCORE.star * P.wantPeak); }
           P.wantPeak = 0;
         }
       }
