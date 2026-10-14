@@ -2942,12 +2942,13 @@ describe('multijugador online', () => {
     assert.ok(C.G.me.car && C.G.me.seat === 1, 'el cliente se ve de acompañante');
     assert.ok(C.G.players.find(q => q.id !== C.G.me.id).car === C.G.me.car, 'en el mismo auto que el host');
     C.render();
-    const n0 = G.bullets.filter(b => b.owner === P2).length;
+    // La bala puede chocar y borrarse en el mismo update: se mide el disparo, que avisa con su dueño
+    const alarm = trafficAI.alarm, duenos = [];
+    trafficAI.alarm = (x, y, r, who, ...rest) => { duenos.push(who); return alarm.call(trafficAI, x, y, r, who, ...rest); };
     P2.cool = 0;
     C.input.keys.Space = true;
-    for (let f = 0; f < 3; f++) frame(red);
-    C.input.keys.Space = false;
-    assert.ok(G.bullets.filter(b => b.owner === P2).length > n0, 'las balas del cliente son suyas');
+    try { for (let f = 0; f < 3; f++) frame(red); } finally { trafficAI.alarm = alarm; C.input.keys.Space = false; }
+    assert.ok(duenos.includes(P2), 'los tiros del cliente son suyos');
     G.me.car = null;
     P2.car = null; P2.seat = 0;
   });
