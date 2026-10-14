@@ -28,6 +28,8 @@ function foodIcon(g, id, x, y) {
   } else if (id === 'asado' || id === 'crudo' || id === 'quemado') {
     const c = { asado: ['#7a3a1e', '#a85a2e'], crudo: ['#9a2424', '#d05050'], quemado: ['#1e1612', '#3a2a1e'] }[id];
     r(c[0], -6, -3, 12, 7); r(c[1], -6, -3, 12, 3); r('#d8d0c0', 3, 1, 3, 1);
+  } else if (id === 'chocolate') {
+    r('#4a2a18', -6, -3, 12, 7); r('#6b3f26', -6, -3, 12, 3); r('#2e1a0e', -2, -3, 1, 7); r('#2e1a0e', 2, -3, 1, 7);
   } else if (id === 'agua') {
     r('#a8d8f0', -2, -6, 5, 12); r('#e8f6ff', -1, -5, 1, 9); r('#3a7ab8', -2, -7, 5, 2); r('#3a7ab8', -2, 0, 5, 2);
   } else if (id === 'gaseosa') {
@@ -316,6 +318,18 @@ class Renderer {
       ctx.fillRect(px(rx + b.w * 0.12), px(ry + b.h * 0.62), 10, 2.5);
     }
 
+    if (b.bank) {
+      const sx = rx + b.w / 2, sy = ry + b.h / 2;
+      ctx.fillStyle = '#0e2a12';
+      ctx.fillRect(px(sx - 17), px(sy - 6), 34, 12);
+      ctx.fillStyle = '#2f8a3a';
+      ctx.fillRect(px(sx - 16), px(sy - 5), 32, 10);
+      ctx.font = '5px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('BANCO', px(sx), px(sy + 2.5));
+    }
+
     if (b.hospital) {
       const ccx = rx + b.w / 2, ccy = ry + b.h / 2, cs = Math.min(b.w, b.h) * 0.22;
       ctx.fillStyle = '#ffffff';
@@ -422,6 +436,7 @@ class Renderer {
 
     if (b.stadium) this.drawStadium(b, rx, ry);
     if (b.super) this.drawSuperSign(b, rx, ry);
+    if (b.boliche) this.drawBolicheSign(b, rx, ry);
     if (b.super && b.closed > 0 && b.door) {
       // Persiana baja: chapa gris con canaletas
       const d = b.door, dxp = d.x - G.cam.x, dyp = d.y - G.cam.y, hz = d.s === 'n' || d.s === 's';
@@ -595,6 +610,18 @@ class Renderer {
       const k = Math.floor(G.t / 5), on = (G.t % 5) < 2.6;
       if (on) this.text(B.def.chant[k % B.def.chant.length], x, y - 26, B.def.band, 5, 'center');
     }
+  }
+
+  // Cartel del boliche en el techo: de noche titila el neón, de día queda apagado
+  drawBolicheSign(b, rx, ry) {
+    const ctx = this.ctx, D = bolicheOf(b), on = bolicheOpen();
+    const sx = rx + b.w / 2, sy = ry + b.h / 2, w = D.name.length * 5 + 8;
+    ctx.fillStyle = '#0a080c';
+    ctx.fillRect(px(sx - w / 2), px(sy - 6), w, 12);
+    ctx.font = '5px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = on && Math.floor(G.t * 3) % 4 ? 'rgb(' + D.glow + ')' : '#4a4450';
+    ctx.fillText(D.name, px(sx), px(sy + 2.5));
   }
 
   // Cartel del super en el techo. Al de Lanús se le cayó la O y quedó tirada al lado
@@ -1524,6 +1551,13 @@ class Renderer {
       ctx.fill();
       ctx.fillStyle = '#fff6c8';
       ctx.fillRect(px(x - 2), px(y - 2), 1.5, 1.5);
+    } else if (pk.kind === 'merca') {
+      ctx.fillStyle = '#2f3040';
+      ctx.fillRect(px(x - 4), px(y - 3), 9, 7);
+      ctx.fillStyle = '#f7f7ff';
+      ctx.fillRect(px(x - 4), px(y - 4), 8, 6);
+      ctx.fillStyle = '#d7dcff';
+      ctx.fillRect(px(x - 2), px(y - 2), 5, 1);
     } else if (pk.kind === 'cash') {
       ctx.fillStyle = '#1f5c23';
       ctx.fillRect(px(x - 5), px(y - 4), 10, 7);
@@ -2157,6 +2191,16 @@ class Renderer {
       ECTX.drawImage(b.super ? this.glow(255, 90, 70, gsz) : this.glow(255, 150, 50, gsz), x - gsz / 2, y - gsz / 2);
       any = true;
     }
+    if (bolicheOpen()) {
+      for (const b of boliches) {
+        const d = b.door, x = d.x + d.ox - G.cam.x, y = d.y + d.oy - G.cam.y;
+        if (x < -40 || y < -40 || x > RW + 40 || y > RH + 40) continue;
+        const gsz = 56, c = bolicheOf(b).glow;
+        ECTX.globalAlpha = (0.5 + Math.sin(G.t * 8) * 0.2) * Math.max(k, 0.5);
+        ECTX.drawImage(this.glow(c[0], c[1], c[2], gsz), x - gsz / 2, y - gsz / 2);
+        any = true;
+      }
+    }
     for (const g of parrillas) {
       if (!g.cooking) continue;
       const x = g.x - G.cam.x, y = g.y - G.cam.y;
@@ -2167,6 +2211,20 @@ class Renderer {
       any = true;
     }
     if (night > 0.18 && this.drawBoatLights(k)) any = true; // luces de las lanchas
+    // Helicóptero de noche: reflector que barre el piso y luces de navegación
+    for (const p of G.peds) {
+      if (!p.air || p.hp <= 0 || night < 0.12) continue;
+      const x = p.x - G.cam.x, y = p.y - G.cam.y;
+      if (x < -120 || y < -120 || x > RW + 120 || y > RH + 120) continue;
+      const a = G.t * 0.8 + p.x * 0.01, gsz = 70;
+      ECTX.globalAlpha = 0.8 * k;
+      ECTX.drawImage(this.glow(235, 245, 255, gsz), x + 10 + Math.cos(a) * 30 - gsz / 2, y + 18 + Math.sin(a) * 20 - gsz / 2);
+      ECTX.globalAlpha = k;
+      const sn = Math.sin(p.ang) * 7, cs = Math.cos(p.ang) * 7;
+      ECTX.drawImage(this.glow(255, 50, 50, 18), x + sn - 9, y - cs - 9);
+      ECTX.drawImage(this.glow(60, 255, 100, 18), x - sn - 9, y + cs - 9);
+      any = true;
+    }
 
     ECTX.globalAlpha = 1;
     if (any) {
@@ -2191,7 +2249,7 @@ class Renderer {
       ctx.fillStyle = col;
       ctx.fillRect(px(x), px(y), sz, sz);
     };
-    for (const pk of G.pickups) dot(pk, { cash: '#5ad25a', gold: '#ffd34a', hp: '#ff5a5a', weapon: '#ffc84a' }[pk.kind] || '#ffffff');
+    for (const pk of G.pickups) dot(pk, { cash: '#5ad25a', gold: '#ffd34a', merca: '#f0f0ff', hp: '#ff5a5a', weapon: '#ffc84a' }[pk.kind] || '#ffffff');
     for (const h of hospitals) dot({ x: h.x + h.w / 2, y: h.y + h.h / 2 }, '#ffffff', 3);
     for (const b of supers) dot({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, '#ff6a5a', 3);
     for (const g of parrillas) dot(g, g.cooking ? '#ff9a3a' : '#a8643a', 2);
@@ -2251,6 +2309,7 @@ class Renderer {
     for (const g of parrillas) add(g.cooking ? 'asado' : 'parrilla', g.x, g.y);
     for (const h of hospitals) add('hospital', ...mid(h));
     for (const b of shops) add('armeria', b.door.x + b.door.ox, b.door.y + b.door.oy);
+    for (const b of banks) add('banco', ...mid(b));
     for (const b of supers) add(b.closed > 0 || b.robbing ? 'cerrado' : b.super === 'noche' ? 'noche' : 'choto', ...mid(b));
     for (const cr of casaRosada) add('rosada', ...mid(cr));
     for (const b of stadiums) add('st_' + b.stadium, ...mid(b));
@@ -2319,6 +2378,7 @@ class Renderer {
         r('#000', -3, -3, 7, 7); r(q ? q.def.shirt : '#5ad25a', -2, -2, 5, 5);
         break;
       case 'hospital': box('#f4f4f4'); r('#d8342c', -1, -3, 3, 7); r('#d8342c', -3, -1, 7, 3); break;
+      case 'banco': box('#2f7a3a'); r('#7de07d', -3, -2, 7, 5); r('#2f7a3a', -1, -1, 3, 3); break;
       case 'armeria': box('#e8892a'); r('#14100c', -3, -2, 7, 2); r('#14100c', -3, 0, 2, 3); break;
       case 'choto': box('#c8302a'); cart('#fff'); break;
       case 'noche': box('#2a4fa8'); cart('#ff6a5a'); break;
@@ -2358,7 +2418,7 @@ class Renderer {
     ctx.globalAlpha = 1;
     // Primero lo chico (guita, yuta), arriba los lugares
     const order = ['guita', 'fierro', 'comida', 'hincha', 'yuta', 'parrilla', 'asado', 'tranza', 'tranzaMal', 'patrullero',
-      'cerrado', 'noche', 'choto', 'armeria', 'hospital', ...STADIUMS.map(S => 'st_' + S.k), 'rosada', 'obelisco',
+      'cerrado', 'noche', 'choto', 'armeria', 'banco', 'hospital', ...STADIUMS.map(S => 'st_' + S.k), 'rosada', 'obelisco',
       ...BARRAS.map(B => 'tr_' + B.k), 'famoso', 'jugador'];
     for (const kind of order) {
       for (const e of items) {
@@ -2452,12 +2512,118 @@ class Renderer {
     ctx.fillText(t, x, y);
   }
 
+  // Helicóptero de un famoso: sombra en el piso, fuselaje con su cara en la cabina y aspas girando
+  drawHeli(e) {
+    const ctx = this.ctx;
+    const x = e.x - G.cam.x, y = e.y - G.cam.y;
+    if (x < -50 || y < -50 || x > RW + 50 || y > RH + 50) return;
+    const t = G.t, sx = x + 10, sy = y + 18;
+    // Viento de las aspas en el piso: anillos que se abren bajo la sombra
+    ctx.strokeStyle = 'rgba(230,225,210,.35)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 2; i++) {
+      const k = (t * 1.6 + i / 2) % 1;
+      ctx.globalAlpha = 1 - k;
+      ctx.beginPath();
+      ctx.ellipse(sx, sy, 8 + k * 18, 4 + k * 9, 0, 0, TAU);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(0,0,0,.25)';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, 12, 5, e.ang, 0, TAU);
+    ctx.fill();
+
+    const hov = Math.sin(t * 2.4) * 1.2; // se mece en el aire
+    ctx.save();
+    ctx.translate(x, y + hov);
+    ctx.rotate(e.ang + Math.sin(t * 1.3) * 0.05);
+    ctx.fillStyle = '#2a2a30'; // patines
+    ctx.fillRect(-7, -8, 15, 1.4);
+    ctx.fillRect(-7, 6.6, 15, 1.4);
+    ctx.fillStyle = shade(e.shirt, 0.7);
+    ctx.fillRect(-21, -1.5, 15, 3); // cola
+    ctx.fillStyle = '#f2f2f2';
+    ctx.fillRect(-16, -1.5, 2, 3); // franja blanca
+    ctx.fillRect(-12, -1.5, 2, 3);
+    ctx.fillStyle = shade(e.shirt, 0.6);
+    ctx.fillRect(-23, -5, 3, 10); // estabilizador
+    ctx.save(); // rotor de cola
+    ctx.translate(-21.5, 0);
+    ctx.rotate(t * 40);
+    ctx.fillStyle = 'rgba(40,40,40,.8)';
+    ctx.fillRect(-0.5, -4, 1, 8);
+    ctx.restore();
+    ctx.fillStyle = shade(e.shirt, 0.8);
+    ctx.beginPath();
+    ctx.ellipse(0.5, 0.8, 10.5, 7, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = e.shirt;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 10, 6.5, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.25)'; // brillo de la chapa
+    ctx.fillRect(-6, -5, 9, 1.5);
+    ctx.fillStyle = 'rgba(120,200,255,.9)'; // burbuja de la cabina
+    ctx.beginPath();
+    ctx.ellipse(6, 0, 4, 5, 0, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.7)';
+    ctx.fillRect(7, -3, 1.5, 2);
+    // Luces de navegación: roja y verde en los costados, blanca que titila en la cola
+    ctx.fillStyle = '#ff3030';
+    ctx.fillRect(-2, -7.5, 2, 2);
+    ctx.fillStyle = '#30ff60';
+    ctx.fillRect(-2, 5.5, 2, 2);
+    if (t % 1 < 0.15) { ctx.fillStyle = '#ffffff'; ctx.fillRect(-24, -1, 2, 2); }
+    ctx.restore();
+
+    const f = G.faces['famous-' + e.famous.id];
+    if (f) ctx.drawImage(f, px(x - 5), px(y - 5 + hov), 10, 10);
+
+    // Aspas: disco borroso y dos palas girando
+    ctx.fillStyle = 'rgba(40,40,45,.12)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + hov, 19, 19, 0, 0, TAU);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(25,25,30,.75)';
+    ctx.lineWidth = 1.6;
+    for (const a of [t * 24, t * 24 + Math.PI / 2]) {
+      const c = Math.cos(a) * 19, s = Math.sin(a) * 19;
+      ctx.beginPath();
+      ctx.moveTo(x - c, y + hov - s);
+      ctx.lineTo(x + c, y + hov + s);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#18181c';
+    ctx.fillRect(px(x - 1), px(y - 1 + hov), 3, 3);
+
+    // Cartel de EN VIVO que titila y el chat que le tira corazones
+    const bx = x - 11, by = y + 24;
+    ctx.fillStyle = t % 1 < 0.6 ? '#e8242c' : '#9a1418';
+    ctx.fillRect(px(bx), px(by), 22, 7);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(px(bx + 2), px(by + 2), 3, 3);
+    this.text('VIVO', px(bx + 14), px(by + 1.5), '#ffffff', 4, 'center');
+    for (let i = 0; i < 4; i++) {
+      const k = (t * 0.7 + i / 4) % 1;
+      const hx = x + 14 + Math.sin(k * 9 + i * 2) * 4, hy = y - 2 - k * 26 + hov;
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = ['#ff4d6d', '#ff9a3a', '#b46aff', '#3ad2ff'][i];
+      ctx.fillRect(px(hx - 2), px(hy - 1), 2, 2);
+      ctx.fillRect(px(hx + 1), px(hy - 1), 2, 2);
+      ctx.fillRect(px(hx - 2), px(hy), 5, 2);
+      ctx.fillRect(px(hx - 1), px(hy + 2), 3, 1);
+    }
+    ctx.globalAlpha = 1;
+  }
+
   // Nombre arriba de cada famoso y, si está hablando, su globito
   drawFamousTags() {
     const ctx = this.ctx;
     for (const p of G.peds) {
       if (!p.famous || p.hp <= 0 || p.inside) continue;
-      const x = p.x - G.cam.x, y = p.y - G.cam.y - 16;
+      const x = p.x - G.cam.x, y = p.y - G.cam.y - (p.air ? 26 : 16);
       if (x < -60 || y < -30 || x > RW + 60 || y > RH + 30) continue;
       this.text(p.famous.name, px(x), px(y), '#ffd34a', 4, 'center');
       if (p.lineT > 0) {
@@ -2482,7 +2648,7 @@ class Renderer {
   // El nombre de los otros jugadores arriba de la cabeza, con el color de su remera
   drawPlayerTags() {
     for (const q of G.players) {
-      if (q === G.me || q.dead || q.healing) continue;
+      if (q === G.me || q.dead || q.healing || q.party) continue;
       const x = q.x - G.cam.x, y = q.y - G.cam.y - (q.car ? 14 : 18);
       if (x < -60 || y < -30 || x > RW + 60 || y > RH + 30) continue;
       this.text(q.def.name, px(x), px(y), q.def.shirt, 4, 'center');
@@ -2517,6 +2683,7 @@ class Renderer {
     // Respeto: el rango y cuánto tiene
     const rank = RANKS[game.rankOf(P)][1];
     this.text(rank + ' ' + (P.respect || 0), RW - 8, needY + 17, '#e8c86a', 5, 'right');
+    if (P.bank > 0) this.text('BANCO $' + P.bank, RW - 8, needY + 25, '#7de07d', 5, 'right');
     // Hambre (naranja) y sed (celeste): titilan cuando están bajas
     const blink = Math.floor(G.t * 4) % 2;
     [[P.food, '#e8a23a', RW - 79], [P.drink, '#4ab0e8', RW - 42]].forEach(([v, col, x]) => {
@@ -2561,6 +2728,19 @@ class Renderer {
       const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
       const what = g && g.cooking ? 'SACAR UNA PORCION' : 'PRENDER EL ASADO (CARNE + CARBON)';
       this.text(key + ': ' + what, RW / 2, RH - 34, Math.floor(G.t * 3) % 2 ? '#ffb04a' : '#ffd34a', 7, 'center');
+    }
+    if (P.nearBoliche && !P.nearShop && !P.nearSuper && !G.shopOpen && !P.dead && !P.busted && !P.car && !P.party) {
+      const b = boliches.find(q => Math.hypot(q.door.x + q.door.ox - P.x, q.door.y + q.door.oy - P.y) < 16);
+      const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
+      if (b) {
+        const D = bolicheOf(b);
+        this.text(bolicheOpen() ? key + ': ENTRAR A ' + D.name + ' ($' + D.entry + ')' : D.name + ' ABRE A LA NOCHE',
+          RW / 2, RH - 34, Math.floor(G.t * 3) % 2 ? 'rgb(' + D.glow + ')' : '#fff', 7, 'center');
+      }
+    }
+    if (P.nearBank && !P.nearShop && !P.nearSuper && !G.shopOpen && !P.dead && !P.busted && !P.car) {
+      const key = (typeof touchController !== 'undefined' && touchController.isTouch) ? 'TOCA EL AUTO' : 'E';
+      this.text(key + ': ENTRAR AL BANCO', RW / 2, RH - 34, Math.floor(G.t * 3) % 2 ? '#7de07d' : '#ffd34a', 7, 'center');
     }
     if ((P.nearShop || P.nearTranza || P.nearSuper) && !G.shopOpen && !P.dead && !P.busted) {
       const bl = Math.floor(G.t * 3) % 2;
@@ -2655,6 +2835,20 @@ class Renderer {
       ctx.globalAlpha = 1;
     }
 
+    if (P.party) {
+      // Adentro del boliche: luces que giran y la gente bailando
+      const D = bolicheOf(boliches[P.party - 1]), c = D.glow;
+      ctx.fillStyle = 'rgba(8,4,14,.88)';
+      ctx.fillRect(0, 0, RW, RH);
+      for (let i = 0; i < 18; i++) {
+        const a = G.t * 1.3 + i * 2.4, x = RW / 2 + Math.cos(a) * (40 + i * 9), y = RH / 2 + Math.sin(a * 0.7) * (20 + i * 3);
+        ctx.fillStyle = i % 3 ? 'rgba(' + c + ',.5)' : 'rgba(255,255,255,.35)';
+        ctx.fillRect(px(x), px(y + Math.abs(Math.sin(G.t * 8 + i)) * -4), 4, 7);
+      }
+      this.text(D.name, RW / 2, RH / 2 - 30, 'rgb(' + c + ')', 12, 'center');
+      this.text(D.doing + '...', RW / 2, RH / 2 + 34, '#fff', 8, 'center');
+    }
+
     if (!P.busted && !P.dead && P.car) {
       const near = G.cars.some(c => c.chase && c.hp > 0 && dist(c, P) < 30);
       if (near && Math.floor(G.t * 5) % 2) {
@@ -2666,7 +2860,7 @@ class Renderer {
       ctx.fillStyle = 'rgba(70,0,0,.55)';
       ctx.fillRect(0, 0, RW, RH);
       this.text('TE MATARON', RW / 2, RH / 2 - 10, '#ff4a4a', 16, 'center');
-      this.text('GUITA: $' + P.money, RW / 2, RH / 2 + 12, '#ffd34a', 9, 'center');
+      this.text('GUITA: $' + P.money + (P.bank > 0 ? '  BANCO: $' + P.bank : ''), RW / 2, RH / 2 + 12, '#ffd34a', 9, 'center');
       this.text('ENTER PARA VOLVER AL BARRIO', RW / 2, RH / 2 + 32, '#fff', 8, 'center');
     }
 
@@ -2693,12 +2887,12 @@ class Renderer {
 
     for (const pk of G.pickups) this.drawPickup(pk);
 
-    // Marca en la vereda frente a cada armería y cada super abierto
-    for (const b of shops.concat(supers.filter(q => !(q.closed > 0)))) {
+    // Marca en la vereda frente a cada armería, cada super abierto y el banco
+    for (const b of shops.concat(supers.filter(q => !(q.closed > 0)), banks)) {
       const d = b.door, x = d.x + d.ox - G.cam.x, y = d.y + d.oy - G.cam.y;
       if (x < -20 || y < -20 || x > RW + 20 || y > RH + 20) continue;
       const pulse = 6 + Math.sin(G.t * 4) * 1.5;
-      ctx.strokeStyle = b.super ? 'rgba(255,110,90,.9)' : 'rgba(255,170,60,.9)';
+      ctx.strokeStyle = b.bank ? 'rgba(110,230,120,.9)' : b.super ? 'rgba(255,110,90,.9)' : 'rgba(255,170,60,.9)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.ellipse(x, y, pulse, pulse * 0.6, 0, 0, TAU);
@@ -2709,7 +2903,7 @@ class Renderer {
       if (!driverOf(c)) this.drawCar(c, night);
     }
     for (const p of G.peds) {
-      if (p.hp <= 0 || p.inside) continue;
+      if (p.hp <= 0 || p.inside || p.air) continue;
       if (p.fade < 1) ctx.globalAlpha = p.fade;
       this.drawGuy(p, p.face, p.shirt, p.pants, false);
       ctx.globalAlpha = 1;
@@ -2759,11 +2953,12 @@ class Renderer {
     for (const B of G.barras) this.drawTrapoPole(B);
     for (const l of lamps) this.drawLamp(l, night);
     for (const L of lights) if (L) this.drawTrafficLight(L);
+    for (const p of G.peds) if (p.air && p.hp > 0) this.drawHeli(p);
 
     // Los jugadores van arriba de todo; el local al final, para que nunca lo tape otro
     for (const P of G.players.filter(q => q !== G.me).concat(G.me ? [G.me] : [])) {
-      if (P.car) this.drawCar(P.car, night);
-      else if (!P.dead && !P.healing) this.drawGuy(P, P.def.id, P.def.shirt, P.def.pants, P.hp < 35);
+      if (P.car) { if (!P.seat) this.drawCar(P.car, night); }
+      else if (!P.dead && !P.healing && !P.party) this.drawGuy(P, P.def.id, P.def.shirt, P.def.pants, P.hp < 35);
       if (P.trapo && !P.dead) this.drawFlag(P.trapo.def.k, P.x - G.cam.x + 3, P.y - G.cam.y - 16, 0.8);
     }
 
@@ -2854,7 +3049,7 @@ const drawMap = () => renderer.drawMap();
 
 // Qué muestra cada ícono del mapa (en este orden van las referencias)
 const MAP_LEGEND = [
-  ['vos', 'VOS'], ['jugador', 'OTRO JUGADOR'], ['hospital', 'HOSPITAL'], ['armeria', 'ARMERIA'],
+  ['vos', 'VOS'], ['jugador', 'OTRO JUGADOR'], ['hospital', 'HOSPITAL'], ['armeria', 'ARMERIA'], ['banco', 'BANCO'],
   ['choto', 'SUPER CHOTO'], ['noche', 'SUPER NOCHE %'], ['cerrado', 'SUPER CERRADO'],
   ['parrilla', 'PARRILLA'], ['asado', 'ASADO PRENDIDO'], ...STADIUMS.map(S => ['st_' + S.k, S.name]),
   ...BARRAS.map(B => ['tr_' + B.k, 'TRAPO ' + B.short]), ['hincha', 'BARRA CALIENTE'],

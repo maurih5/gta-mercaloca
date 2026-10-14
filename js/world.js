@@ -8,6 +8,7 @@ const props = [];
 const lamps = [];
 const lights = [];
 const hospitals = [];
+const banks = []; // el banco: ahí cada jugador guarda su guita (P.bank)
 const water = [];
 const carBlock = []; // zonas que frenan autos pero se caminan a pie (explanada de la plaza)
 const casaRosada = [];
@@ -427,6 +428,7 @@ function rectHitsWater(x, y, w, h) {
 const shops = [];
 const supers = []; // supermercados (CHOTO, NOCHE %, CHOTO de Lanús)
 const stadiums = []; // LA CHOCOLATERA y EL MONUMENTAZO
+const boliches = []; // boliches (BOLICHES): b.boliche es su k
 const parrillas = []; // parrillas de las plazas y los potreros: ahí se hace el asado
 
 // Villas con su rectángulo en coordenadas del mundo (incluye las calles que las cruzan)
@@ -453,6 +455,7 @@ class World {
     this.lamps = lamps;
     this.lights = lights;
     this.hospitals = hospitals;
+    this.banks = banks;
     this.water = water;
     this.river = [];
     this.bridges = bridges;
@@ -463,6 +466,7 @@ class World {
     this.supers = supers;
     this.stadiums = stadiums;
     this.parrillas = parrillas;
+    this.boliches = boliches;
     this.bgrid = null;
   }
 
@@ -543,6 +547,7 @@ class World {
     this.lamps.length = 0;
     this.lights.length = 0;
     this.hospitals.length = 0;
+    this.banks.length = 0;
     this.water.length = 0;
     this.carBlock.length = 0;
     this.casaRosada.length = 0;
@@ -600,6 +605,7 @@ class World {
       if (c) cancha.set(c, S);
     }
     this.parrillas.length = 0;
+    this.boliches.length = 0;
 
     let id = 0;
     for (let cy = 0; cy < GRID; cy++) {
@@ -1181,6 +1187,22 @@ class World {
       }
     }
 
+    // Banco: el edificio con puerta a la calle más cerca del centro, pintado de verde
+    {
+      let best = null, bd = Infinity;
+      for (const b of this.buildings) {
+        const d = b.door;
+        if (!d || b.hospital || b.shop || b.villa || b.casaRosada || b.cabildo || b.stadium || b.ty.k === 'torre') continue;
+        if (!this.onRoad(d.x + d.ox * 4, d.y + d.oy * 4)) continue;
+        const dd = Math.hypot(b.x + b.w / 2 - WORLD * 0.5, b.y + b.h / 2 - WORLD * 0.42);
+        if (dd < bd) { bd = dd; best = b; }
+      }
+      if (best) {
+        Object.assign(best, { bank: true, col: '#d8d4c4', roofCol: '#2f7a3a' });
+        this.banks.push(best);
+      }
+    }
+
     // Supermercados: el edificio más grande cerca de cada punto, con la puerta a la calle.
     // Se pintan con los colores de la cadena y quedan bajitos, como un super de barrio.
     for (const S of SUPERS) {
@@ -1188,7 +1210,7 @@ class World {
       let best = null, bs = -Infinity;
       for (const b of this.buildings) {
         const d = b.door;
-        if (!d || b.super || b.shop || b.hospital || b.villa || b.casaRosada || b.cabildo || b.stadium || b.ty.k === 'torre') continue;
+        if (!d || b.super || b.bank || b.shop || b.hospital || b.villa || b.casaRosada || b.cabildo || b.stadium || b.ty.k === 'torre') continue;
         if (!this.onRoad(d.x + d.ox * 4, d.y + d.oy * 4)) continue;
         const dd = Math.hypot(b.x + b.w / 2 - tx, b.y + b.h / 2 - ty);
         const score = b.w * b.h - dd * 12; // grande, pero que no se vaya lejos del punto
@@ -1201,6 +1223,22 @@ class World {
       });
       this.supers.push(best);
       this.superProps(best);
+    }
+
+    // Boliches: un local chico cerca de cada punto, con la puerta a la calle, pintado de oscuro
+    for (const D of BOLICHES) {
+      const tx = D.at[0] * WORLD, ty = D.at[1] * WORLD;
+      let best = null, bd = CELL * 2.5;
+      for (const b of this.buildings) {
+        const d = b.door;
+        if (!d || b.super || b.boliche || b.shop || b.hospital || b.villa || b.casaRosada || b.cabildo || b.stadium || b.ty.k === 'torre') continue;
+        if (!this.onRoad(d.x + d.ox * 4, d.y + d.oy * 4)) continue;
+        const dd = Math.hypot(b.x + b.w / 2 - tx, b.y + b.h / 2 - ty);
+        if (dd < bd) { bd = dd; best = b; }
+      }
+      if (!best) continue;
+      Object.assign(best, { boliche: D.k, col: '#2a2430', roofCol: '#141018', H: Math.min(best.H, 16), ty: BTYPE.find(t => t.k === 'local'), tank: false });
+      this.boliches.push(best);
     }
 
     // Parrillas: en una de cada tres plazas, más o menos, y siempre en el potrero de la villa
@@ -2424,4 +2462,6 @@ const nearestDoor = (x, y, maxD) => world.nearestDoor(x, y, maxD);
 const dayT = () => world.dayT();
 const ambient = () => world.ambient();
 const darkness = () => world.darkness();
+const bolicheOf = b => BOLICHES.find(D => D.k === b.boliche);
+const bolicheOpen = () => darkness() > BOLICHE_DARK;
 const getObelisco = () => obelisco;

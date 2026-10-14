@@ -890,7 +890,7 @@ class TrafficAI {
       if (gap < s) { s = gap; v = vo; who = o; obj = o; }
     }
     for (const P of G.players) {
-      if (P.dead || P.healing || P.car || P === skip || !near(P, 10)) continue;
+      if (P.dead || P.healing || P.party || P.car || P === skip || !near(P, 10)) continue;
       if (onSidewalk(P.x, P.y)) continue;
       const { p, lat, lon } = proj(P);
       if (lat > c.h / 2 + 4.5) continue;
@@ -901,7 +901,7 @@ class TrafficAI {
     // El que va por la vereda no corta el paso (el jugador parado en el cordón trababa la fila)
     if (c.pedIgn <= 0) {
       for (const q of G.peds) {
-        if (q.hp <= 0 || q.inside || q === skip || !near(q, 10)) continue;
+        if (q.hp <= 0 || q.inside || q.air || q === skip || !near(q, 10)) continue;
         if (onSidewalk(q.x, q.y)) continue;
         const { p, lat, lon } = proj(q);
         if (lat > c.h / 2 + 4.5) continue;

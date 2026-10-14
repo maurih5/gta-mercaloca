@@ -42,7 +42,7 @@ const G = {
 // En juego: ni muerto, ni en la secuencia de arresto, ni adentro del hospital.
 // La IA solo persigue, apunta y arresta a los que están en juego.
 function inPlay(P) {
-  return !!P && !P.dead && !P.busted && !P.healing;
+  return !!P && !P.dead && !P.busted && !P.healing && !P.party;
 }
 
 // El jugador más cercano a o (entre los que cumplen ok), con su distancia
@@ -84,10 +84,12 @@ function carOverlap(a, b) {
   return { o, ux: nx, uy: ny };
 }
 
+// El que maneja es el del asiento 0; los demás que tengan P.car === car van de acompañantes
 function driverOf(car) {
-  for (const P of G.players) if (P.car === car) return P;
+  for (const P of G.players) if (P.car === car && !P.seat) return P;
   return null;
 }
+const ridersOf = car => G.players.filter(P => P.car === car);
 
 class Game {
   constructor() {
@@ -153,6 +155,7 @@ class Game {
     this.resetSupers();
     for (const g of parrillas) Object.assign(g, { cooking: false, t: 0, portions: 0, owner: null });
     copNav.reset();
+    G.corralitoT = undefined;
     G.peds = [];
     G.guards = [];
     G.cops = [];
@@ -225,11 +228,12 @@ class Game {
   }
 
   // Volver al barrio después de morir con otros jugando: no se reinicia el mundo de
-  // todos, reaparece solo él, sin fierros ni estrellas pero con su guita
+  // todos, reaparece solo él, sin fierros, ni estrellas, ni la guita que llevaba encima
+  // (la del banco la conserva)
   respawn(P) {
     const s = freeRoadSpot();
     Object.assign(P, {
-      x: s.x, y: s.y, hp: P.maxhp, dead: false, car: null, cool: 0.5,
+      x: s.x, y: s.y, hp: P.maxhp, dead: false, car: null, seat: 0, cool: 0.5, money: 0,
       inv: { pistola: Infinity }, wpn: 'pistola', armor: 0,
       wanted: 0, wantCool: 0, wantPeak: 0, slowmo: 0, food: 80, drink: 80, bag: {}, trapo: null,
     });
@@ -282,19 +286,27 @@ class Game {
 
   // Bajarse: el auto queda ahí, sin nadie adentro (rueda hasta frenar si venía andando),
   // y es tuyo para volver a subirte sin que nadie llame a la yuta
+  // Si se baja el que maneja y quedan acompañantes, pasa a manejar el de asiento más bajo
   exitCar(P = G.me) {
     if (!P || !P.car) return;
-    const car = P.car;
+    const car = P.car, seat = P.seat;
     sfx('puerta', car.x, car.y);
+    const side = Math.PI / 2 * (seat % 2 ? -1 : 1);
+    P.x = car.x + Math.cos(car.ang + side) * 15;
+    P.y = car.y + Math.sin(car.ang + side) * 15;
+    P.car = null;
+    P.seat = 0;
+    const rest = ridersOf(car);
+    if (rest.length) {
+      if (!seat) rest.reduce((a, b) => (b.seat < a.seat ? b : a)).seat = 0;
+      return;
+    }
     car.ai = false;
     car.chase = false;
     car.nav = false;
     car.parked = P;
     car.brake = false;
     car.steer = 0;
-    P.x = car.x + Math.cos(car.ang + Math.PI / 2) * 15;
-    P.y = car.y + Math.sin(car.ang + Math.PI / 2) * 15;
-    P.car = null;
   }
 
   wantUp(P, n) {
@@ -310,17 +322,19 @@ class Game {
   }
 
   wreckCar(car) {
-    const P = driverOf(car);
+    const P = driverOf(car), riders = ridersOf(car);
     sfx('explosion', car.x, car.y);
     trafficAI.alarm(car.x, car.y, 170, P, 2);
     boom(car.x, car.y, P ? 34 : 24, '255,150,40', 2);
     puff(car.x, car.y, '40,40,40', 10, 26);
     decal(car.x, car.y, P ? 14 : 12, 'rgba(10,10,10,.5)');
     if (P) {
-      this.shakeFor(P, 12);
-      this.flashFor(P, 0.8);
-      P.hp -= 25;
-      this.exitCar(P);
+      for (const q of riders) {
+        this.shakeFor(q, 12);
+        this.flashFor(q, 0.8);
+        q.hp -= 25;
+        this.exitCar(q);
+      }
     } else {
       this.shakeAt(car.x, car.y, 4);
     }
@@ -420,6 +434,7 @@ class Game {
     if (e.hp <= 0) {
       decal(e.x, e.y, rnd(4, 7), 'rgba(95,12,12,.5)');
       if (e.famous) this.famousDown(e, by);
+      if (e.air) this.explode(e.x, e.y, 26, 40, by); // el helicóptero se viene abajo
       this.wantUp(by, e.kind === 'cop' ? 2 : 1);
       if (by) by.money += e.kind === 'cop' ? 120 : 40;
       if (e.kind === 'cop' && Math.random() < 0.3) G.pickups.push(makeDrop(e.x, e.y, 'escopeta', 6));
@@ -430,7 +445,7 @@ class Game {
   targetsOf(P) {
     const out = [];
     for (const list of [G.cops, G.peds, G.tranzas, G.hinchas]) {
-      for (const e of list) if (e.hp > 0 && !e.inside) out.push(e);
+      for (const e of list) if (e.hp > 0 && !e.inside && !e.air) out.push(e);
     }
     if (PVP) {
       for (const q of G.players) if (q !== P && inPlay(q) && !q.car) out.push(q);
@@ -751,6 +766,36 @@ class Game {
     }
   }
 
+  // Boliche: abre de noche, sin la yuta encima y pagando la entrada
+  enterBoliche(P, b) {
+    const D = bolicheOf(b);
+    if (!bolicheOpen()) return this.say(D.name + ' ABRE A LA NOCHE', 2.4, P);
+    if (P.wanted >= 2) return this.say('EL PATOVICA NO TE DEJA PASAR', 2.6, P);
+    if (P.money < D.entry) return this.say('LA ENTRADA SALE $' + D.entry, 2.4, P);
+    P.money -= D.entry;
+    P.party = boliches.indexOf(b) + 1;
+    P.partyT = 0;
+    sfxFor(P, 'puerta');
+    this.say('ADENTRO DE ' + D.name + '...', 2.4, P);
+  }
+
+  leaveBoliche(P) {
+    const D = bolicheOf(boliches[P.party - 1]);
+    P.party = 0;
+    if (D.respect) this.gainRespect(P, D.respect, D.name);
+    if (D.food) {
+      P.food = Math.max(P.food, D.food);
+      P.drink = Math.max(P.drink, D.drink);
+      this.say('SALISTE COMIDO Y CON LA SED SACADA', 2.6, P);
+    }
+    if (D.bet) {
+      const won = Math.random() < 0.5;
+      if (won) P.money += D.bet;
+      sfxFor(P, won ? 'guita' : 'puerta');
+      this.say(won ? 'LE GANASTE LA MESA: +$' + D.bet : 'TE LIMPIARON EN EL POOL', 2.6, P);
+    }
+  }
+
   loseRespect(P, frac, n = 0) {
     P.respect = Math.max(0, Math.round((P.respect || 0) * (1 - frac)) - n);
   }
@@ -1031,10 +1076,12 @@ class Game {
   // Cayó un famoso: suelta lo suyo y el que lo bajó se entera
   famousDown(e, by) {
     const d = e.famous.drop;
-    if (d && d.kind === 'gold') {
+    if (d) {
       for (let i = 0; i < d.n; i++) {
         const a = (i / d.n) * TAU + rnd(-0.3, 0.3), r = rnd(14, 26); // desparramados: se juntan de a uno
-        G.pickups.push({ x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r, kind: 'gold', value: d.value, t: 0, drop: true });
+        let at = { x: e.x + Math.cos(a) * r, y: e.y + Math.sin(a) * r };
+        if (e.air) at = toSidewalk(at.x, at.y); // del helicóptero cae a la calle, no a un techo
+        G.pickups.push({ x: at.x, y: at.y, kind: d.kind, value: d.value, food: d.food, t: 0, drop: true });
       }
     }
     this.say('BAJASTE A ' + e.famous.name, 2.6, by);
@@ -1043,6 +1090,22 @@ class Game {
 
   // Aparecen cerca de cada jugador cada tanto (sin que otro jugador los vea aparecer),
   // hablan cuando alguien se les acerca y se van cuando ya pasearon y nadie los mira
+  // Corralito: timer del mundo; le saca la mitad de la plata del BANCO (no del efectivo) a todos los que estan jugando (no a muertos/arrestados/en hospital)
+  updateCorralito(dt) {
+    if (G.corralitoT === undefined) G.corralitoT = rnd(CORRALITO_EVERY[0], CORRALITO_EVERY[1]);
+    G.corralitoT -= dt;
+    if (G.corralitoT > 0) return;
+    const hit = G.players.filter(P => inPlay(P) && P.bank >= CORRALITO_MIN);
+    if (!hit.length) { G.corralitoT = 5; return; } // nadie con plata en el banco: se prueba de nuevo enseguida
+    G.corralitoT = rnd(CORRALITO_EVERY[0], CORRALITO_EVERY[1]);
+    for (const P of hit) {
+      const loss = Math.floor(P.bank / 2);
+      P.bank -= loss;
+      this.say('CORRALITO! EL GOBIERNO TE AGARRO LA MITAD DEL BANCO (-$' + loss + ')', 4, P);
+      this.shakeFor(P, 4);
+    }
+  }
+
   updateFamous(dt) {
     for (const p of G.peds) {
       if (!p.famous || p.hp <= 0) continue;
@@ -1050,9 +1113,17 @@ class Game {
       p.lineT = Math.max(0, p.lineT - dt);
       p.talkT -= dt;
       const { p: P, d } = nearestPlayer(p, inPlay);
-      if (P && d < FAMOUS_TALK && p.talkT <= 0) {
+      if (P && d < (p.air ? FAMOUS_TALK * 3 : FAMOUS_TALK) && p.talkT <= 0) {
         this.famousLine(p, p.famous.near);
         p.talkT = rnd(5, 9);
+      }
+      // Rastro cómico: solo si camina y alguien lo ve
+      const moved = p.lx !== undefined && Math.hypot(p.x - p.lx, p.y - p.ly) > 0.01;
+      p.lx = p.x; p.ly = p.y;
+      p.trailT = (p.trailT || 0) - dt;
+      if (p.famous.trail && moved && p.trailT <= 0 && !farFromPlayers(p, OFFSCREEN)) {
+        p.trailT = 0.12;
+        boom(p.x, p.y, 2, p.famous.trail, 0.4);
       }
     }
     G.peds = G.peds.filter(p => !p.famous || p.hp <= 0 || p.life > 0 || !farFromPlayers(p, OFFSCREEN));
@@ -1069,13 +1140,50 @@ class Game {
       const pool = FAMOUS.filter(f => !around.some(q => q.famous === f));
       if (!pool.length) continue;
       const def = pool[(Math.random() * pool.length) | 0];
-      const sp = sidewalkSpot(OFFSCREEN, SIM_R * 0.8, P);
+      const sp = def.beach ? this.beachSpot(P) : sidewalkSpot(OFFSCREEN, SIM_R * 0.8, P);
       if (!sp || !offscreenForOthers(sp, P)) {
         P.famousT = 3; // no hubo lugar: se prueba de nuevo enseguida
         continue;
       }
       G.peds.push(makeFamous(def, sp.x, sp.y));
-      this.say(def.name + ' ANDA POR EL BARRIO', 2.8, P);
+      this.say(def.name + (def.heli ? ' SOBREVUELA EL BARRIO' : def.beach ? ' ANDA POR LA PLAYA' : ' ANDA POR EL BARRIO'), 2.8, P);
+    }
+  }
+
+  // Punto de arena fuera de pantalla cerca de P (null si no hay playa cerca)
+  beachSpot(P) {
+    for (let i = 0; i < 50; i++) {
+      const a = rnd(0, TAU), r = rnd(OFFSCREEN, SIM_R * 0.8);
+      const x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
+      if (onBeach(x, y) && !hitBuilding(x, y, 6)) return { x, y };
+    }
+    return null;
+  }
+
+  // El helicóptero vuela por arriba de todo: da vueltas sobre el jugador más cercano y,
+  // cuando ya paseó, se aleja para irse sin que nadie lo vea desaparecer
+  flyHeli(p, dt) {
+    const { p: P } = nearestPlayer(p, inPlay);
+    if (!P) return;
+    p.orbit = (p.orbit || rnd(0, TAU)) + dt * 0.6;
+    const away = Math.atan2(p.y - P.y, p.x - P.x);
+    const tx = p.life > 0 ? P.x + Math.cos(p.orbit) * 70 : p.x + Math.cos(away) * 100;
+    const ty = p.life > 0 ? P.y + Math.sin(p.orbit) * 70 : p.y + Math.sin(away) * 100;
+    // Sorteo para el chat: cada tanto tira un billete a la calle, cerca del jugador
+    p.giftT = (p.giftT === undefined ? rnd(8, 14) : p.giftT) - dt;
+    if (p.giftT <= 0 && p.life > 0 && dist(p, P) < 110) {
+      p.giftT = rnd(14, 24);
+      const at = toSidewalk(P.x + rnd(-30, 30), P.y + rnd(-30, 30));
+      G.pickups.push({ x: at.x, y: at.y, kind: 'cash', value: 100, t: 0, drop: true });
+      p.line = 'SORTEO PARA EL CHAT!';
+      p.lineT = 2.6;
+    }
+    const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy);
+    if (d > 1) {
+      const s = Math.min(d, p.sped * dt);
+      p.x = clamp(p.x + (dx / d) * s, 8, WORLD - 8);
+      p.y = clamp(p.y + (dy / d) * s, 8, WORLD - 8);
+      p.ang = Math.atan2(dy, dx);
     }
   }
 
@@ -1103,6 +1211,14 @@ class Game {
       return;
     }
 
+    // ---- Adentro de un boliche: unos segundos y sale con lo que da el lugar
+    if (P.party && (P.dead || P.busted)) P.party = 0;
+    if (P.party) {
+      P.partyT += dt;
+      if (P.partyT > BOLICHE_TIME) this.leaveBoliche(P);
+      return;
+    }
+
     const ctl = P.ctl;
     const ix = ctl.x;
     const iy = ctl.y;
@@ -1111,8 +1227,10 @@ class Game {
     P.nearShop = null;
     P.nearTranza = null;
     P.nearSuper = null;
+    P.nearBank = null;
     P.nearGrill = null;
     P.nearTrapo = null;
+    P.nearBoliche = null;
     if (!P.dead) this.switchWeapon(P);
 
     if (!P.dead) this.updateNeeds(P, dt);
@@ -1147,9 +1265,19 @@ class Game {
         // Solo: se arranca de cero como siempre. Con otros jugando, reaparece él nomás.
         if (G.players.length <= 1) {
           this.startGame(P.def);
+          G.me.bank = P.bank;
           return 'reset';
         }
         this.respawn(P);
+      }
+    } else if (P.car && P.seat) {
+      // Acompañante: el auto lo maneja otro; con sus controles apunta (y tira más abajo)
+      P.x = P.car.x;
+      P.y = P.car.y;
+      if (Math.abs(ix) > 0.1 || Math.abs(iy) > 0.1) P.ang = Math.atan2(iy, ix);
+      if (ctl.use && P.cool <= 0) {
+        this.exitCar(P);
+        P.cool = 0.4;
       }
     } else if (P.car) {
       const car = P.car;
@@ -1188,8 +1316,10 @@ class Game {
         car.x = clamp(nx, 8, WORLD - 8);
         car.y = clamp(ny, 8, WORLD - 8);
       }
-      P.x = car.x;
-      P.y = car.y;
+      for (const q of ridersOf(car)) {
+        q.x = car.x;
+        q.y = car.y;
+      }
       P.ang = car.ang;
 
       if (car.hp < 45) {
@@ -1241,6 +1371,14 @@ class Game {
         const d = b.door;
         if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearSuper = b;
       }
+      for (const b of boliches) {
+        const d = b.door;
+        if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearBoliche = b;
+      }
+      for (const b of banks) {
+        const d = b.door;
+        if (Math.hypot(d.x + d.ox - P.x, d.y + d.oy - P.y) < 16) P.nearBank = b;
+      }
       for (const g of parrillas) {
         if (dist(g, P) < GRILL_R) P.nearGrill = g;
       }
@@ -1262,24 +1400,43 @@ class Game {
         if (P.nearSuper.robbing || P.nearSuper.closed > 0) this.say('CERRADO POR ROBO', 2.6, P);
         else if (P.wanted >= 2) this.say('EL DE SEGURIDAD NO TE DEJA PASAR', 2.6, P);
         else this.openShop(P, P.nearSuper.super);
+      } else if (ctl.use && P.cool <= 0 && P.nearBank) {
+        P.cool = 0.4;
+        if (P.wanted >= 2) this.say('EL BANCO NO ATIENDE CON LA YUTA ENCIMA', 2.6, P);
+        else this.openShop(P, 'banco');
       } else if (ctl.use && P.cool <= 0 && P.nearTrapo) {
         P.cool = 0.4;
         this.takeTrapo(P, P.nearTrapo);
       } else if (ctl.use && P.cool <= 0 && P.nearGrill) {
         P.cool = 0.4;
         this.useGrill(P, P.nearGrill);
+      } else if (ctl.use && P.cool <= 0 && P.nearBoliche) {
+        P.cool = 0.4;
+        this.enterBoliche(P, P.nearBoliche);
       } else if (ctl.use && P.cool <= 0) {
         P.cool = 0.4;
         let best = null, bd = 26;
         for (const c of G.cars) {
-          if (driverOf(c)) continue; // el auto de otro jugador no se roba
           const d = dist(c, P);
           if (d < bd) {
             bd = d;
             best = c;
           }
         }
-        if (best) {
+        const riders = best ? ridersOf(best) : [];
+        if (riders.length) {
+          // El auto de otro jugador no se roba: si hay lugar, se sube de acompañante
+          if (riders.length >= CAR_SEATS) {
+            this.say('NO HAY LUGAR', 1.6, P);
+          } else {
+            const used = new Set(riders.map(q => q.seat));
+            P.seat = 1;
+            while (used.has(P.seat)) P.seat++;
+            P.car = best;
+            sfx('puerta', best.x, best.y);
+            this.say('DE ACOMPAÑANTE', 1.8, P);
+          }
+        } else if (best) {
           // Con chofer: lo bajás de una y sale corriendo (y alguien llama a la yuta).
           // Uno estacionado o abandonado se agarra sin escándalo.
           const jacked = best.ai && !best.cop && best.hp > 0, mine = best.parked === P;
@@ -1292,6 +1449,7 @@ class Game {
           best.hazard = false;
           best.parked = null;
           P.car = best;
+          P.seat = 0;
           sfx('puerta', best.x, best.y);
           if (jacked) this.wantUp(P, 1);
           if (!mine) this.say(best.cop ? 'AUTO DE LA YUTA' : 'AUTO ROBADO', 2.6, P);
@@ -1351,6 +1509,13 @@ class Game {
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt;
+      // El helicóptero vuela sobre los techos: se le pega antes de que la bala dé en la pared
+      const heli = b.owner && G.peds.find(e => e.air && e.hp > 0 && segDist(b, e) < 12);
+      if (heli) {
+        b.life = 0;
+        this.hurt(heli, b.dmg, b.owner);
+        continue;
+      }
       if (hitBuilding(b.x, b.y, 1)) {
         b.life = 0;
         boom(b.x, b.y, 4, '220,220,200');
@@ -1360,7 +1525,7 @@ class Game {
       if (b.owner) {
         for (const list of [G.cops, G.peds, G.tranzas, G.hinchas]) {
           for (const e of list) {
-            if (b.life > 0 && e.hp > 0 && segDist(b, e) < 7) {
+            if (b.life > 0 && e.hp > 0 && !e.air && segDist(b, e) < 7) {
               b.life = 0;
               this.hurt(e, b.dmg, b.owner);
             }
@@ -1382,7 +1547,7 @@ class Game {
       // jugador, con PVP, a los otros (nunca a él mismo)
       for (const P of G.players) {
         if (b.life <= 0) break;
-        if (P === b.owner || (b.owner && !PVP) || !inPlay(P)) continue;
+        if (P === b.owner || (b.owner && !PVP) || !inPlay(P) || (b.owner && P.car && b.owner.car === P.car)) continue;
         if (segDist(b, P) < (P.car ? 12 : 7)) {
           b.life = 0;
           this.shootPlayer(P, b.dmg, b.owner);
@@ -1393,6 +1558,10 @@ class Game {
 
     for (const p of G.peds) {
       if (p.hp <= 0) continue;
+      if (p.air) {
+        this.flyHeli(p, dt);
+        continue;
+      }
 
       // Adentro de un edificio: invisible, sale al cumplirse el tiempo
       if (p.inside) {
@@ -1563,7 +1732,7 @@ class Game {
       }
 
       for (const q of G.peds) {
-        if (q === p || q.hp <= 0) continue;
+        if (q === p || q.hp <= 0 || q.air) continue;
         const dx2 = p.x - q.x, dy2 = p.y - q.y, d2 = dx2 * dx2 + dy2 * dy2;
         if (d2 > 0.01 && d2 < 64) {
           const d3 = Math.sqrt(d2), push = (8 - d3) * dt * 2.2;
@@ -1577,7 +1746,7 @@ class Game {
 
       if (!scared && p.chat <= 0 && Math.random() < 0.25 * dt) {
         for (const q of G.peds) {
-          if (q !== p && q.hp > 0 && dist(p, q) < 16) {
+          if (q !== p && q.hp > 0 && !q.air && dist(p, q) < 16) {
             p.chat = rnd(1.5, 4);
             q.chat = p.chat;
             break;
@@ -1613,6 +1782,7 @@ class Game {
     }
 
     this.updateFamous(dt);
+    this.updateCorralito(dt);
     this.updateSupers(dt);
     this.updateGrills(dt);
     this.updateBarras(dt);
@@ -1726,6 +1896,11 @@ class Game {
       // Si su objetivo se fue de la partida, va por el más cercano
       if (!c.tgt || !G.players.includes(c.tgt)) c.tgt = nearestPlayer(c).p;
       const P = c.tgt;
+      // Su jugador ya no tiene estrellas: apaga la sirena y vuelve al tráfico (se va cuando nadie lo ve)
+      if (!P || P.wanted <= 0) {
+        Object.assign(c, { chase: false, ai: true, nav: false, tgt: null, slot: undefined, bustT: 0, cruise: c.model.cruise * rnd(0.9, 1.1) });
+        continue;
+      }
       const d = dist(c, P);
       // Va por las calles hacia su jugador (js/traffic.js); sin camino por la grilla, derecho
       let nav = copNav.target(c, P, dt) || { x: P.x, y: P.y, turn: false };
@@ -1924,9 +2099,9 @@ class Game {
           const v = pk.value || 150 + ((Math.random() * 8) | 0) * 50;
           P.money += v;
           this.say('+$' + v, 2.6, P);
-        } else if (pk.kind === 'gold') {
+        } else if (pk.kind === 'gold' || pk.kind === 'merca') {
           P.money += pk.value;
-          this.say('+$' + pk.value + ' BALON DE ORO', 2.6, P);
+          this.say('+$' + pk.value + (pk.kind === 'gold' ? ' BALON DE ORO' : ' MERCA'), 2.6, P);
         } else if (pk.kind === 'weapon') {
           this.giveWeapon(P, pk.w, pk.ammo);
           this.say(WEAPONS[pk.w].melee ? WEAPONS[pk.w].name : WEAPONS[pk.w].short + ' +' + pk.ammo, 2.6, P);
@@ -1939,8 +2114,8 @@ class Game {
           }
           this.say('+' + heal + ' VIDA (' + pk.food.toUpperCase() + ')', 2.6, P);
         }
-        sfxFor(P, { cash: 'guita', gold: 'guita', weapon: 'arma' }[pk.kind] || 'comida');
-        const col = { cash: '120,220,120', gold: '255,215,70', hp: '230,90,90', weapon: '255,200,90' }[pk.kind];
+        sfxFor(P, { cash: 'guita', gold: 'guita', merca: 'guita', weapon: 'arma' }[pk.kind] || 'comida');
+        const col = { cash: '120,220,120', gold: '255,215,70', merca: '245,245,255', hp: '230,90,90', weapon: '255,200,90' }[pk.kind];
         boom(pk.x, pk.y, 8, col);
         if (pk.drop) pk.gone = true;
         else Object.assign(pk, makePickup());

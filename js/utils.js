@@ -185,6 +185,15 @@ function famousFace(look) {
   r('#1a1a1a', 7.7, 5, 1, 1.5);
   r(shade(look.hair, 0.9), 2.8, 4.2, 2.4, 0.6); // cejas
   r(shade(look.hair, 0.9), 6.8, 4.2, 2.4, 0.6);
+  if (look.shades) {
+    r('#101014', 2.4, 4.6, 7.2, 2.2); // lentes negros
+    r('#5ad2ff', 3, 4.9, 1.2, 0.6); // reflejo
+  }
+  if (look.cap) {
+    r(look.cap, 0.5, 0, 11, 3.2); // gorra
+    r(shade(look.cap, 0.7), 0, 2.6, 12, 1.1); // visera
+    r('#ff3a3a', 5, 0.8, 2, 1.4); // logo
+  }
   if (look.smile) {
     r('#5a1a14', 3.5, 8.3, 5, 1.6); // boca abierta, carcajada
     r('#ffffff', 3.8, 8.3, 4.4, 0.6);

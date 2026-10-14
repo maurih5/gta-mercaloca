@@ -17,6 +17,7 @@ class EntityManager {
       hp: 100,
       maxhp: 100,
       car: null,
+      seat: 0,         // en el auto: 0 maneja, 1+ acompañante
       cool: 0,
       walk: 0,
       dead: false,
@@ -38,6 +39,7 @@ class EntityManager {
       hitBy: null,     // el último jugador que le pegó (para darle el respeto si cae)
       hitT: 0,
       money: 0,
+      bank: 0,         // guita en el banco: no se pierde al morir ni al caer
       wanted: 0,
       wantCool: 0,
       busted: 0,
@@ -48,8 +50,12 @@ class EntityManager {
       nearShop: null,
       nearTranza: null,
       nearSuper: null,
+      nearBank: null,
       nearGrill: null,
       nearTrapo: null,
+      nearBoliche: null,
+      party: 0,        // boliche donde está adentro (índice en boliches + 1)
+      partyT: 0,
       zone: null,
       slowmo: 0,
       high: 0,
@@ -91,6 +97,7 @@ class EntityManager {
     const p = this.makePedAt(x, y);
     return Object.assign(p, {
       famous: def,
+      air: !!def.heli,
       def: null,
       face: 'famous-' + def.id,
       shirt: def.shirt,

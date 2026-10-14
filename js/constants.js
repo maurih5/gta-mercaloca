@@ -136,7 +136,7 @@ const LIGHT_CYCLE = 11, GREEN = 4.6, AMBER = 0.9;  // por eje: 4.6s verde, 0.9 a
 const HOSPITAL_TIME = 3.2;
 
 // Items de curacion desperdigados por el mapa: cuanta vida da cada uno
-const FOOD_HEAL = { pernil: 45, choripan: 30, mate: 15 };
+const FOOD_HEAL = { pernil: 45, choripan: 30, mate: 15, chocolate: 20 };
 const FOODS = Object.keys(FOOD_HEAL);
 
 // Famosos: NPCs con nombre (parodias) que aparecen cada tanto cerca de algún jugador,
@@ -159,8 +159,46 @@ const FAMOUS = [
     hurt: ['¿QUE MIRAS, BOBO?', 'BOBO!'],
     drop: { kind: 'gold', n: 5, value: 400 },
   },
+  {
+    id: 'maradona', name: 'DIEGO ARMANDO MERCADONA', hp: 70,
+    shirt: '#75aadb', pants: '#ffffff', stripes: '#ffffff', spd: 32,
+    look: { skin: '#c98962', hair: '#18120d', hairStyle: 'rulos', beard: '#18120d', smile: true },
+    near: ['LA PELOTA NO SE MANCHA', 'SE TE ESCAPO LA TORTUGA', 'YO ME EQUIVOQUE Y PAGUE'],
+    hurt: ['¿QUE HACES, NABO?', 'ME CORTARON LAS PIERNAS'],
+    drop: { kind: 'merca', n: 4, value: 300 },
+  },
+  {
+    // heli: vuela en helicóptero sobre los edificios, dando vueltas arriba del jugador
+    id: 'gaspi', name: 'GASPI EN VIVO', heli: true, hp: 90,
+    shirt: '#d23a3a', pants: '#2a2d36', spd: 70,
+    look: { skin: '#e2b896', hair: '#6a4a2a', hairStyle: 'corto', smile: true, cap: '#18181c', shades: true },
+    near: ['SALUDOS AL CHAT', 'MIREN ESTE NABO, CHAT', 'DONEN, MANGA DE RATAS', 'ACTIVEN LAS NOTIS',
+      'SE VIENE EL SORTEO', 'ESTO ES CONTENIDO, CHAT'],
+    hurt: ['ME ESTAN TIRANDO, CHAT!', 'CLIPEALO, CLIPEALO', 'BANEENLO YA', 'MODS! MODS!'],
+    drop: { kind: 'cash', n: 6, value: 250 },
+  },
+  {
+    // beach: solo nace en la arena
+    id: 'fort', name: 'RICARDO FORTE', beach: true, hp: 60,
+    shirt: '#ff7ab8', pants: '#f4f4f4', spd: 30,
+    look: { skin: '#e2b896', hair: '#e8c860', hairStyle: 'corto', smile: true, shades: true },
+    near: ['¡MAIAMEEE!', 'ESTO ES MAIAMEEE, BEBE', 'TODO ES PLATINO, MI AMOR', 'TRAIGAN OTRO CHOCOLATE'],
+    hurt: ['¡MAIAMEEE!', 'MI CIRUJANO SE ENTERA', 'AY, EL BRONCEADO!'],
+    drop: { kind: 'hp', food: 'chocolate', n: 5 },
+  },
+  {
+    // trail: color RGB del rastro de partículas que deja al caminar
+    id: 'conductor', name: 'MARCELO TINELI-BOCHA', hp: 60, trail: '255,80,200',
+    shirt: '#7a1fa2', pants: '#1a1a24', spd: 30,
+    look: { skin: '#e2b896', hair: '#3a2a1a', hairStyle: 'corto', smile: true, shades: true },
+    near: ['BIENVENIDOS AL PROGRAMA!', 'VOLVEMOS DESPUES DE LA TANDA', 'NO SE VAYAN, QUEDA LO MEJOR', 'APLAUSOS PARA EL PUBLICO'],
+    hurt: ['CORTE, CORTE!', 'ESTO NO ESTABA EN EL GUION', 'VOLVEMOS EN UN MOMENTO'],
+    drop: { kind: 'cash', n: 5, value: 200 },
+  },
 ];
 const FAMOUS_EVERY = [40, 80];          // cada cuánto (s, al azar) puede aparecer uno cerca de cada jugador
+const CORRALITO_EVERY = [240, 480];   // cada cuánto (s, al azar) el gobierno se queda con la mitad de la plata del banco
+const CORRALITO_MIN = 100;            // plata mínima en el banco para que valga el corralito
 const FAMOUS_LIFE = 150;                // segundos que pasea antes de irse (cuando nadie lo ve)
 const FAMOUS_TALK = 34;                 // distancia a la que te habla
 
@@ -236,6 +274,17 @@ const SHOP_ITEMS = [
   {id:'chaleco',  price:500,                          desc:'Chaleco antibalas. Aguanta la yuta.'},
 ];
 
+// Banco: lo que está adentro (P.bank) no se pierde al morir ni al caer en cana.
+// Cada fila mueve hasta esa plata (dep > 0 deposita, < 0 saca; Infinity es todo).
+const BANK_ITEMS = [
+  {id:'dep100',  name:'DEPOSITAR $100',   dep:100,       desc:'Depositar $100.'},
+  {id:'dep1000', name:'DEPOSITAR $1000',  dep:1000,      desc:'Depositar $1000.'},
+  {id:'depall',  name:'DEPOSITAR TODO',   dep:Infinity,  desc:'Depositar toda la guita que llevas encima.'},
+  {id:'ret100',  name:'SACAR $100',       dep:-100,      desc:'Sacar $100.'},
+  {id:'ret1000', name:'SACAR $1000',      dep:-1000,     desc:'Sacar $1000.'},
+  {id:'retall',  name:'SACAR TODO',       dep:-Infinity, desc:'Sacar todo lo que tenes en el banco.'},
+];
+
 // Fierros tirados en la calle: arma, balas que trae y peso del sorteo
 const LOOT = [
   {id:'escopeta', ammo:8,  w:3},
@@ -288,6 +337,7 @@ const FOOD = {
   fideos:     { food: 40, drink: 0,  heal: 10 },
   galletitas: { food: 20, drink: 0,  heal: 5 },
   mate:       { food: 0,  drink: 30, heal: 10 },
+  chocolate:  { food: 10, drink: 0,  heal: 20 },
   agua:       { food: 0,  drink: 50, heal: 0 },
   gaseosa:    { food: 5,  drink: 35, heal: 0 },
   asado:      { food: 100, drink: 0, heal: 60 }, // sacado a punto
@@ -309,7 +359,7 @@ const GRILL_R = 18;
 
 const FOOD_NAME = { carne: 'UN VACIO', pernil: 'UN PERNIL', choripan: 'UN CHORI', fideos: 'UNOS FIDEOS',
   galletitas: 'UNAS CRIOLLITAS', mate: 'UNOS MATES', agua: 'UN AGUA', gaseosa: 'UNA CHOCA-COLA',
-  asado: 'UN ASADO A PUNTO', crudo: 'UN ASADO CRUDO', quemado: 'UN ASADO QUEMADO' };
+  chocolate: 'UN CHOCOLATE', asado: 'UN ASADO A PUNTO', crudo: 'UN ASADO CRUDO', quemado: 'UN ASADO QUEMADO' };
 
 // Supermercados: lo que se compra va a la mochila. El CHOTO tiene carne; el NOCHE % es
 // más barato y no tiene. El CHOTO de Lanús vende lo mismo que el CHOTO, pero la carne
@@ -398,6 +448,17 @@ const SUPERS = [
   { k: 'noche', name: 'NOCHE %', at: [0.86, 0.36], col: '#e4e6ec', roof: '#2a4fa8', sign: '#d8302a', ink: '#fff' },
   { k: 'lanus', name: 'CH TO', at: [0.70, 0.86], col: '#d6cdbd', roof: '#a8342e', sign: '#a8342e', ink: '#f2e6d8' },
 ];
+// Boliches: abren de noche (darkness() > BOLICHE_DARK). Con E en la puerta se paga la entrada
+// y se pasan BOLICHE_TIME segundos adentro (quieto, como en el hospital) con la música de la
+// casa (radio: emisora de STATIONS). Al salir cada uno da lo suyo: respeto, comida y bebida,
+// o una apuesta al pool (bet: se gana o se pierde, mitad y mitad). glow: color del neón.
+const BOLICHES = [
+  { k: 'bailanta', name: 'LA BAILANTA', at: [0.42, 0.74], entry: 100, radio: 0, glow: [255, 58, 208], doing: 'BAILANDO CUMBIA', respect: 4 },
+  { k: 'cuarteto', name: 'CUARTETAZO', at: [0.60, 0.22], entry: 60, radio: 3, glow: [58, 230, 255], doing: 'TIRANDO PASOS', food: 50, drink: 100 },
+  { k: 'pool', name: 'BAR EL TANO', at: [0.14, 0.30], entry: 40, radio: 1, glow: [255, 200, 60], doing: 'JUGANDO AL POOL', bet: 300 },
+];
+const BOLICHE_TIME = 5;
+const BOLICHE_DARK = 0.55;
 // Robo al super: se arranca disparando en la puerta y hay que quedarse ROB_TIME segundos
 // ahí (si roban dos, va el doble de rápido). Si nadie queda en la puerta ROB_GRACE
 // segundos, se corta. Después el local queda con la persiana baja SUPER_CLOSED segundos.
@@ -419,4 +480,5 @@ const SLOWMO = 0.38;      // velocidad del mundo mientras dura
 
 // Multijugador
 const MAX_PLAYERS = 4;
+const CAR_SEATS = 4;      // el primero que sube maneja, el resto va de acompañante y tira por su cuenta
 const PVP = true;         // las balas, granadas y atropellos de un jugador lastiman a los otros
