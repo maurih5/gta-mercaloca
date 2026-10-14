@@ -49,6 +49,8 @@ function step(now) {
     }
     if (!keys.KeyM) G._m = false;
 
+    G.rankOpen = !!keys.Tab;
+
     if (keys.KeyN && !G._n) {
       G._n = true;
       say(sound.toggleMute() ? 'SONIDO APAGADO' : 'SONIDO PRENDIDO', 1.4);

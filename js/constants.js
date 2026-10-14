@@ -418,6 +418,16 @@ const RESPECT = {
   trapo: 50,                       // aguantar el trapo de una barra
   asado: 2,                        // que otro coma de tu asado
 };
+// Score del ranking (tabla con Tab): ganar y perder puntos, nunca baja de 0
+const SCORE = {
+  choto: 100, noche: 60, lanus: 10,   // robar un super
+  famoso: 80,                         // bajar a un famoso
+  star: 50,                           // por estrella, al perder a la yuta con 3 o más
+  pvp: 150, pvpLoss: 100,             // bajar a otro jugador (y lo que pierde el que cae)
+  trapo: 300,                         // aguantar el trapo de una barra
+  death: 50, bust: 75,                // morir / caer preso
+};
+const SCORE_RULES = 'GANAS: ROBAR SUPER, BAJAR FAMOSO O JUGADOR, PERDER A LA YUTA, TRAPO. PERDES: MORIR, CAER PRESO, QUE TE BAJEN';
 const RESPECT_DEATH = 0.10;  // lo que se pierde al morir
 const RESPECT_BUST = 0.15;   // y al caer preso
 const RANK_DISCOUNT = 0.05;  // por rango: más barato en la armería y con los tranzas
