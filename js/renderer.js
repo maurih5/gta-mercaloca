@@ -565,6 +565,23 @@ class Renderer {
 
   // Un trapo con los colores del club: Boca azul con la franja amarilla, River blanco con
   // la banda roja. (x, y) es la punta del palo; flamea un poco.
+  // Bandera argentina en un palito (la del festejo); ph hace que flamee
+  drawArgFlag(x, y, ph = 0) {
+    const ctx = this.ctx, w = 11, h = 7, wave = Math.sin(G.t * 8 + ph) * 1.1;
+    ctx.fillStyle = '#4a3a2a';
+    ctx.fillRect(px(x - 1), px(y), 1.5, 12);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.transform(1, wave / w, 0, 1, 0, 0);
+    ctx.fillStyle = '#75aadb';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, h / 3, w, h / 3);
+    ctx.fillStyle = '#f6b40e';
+    ctx.fillRect(w / 2 - 0.5, h / 2 - 0.5, 1.5, 1.5);
+    ctx.restore();
+  }
+
   drawFlag(k, x, y, s = 1) {
     const ctx = this.ctx, B = BARRAS.find(q => q.k === k), w = 16 * s, h = 10 * s;
     const wave = Math.sin(G.t * 6 + x * 0.1) * 1.2 * s;
@@ -2933,6 +2950,7 @@ class Renderer {
       if (p.hp <= 0 || p.inside || p.air) continue;
       if (p.fade < 1) ctx.globalAlpha = p.fade;
       this.drawGuy(p, p.face, p.shirt, p.pants, false);
+      if (p.fest) this.drawArgFlag(p.x - G.cam.x + 3, p.y - G.cam.y - 14, p.walk);
       ctx.globalAlpha = 1;
     }
     for (const c of G.cops) {

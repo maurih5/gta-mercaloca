@@ -161,6 +161,7 @@ class Game {
     G.corralitoT = undefined;
     G.eventT = undefined;
     G.lastEvent = null;
+    G.festejo = null;
     G.peds = [];
     G.guards = [];
     G.cops = [];
@@ -1170,6 +1171,65 @@ class Game {
     }
   }
 
+  // Festejo del Mundial: en el obelisco se junta gente con banderas, suenan bocinazos y la zona queda
+  // cortada al tránsito (lo frena trafficAI.festejoStop). La gente aparece cuando hay un jugador cerca.
+  startFestejo() {
+    G.festejo = { t: FESTEJO_TIME, spawn: 0 };
+    for (const P of G.players) if (inPlay(P)) this.say('FESTEJO DEL MUNDIAL EN EL OBELISCO! CORTARON EL TRANSITO', 4, P);
+  }
+
+  updateFestejo(dt) {
+    const f = G.festejo, ob = getObelisco();
+    if (!f) return;
+    const crowd = G.peds.filter(p => p.fest && p.hp > 0);
+    f.t -= dt;
+    if (f.t <= 0 || !ob) {
+      for (const p of crowd) p.fest = false; // se van a su casa
+      G.festejo = null;
+      return;
+    }
+    const ox = ob.x + ob.w / 2, oy = ob.y + ob.h / 2, c = { x: ox, y: oy };
+    if (distToPlayers(c) > SIM_R * 0.9) return; // nadie lo ve: no se simula la gente
+    f.spawn -= dt;
+    if (crowd.length < FESTEJO_PEDS && f.spawn <= 0) {
+      f.spawn = 0.25;
+      const a = rnd(0, TAU), r = FESTEJO_CUT + rnd(15, 70);
+      const x = ox + Math.cos(a) * r, y = oy + Math.sin(a) * r;
+      if (!pedBlocked(x, y, 5)) {
+        const p = makePedAt(x, y);
+        G.peds.push(Object.assign(p, { fest: true, shirt: Math.random() < 0.5 ? '#75aadb' : '#f2f2f2', pants: '#2a3552', face: 'ped' + ((Math.random() * 4) | 0), def: null }));
+      }
+    }
+    // Bocinazos y papel picado
+    if (Math.random() < dt * 1.5) {
+      const a = rnd(0, TAU), r = rnd(ROTONDA_ISLAND_R, FESTEJO_CUT);
+      sfx('bocina', ox + Math.cos(a) * r, oy + Math.sin(a) * r, rnd(0.4, 1));
+    }
+    if (Math.random() < dt * 6) {
+      const a = rnd(0, TAU), r = rnd(0, FESTEJO_CUT);
+      puff(ox + Math.cos(a) * r, oy + Math.sin(a) * r, Math.random() < 0.5 ? '117,170,219' : '255,255,255', 1, 20);
+    }
+  }
+
+  // Un festejante: va hacia el obelisco, se queda saltando en su lugar y de a ratos se mueve un poco
+  festPed(p, dt) {
+    const ob = getObelisco();
+    if (!ob) { p.fest = false; return; }
+    const ox = ob.x + ob.w / 2, oy = ob.y + ob.h / 2;
+    p.tt -= dt;
+    if (!p.fdest || p.tt <= 0) {
+      const a = rnd(0, TAU), r = rnd(ROTONDA_ISLAND_R + 4, FESTEJO_CUT);
+      p.fdest = p.fdest && dist(p, { x: ox, y: oy }) < FESTEJO_CUT + 10 ? { x: p.x + rnd(-18, 18), y: p.y + rnd(-18, 18) } : { x: ox + Math.cos(a) * r, y: oy + Math.sin(a) * r };
+      p.tt = rnd(1.5, 4);
+    }
+    const d = dist(p, p.fdest);
+    if (d < 4) { p.ang += dt * 4; p.walk += dt * 4; return; } // bailando
+    p.ang = Math.atan2(p.fdest.y - p.y, p.fdest.x - p.x);
+    const s = p.sped * 1.3, nx = p.x + Math.cos(p.ang) * s * dt, ny = p.y + Math.sin(p.ang) * s * dt;
+    if (pedBlocked(nx, ny, p.r)) { p.fdest = null; p.tt = 0; return; }
+    p.x = nx; p.y = ny; p.walk += (dt * s) / 8;
+  }
+
   registerEvent(def) {
     EVENTS.push({ weight: 1, ...def });
   }
@@ -1663,6 +1723,7 @@ class Game {
         continue;
       }
       p.fade = Math.min(1, p.fade + dt * 2.6);
+      if (p.fest) { this.festPed(p, dt); continue; }
 
       p.tt -= dt;
       // Algún jugador con la yuta encima cerca: nadie se va a un edificio, todos atentos.
@@ -1867,6 +1928,7 @@ class Game {
     this.updateFamous(dt);
     this.updateCorralito(dt);
     this.updateEvents(dt);
+    this.updateFestejo(dt);
     this.updateSupers(dt);
     this.updateGrills(dt);
     this.updateBarras(dt);
@@ -2259,6 +2321,12 @@ class Game {
 }
 
 const game = new Game();
+game.registerEvent({
+  id: 'festejo',
+  weight: 1,
+  when: () => !G.festejo && !!getObelisco(),
+  run: () => game.startFestejo(),
+});
 
 // Exportación para compatibilidad. Sin jugador explícito, actúan sobre el local (G.me).
 const say = (t, s, P) => game.say(t, s, P);
