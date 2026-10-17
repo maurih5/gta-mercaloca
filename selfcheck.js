@@ -58,6 +58,7 @@ describe('personajes', () => {
       assert.ok(fs.existsSync(__dirname + '/' + c.img), c.name + ': falta la foto ' + c.img);
       const [x, y, w, h] = c.crop;
       assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 1 && y + h <= 1, c.name + ': recorte fuera de la foto');
+      assert.ok(c.hp > 0 && c.spd > 0, c.name + ': faltan stats');
     }
   });
 });

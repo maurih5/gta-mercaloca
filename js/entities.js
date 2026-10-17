@@ -14,8 +14,8 @@ class EntityManager {
       y: 0,
       ang: 0,
       r: 5,
-      hp: 100,
-      maxhp: 100,
+      hp: def.hp || 100,
+      maxhp: def.hp || 100,
       car: null,
       seat: 0,         // en el auto: 0 maneja, 1+ acompañante
       cool: 0,
