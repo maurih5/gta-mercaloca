@@ -1175,7 +1175,7 @@ class Game {
   // cortada al tránsito (lo frena trafficAI.festejoStop). La gente aparece cuando hay un jugador cerca.
   startFestejo() {
     G.festejo = { t: FESTEJO_TIME, spawn: 0 };
-    for (const P of G.players) if (inPlay(P)) this.say('FESTEJO DEL MUNDIAL EN EL OBELISCO! CORTARON EL TRANSITO', 4, P);
+    for (const P of G.players) if (inPlay(P)) this.say('SOMOS CAMPEONES DEL MUNDO! TODOS AL OBELISCO', 4, P);
   }
 
   updateFestejo(dt) {
@@ -1193,9 +1193,9 @@ class Game {
     f.spawn -= dt;
     if (crowd.length < FESTEJO_PEDS && f.spawn <= 0) {
       f.spawn = 0.25;
-      const a = rnd(0, TAU), r = FESTEJO_CUT + rnd(15, 70);
-      const x = ox + Math.cos(a) * r, y = oy + Math.sin(a) * r;
-      if (!pedBlocked(x, y, 5)) {
+      const a = rnd(0, TAU), r = FESTEJO_CUT + rnd(15, 320);
+      const x = ox + Math.cos(a) * r, y = oy + Math.sin(a) * r, d = distToPlayers({ x, y });
+      if (d > OFFSCREEN && d < SIM_R && !pedBlocked(x, y, 5)) { // llegan caminando, nadie los ve aparecer
         const p = makePedAt(x, y);
         G.peds.push(Object.assign(p, { fest: true, shirt: Math.random() < 0.5 ? '#75aadb' : '#f2f2f2', pants: '#2a3552', face: 'ped' + ((Math.random() * 4) | 0), def: null }));
       }

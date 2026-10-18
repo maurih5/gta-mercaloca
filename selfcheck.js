@@ -1849,14 +1849,18 @@ describe('festejo del mundial', () => {
     assert.ok(ev().when());
     ev().run();
     assert.ok(G.festejo && !ev().when(), 'mientras dura no se repite');
-    assert.ok(G.msg.includes('MUNDIAL'), G.msg);
+    assert.ok(G.msg.includes('CAMPEONES'), G.msg);
   });
   test('junta gente con banderas alrededor del obelisco y al terminar se va', () => {
     startGame(CREW[0]);
     const c = centro();
     G.me.x = c.x + 150; G.me.y = c.y;
     ev().run();
-    for (let f = 0; f < 60 * 12; f++) game.updateFestejo(1 / 60), update(1 / 60);
+    for (let f = 0; f < 60 * 12; f++) {
+      const antes = new Set(G.peds);
+      game.updateFestejo(1 / 60), update(1 / 60);
+      for (const p of G.peds) if (p.fest && !antes.has(p)) assert.ok(dist(p, G.me) > OFFSCREEN, 'aparecio en pantalla');
+    }
     const gente = G.peds.filter(p => p.fest);
     assert.ok(gente.length >= FESTEJO_PEDS / 2, 'hay gente: ' + gente.length);
     assert.ok(gente.some(p => Math.hypot(p.x - c.x, p.y - c.y) < FESTEJO_CUT + 60), 'cerca del obelisco');
