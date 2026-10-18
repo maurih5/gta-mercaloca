@@ -302,7 +302,8 @@ class NetManager {
       r1(q.bustT), r1(q.healT), q.money, q.wanted, Math.round(q.armor), q.porros, r1(q.slowmo), q.bustFine,
       q === P ? packInv(q.inv) : 0,
       Math.round(q.food), Math.round(q.drink), q === P ? q.bag : 0,
-      q.respect || 0, q.trapo ? G.barras.indexOf(q.trapo) + 1 : 0, r1(q.trapoT || 0), q.party || 0, r1(q.partyT || 0), q.bank,
+      // el banco es privado: solo viaja al dueño
+      q.respect || 0, q.trapo ? G.barras.indexOf(q.trapo) + 1 : 0, r1(q.trapoT || 0), q.party || 0, r1(q.partyT || 0), q === P ? q.bank : 0,
       q.seat || 0, q.score || 0,
     ]);
     // Los hinchas: como la yuta, en el radar y el mapa de todos

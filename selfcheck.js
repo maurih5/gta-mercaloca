@@ -3061,6 +3061,18 @@ describe('multijugador online', () => {
     P2.car = null; P2.seat = 0;
   });
 
+  test('el banco de cada uno viaja solo en su foto', async () => {
+    const { red, P2 } = await conectar();
+    G.me.bank = 1234; P2.bank = 567;
+    const j = net.snapshot(net.peers.get(P2.peer)).j;
+    assert.equal(j.find(a => a[0] === G.me.id)[29], 0, 'al cliente no le llega el banco del host');
+    assert.equal(j.find(a => a[0] === P2.id)[29], 567, 'el suyo si');
+    for (let f = 0; f < 3; f++) frame(red);
+    assert.equal(C.G.me.bank, 567, 'el cliente ve su saldo');
+    assert.equal(C.G.players.find(q => q !== C.G.me).bank, 0, 'y no el del host');
+    G.me.bank = P2.bank = 0;
+  });
+
   test('las fotos son chicas y lo que no cambia se manda una vez', async () => {
     const { red, P2 } = await conectar();
     const peer = net.peers.get(P2.peer);
