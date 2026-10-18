@@ -928,7 +928,7 @@ describe('ia de los autos', () => {
       }
     }
     assert.equal(rojos, 0, 'autos que se mandaron con el rojo: ' + rojos);
-    assert.ok(choques <= 1, 'autos de la IA chocando entre si: ' + choques);
+    assert.ok(choques <= 2, 'autos de la IA chocando entre si: ' + choques); // un choque son dos autos golpeados
     assert.ok(encima <= 1, 'autos de la IA encimados: ' + encima + ' ' + JSON.stringify(detalle) + ' me ' + Math.round(G.me.x) + ',' + Math.round(G.me.y));
     assert.ok(afuera / n < 0.002, 'autos fuera de la calle: ' + afuera + '/' + n);
     // Ni el rojo de tres fases con la fila hace esperar tanto: mas que esto es un nudo
@@ -1076,7 +1076,7 @@ describe('jugador', () => {
     startGame(CREW[0]);
     const P = G.me;
     assert.ok(P.food === 100 && P.drink === 100, 'arranca lleno');
-    const quieto = () => { G.cops.length = 0; P.wanted = 0; };
+    const quieto = () => { G.cops.length = 0; G.hinchas.length = 0; P.wanted = 0; }; // sin barras que le peguen
     for (let f = 0; f < 600; f++) { quieto(); update(1/60); }
     assert.ok(P.food < 100 && P.drink < P.food, 'bajan, la sed mas rapido: ' + P.food.toFixed(1) + ' ' + P.drink.toFixed(1));
     P.food = 0; P.hp = 50;
@@ -2233,7 +2233,8 @@ describe('multijugador', () => {
     for (let f = 0; f < 300; f++) update(1/60);
     assert.ok(dist(H, G.me) < 110, 'vuela hasta el jugador y le da vueltas: ' + dist(H, G.me));
     assert.ok(!game.targetsOf(G.me).includes(H), 'no se le pega de a pie ni se lo atropella');
-    const g0 = G.pickups.length, m0 = G.me.money;
+    G.pickups = []; // que no levante otra cosa justo en ese frame
+    const g0 = 0, m0 = G.me.money;
     H.giftT = 0;
     update(1/60);
     // El billete cae cerca: o queda en la calle o el jugador ya lo levantó
@@ -2362,6 +2363,7 @@ describe('multijugador', () => {
     const cars = G.cars, me = G.me;
     G.me.money = 777;
     P2.money = 500;
+    G.pickups = []; // que al reaparecer no levante un billete
     P2.hp = -1; update(1/60);
     assert.ok(P2.dead, 'muere el remoto');
     P2.ctl = { ...idleControls(), respawn: true };
@@ -2418,7 +2420,8 @@ describe('multijugador', () => {
     assert.equal(c.spd, 0, 'termina frenando');
     const rodo = Math.hypot(c.x - x0, c.y - y0);
     assert.ok(rodo > 5 && rodo < 70, 'rodo un poco y freno: ' + rodo.toFixed(1));
-    // Volver a subirse al propio no llama a nadie
+    // Volver a subirse al propio no llama a nadie (sin otro auto mas cerca que se lleve el E)
+    G.cars = G.cars.filter(k => k === c || dist(k, c) > 40);
     P2.wanted = 0; P2.x = c.x; P2.y = c.y + 12; P2.cool = 0;
     P2.ctl = { ...idleControls(), use: true };
     update(1/60);
@@ -2905,6 +2908,7 @@ describe('multijugador online', () => {
     const { red, P2 } = await conectar();
     const c = G.cars.find(c => c.ai && c.hp > 0 && !c.chase);
     c.spd = 0;
+    G.cars = G.cars.filter(k => k === c || dist(k, c) > 40); // que el E no agarre otro mas cerca
     Object.assign(P2, { x: c.x, y: c.y + 12, car: null, cool: 0, wanted: 0 });
     for (let f = 0; f < 4; f++) frame(red);
     C.input.keys.KeyE = true;
