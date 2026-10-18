@@ -1194,7 +1194,7 @@ class TrafficAI {
       if (dx * dx + dy * dy < 32 * 32) return -1;
       const fwd = dx * fx + dy * fy, lat = -dx * fy + dy * fx;
       if (Math.abs(lat) > 10) continue;
-      if (fwd > -30 && fwd < 50) return -1;
+      if (fwd > -40 && fwd < 50) return -1; // -40: entra un colectivo (36) detrás
       if (fwd > 0 && fwd < gap) gap = fwd;
     }
     for (const P of G.players) if (Math.hypot(P.x - p.x, P.y - p.y) < 34) return -1;
