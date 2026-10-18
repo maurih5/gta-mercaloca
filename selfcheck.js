@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,FESTEJO_CUT,FESTEJO_PEDS,EVENTS,EVENT_EVERY,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,TERR_R,TERR_TIME,TERR_PAY,TERR_CASH,SCORE,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,FESTEJO_CUT,FESTEJO_PEDS,EVENTS,EVENT_EVERY,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,TERR_R,TERR_TIME,TERR_PAY,TERR_CASH,SCORE,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -58,6 +58,7 @@ describe('personajes', () => {
       assert.ok(fs.existsSync(__dirname + '/' + c.img), c.name + ': falta la foto ' + c.img);
       const [x, y, w, h] = c.crop;
       assert.ok(x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= 1 && y + h <= 1, c.name + ': recorte fuera de la foto');
+      assert.ok(c.hp > 0 && c.spd > 0, c.name + ': faltan stats');
     }
   });
 });
@@ -750,7 +751,7 @@ describe('simulacion', () => {
     console.log('  vereda: ' + Math.round(onWalk/walking.length*100) + '% de los peatones que deambulan');
     // ninguno puede quedar adentro de un edificio ni fuera del mapa
     for(const p of G.peds){
-      if(p.hp <= 0 || p.inside) continue;
+      if(p.hp <= 0 || p.inside || p.air) continue; // el del helicoptero vuela sobre los edificios
       assert.ok(!hitBuilding(p.x, p.y, 2), 'peaton empotrado en un edificio');
       assert.ok(p.x > 0 && p.y > 0 && p.x < WORLD && p.y < WORLD, 'peaton fuera del mapa');
     }
@@ -928,7 +929,7 @@ describe('ia de los autos', () => {
       }
     }
     assert.equal(rojos, 0, 'autos que se mandaron con el rojo: ' + rojos);
-    assert.ok(choques <= 1, 'autos de la IA chocando entre si: ' + choques);
+    assert.ok(choques <= 2, 'autos de la IA chocando entre si: ' + choques); // un choque son dos autos golpeados
     assert.ok(encima <= 1, 'autos de la IA encimados: ' + encima + ' ' + JSON.stringify(detalle) + ' me ' + Math.round(G.me.x) + ',' + Math.round(G.me.y));
     assert.ok(afuera / n < 0.002, 'autos fuera de la calle: ' + afuera + '/' + n);
     // Ni el rojo de tres fases con la fila hace esperar tanto: mas que esto es un nudo
@@ -1076,7 +1077,7 @@ describe('jugador', () => {
     startGame(CREW[0]);
     const P = G.me;
     assert.ok(P.food === 100 && P.drink === 100, 'arranca lleno');
-    const quieto = () => { G.cops.length = 0; P.wanted = 0; };
+    const quieto = () => { G.cops.length = 0; G.hinchas.length = 0; P.wanted = 0; }; // sin barras que le peguen
     for (let f = 0; f < 600; f++) { quieto(); update(1/60); }
     assert.ok(P.food < 100 && P.drink < P.food, 'bajan, la sed mas rapido: ' + P.food.toFixed(1) + ' ' + P.drink.toFixed(1));
     P.food = 0; P.hp = 50;
@@ -1331,6 +1332,32 @@ describe('jugador', () => {
     assert.equal(B.trapo, 'hung', 'al rato cuelgan otro');
   });
 
+  test('territorios: sin dueno al empezar; se toma tras TERR_TIME, cobra, y otro jugador lo disputa', () => {
+    startGame(CREW[0]);
+    assert.ok(G.barras.every(B => !B.owner && B.ctl === 0), 'nadie es dueno');
+    const P = G.me, B = G.barras[0];
+    const Q = addPlayer(CREW[1]);
+    Object.assign(Q, { x: 5, y: 5 });
+    Object.assign(P, { x: B.flag.x, y: B.flag.y + 6, car: null, dead: false });
+    game.updateTerritorios(TERR_TIME / 2);
+    assert.equal(B.owner, null, 'con la barra de guardia no se toma');
+    for (const h of G.hinchas) if (h.barra === B) h.hp = 0;
+    game.updateTerritorios(TERR_TIME / 2);
+    assert.ok(!B.owner && B.ctl > 0 && B.ctl < 1, 'sube de a poco');
+    game.updateTerritorios(TERR_TIME);
+    assert.equal(B.owner, P, 'tomado');
+    const m0 = P.money;
+    game.updateTerritorios(TERR_PAY);
+    assert.equal(P.money, m0 + TERR_CASH, 'cobra');
+    // Q lo disputa mientras P esta lejos
+    Object.assign(P, { x: 5, y: 5 });
+    Object.assign(Q, { x: B.flag.x, y: B.flag.y + 6, car: null, dead: false });
+    game.updateTerritorios(TERR_TIME / 2);
+    assert.ok(B.owner === P && B.ctl < 0.6, 'baja el control');
+    game.updateTerritorios(TERR_TIME);
+    assert.equal(B.owner, Q, 'se lo saca');
+  });
+
   test('si te bajan o caes preso con el trapo, vuelve a su barra', () => {
     startGame(CREW[0]);
     const P = G.me, B = G.barras[1];
@@ -1404,6 +1431,7 @@ describe('jugador', () => {
 
     // al terminar: te sueltan, sin estrellas, con menos guita. Se mira justo al soltarte:
     // despues el jugador puede reaparecer arriba de un billete y sumar plata, y esta bien.
+    G.pickups = []; // al soltarlo reaparece en el mismo frame: que no caiga arriba de un billete
     for(let f=0;f<200 && G.me.busted;f++) update(1/60);
     assert.equal(G.me.busted, 0, 'la secuencia termina sola');
     assert.equal(G.me.wanted, 0, 'salis sin estrellas');
@@ -1472,8 +1500,13 @@ describe('jugador', () => {
     const b = G.cars.find(c => c !== a && c !== G.me.car);
     a.ai = false; a.chase = false;
     b.ai = false; b.chase = false;
-    a.x = G.me.x; a.y = G.me.y; a.ang = 0; a.spd = 100;
-    b.x = G.me.x + 4; b.y = G.me.y; b.ang = Math.PI; b.spd = 100;
+    // En el medio de una calle horizontal, sin paredes ni otros autos que no los dejen separarse
+    G.cars = [a, b];
+    let s = freeRoadSpot();
+    for (let k = 0; k < 200 && [-40, 40].some(dx => hitBuilding(s.x + dx, s.y, 10)); k++) s = freeRoadSpot();
+    G.me.x = s.x; G.me.y = s.y + 60; // la fisica corre cerca de algun jugador
+    a.x = s.x; a.y = s.y; a.ang = 0; a.spd = 100;
+    b.x = s.x + 4; b.y = s.y; b.ang = Math.PI; b.spd = 100;
     const d0 = dist(a, b), hpA0 = a.hp, hpB0 = b.hp;
     update(1/60);
     assert.ok(dist(a, b) > d0, 'los autos superpuestos tienen que separarse al chocar');
@@ -1763,7 +1796,135 @@ describe('corralito', () => {
   });
 });
 
+describe('eventos', () => {
+  const con = (defs, f) => {
+    startGame(CREW[0]);
+    const orig = EVENTS.splice(0), rand = Math.random;
+    try { defs.forEach(d => game.registerEvent(d)); f(); }
+    finally { EVENTS.splice(0, EVENTS.length, ...orig); Math.random = rand; net.leave(); net.role = null; }
+  };
+  test('elige por peso, guarda el ultimo y reprograma el timer', () => {
+    const corridos = [];
+    con([{ id: 'a', weight: 1, run: () => corridos.push('a') }, { id: 'b', weight: 3, run: () => corridos.push('b') }], () => {
+      Math.random = () => 0.9; G.eventT = 0;
+      game.updateEvents(0.1);
+      assert.deepEqual(corridos, ['b']);
+      assert.equal(G.lastEvent, 'b');
+      assert.ok(G.eventT >= EVENT_EVERY[0]);
+      Math.random = () => 0; G.eventT = 0;
+      game.updateEvents(0.1);
+      assert.deepEqual(corridos, ['b', 'a']);
+    });
+  });
+  test('no repite el ultimo si hay otro, y respeta when', () => {
+    const corridos = [];
+    con([{ id: 'a', run: () => corridos.push('a') }, { id: 'b', run: () => corridos.push('b'), when: () => false }], () => {
+      G.eventT = 0; game.updateEvents(0.1);
+      G.eventT = 0; game.updateEvents(0.1);
+      assert.deepEqual(corridos, ['a', 'a'], 'b nunca cumple when; a es el unico y puede repetir');
+    });
+  });
+  test('sin elegibles o sin nadie en juego no dispara y reintenta', () => {
+    let n = 0;
+    con([{ id: 'a', run: () => n++ }], () => {
+      G.me.dead = true; G.eventT = 0; game.updateEvents(0.1);
+      assert.equal(n, 0); assert.ok(G.eventT > 0 && G.eventT <= 5);
+    });
+    con([{ id: 'a', when: () => false, run: () => n++ }], () => {
+      G.eventT = 0; game.updateEvents(0.1);
+      assert.equal(n, 0); assert.ok(G.eventT > 0 && G.eventT <= 5);
+    });
+  });
+  test('con dos jugadores dispara si alguno esta en juego', () => {
+    let n = 0;
+    con([{ id: 'a', run: () => n++ }], () => {
+      const P2 = addPlayer(CREW[1]);
+      G.me.dead = true; G.eventT = 0; game.updateEvents(0.1);
+      assert.equal(n, 1, 'P2 vivo alcanza');
+      P2.dead = true; G.eventT = 0; game.updateEvents(0.1);
+      assert.equal(n, 1, 'los dos muertos: no dispara');
+    });
+  });
+});
+
+describe('festejo del mundial', () => {
+  const centro = () => { const o = getObelisco(); return { x: o.x + o.w / 2, y: o.y + o.h / 2 }; };
+  const ev = () => EVENTS.find(e => e.id === 'festejo');
+  test('esta registrado y se dispara una sola vez a la vez', () => {
+    startGame(CREW[0]);
+    assert.ok(ev(), 'registrado');
+    assert.ok(ev().when());
+    ev().run();
+    assert.ok(G.festejo && !ev().when(), 'mientras dura no se repite');
+    assert.ok(G.msg.includes('CAMPEONES'), G.msg);
+  });
+  test('junta gente con banderas alrededor del obelisco y al terminar se va', () => {
+    startGame(CREW[0]);
+    const c = centro();
+    G.me.x = c.x + 150; G.me.y = c.y;
+    ev().run();
+    for (let f = 0; f < 60 * 12; f++) {
+      const antes = new Set(G.peds);
+      game.updateFestejo(1 / 60), update(1 / 60);
+      for (const p of G.peds) if (p.fest && !antes.has(p)) assert.ok(dist(p, G.me) > OFFSCREEN - 5, 'aparecio en pantalla'); // -5: ya dio un paso en el mismo update
+    }
+    const gente = G.peds.filter(p => p.fest);
+    assert.ok(gente.length >= FESTEJO_PEDS / 2, 'hay gente: ' + gente.length);
+    assert.ok(gente.some(p => Math.hypot(p.x - c.x, p.y - c.y) < FESTEJO_CUT + 60), 'cerca del obelisco');
+    renderer.render();
+    G.festejo.t = 0.01; game.updateFestejo(0.1);
+    assert.equal(G.festejo, null);
+    assert.ok(!G.peds.some(p => p.fest), 'se van');
+  });
+  test('el transito frena antes de la zona cortada, pero el que sale pasa', () => {
+    startGame(CREW[0]);
+    const c = centro();
+    G.festejo = { t: 99, spawn: 0 };
+    const a = { x: c.x - FESTEJO_CUT - 40, y: c.y, ang: 0, w: 14, spd: 50 };
+    const pts = [10, 20, 30, 40, 50, 60].map(s => ({ x: a.x + s, y: c.y, a: 0, s }));
+    const d = trafficAI.festejoStop(a, pts);
+    assert.ok(d > 0 && d < Infinity && d <= 60, 'frena antes: ' + d);
+    assert.equal(trafficAI.festejoStop({ ...a, x: c.x - FESTEJO_CUT + 5, ang: Math.PI }, pts), Infinity, 'adentro y yendose: pasa');
+    assert.equal(trafficAI.festejoStop({ ...a, x: c.x + ROTONDA_R }, pts), Infinity, 'en la rotonda sigue');
+    G.festejo = null;
+    assert.equal(trafficAI.festejoStop(a, pts), Infinity, 'sin festejo no corta');
+  });
+});
+
 describe('multijugador', () => {
+  test('cada uno con sus stats: vida, velocidad a pie, cura y reaparece con su maximo', () => {
+    const lento = CREW.find(c => c.spd < 1), rapido = CREW.find(c => c.spd > 1);
+    startGame(lento);
+    const P1 = G.me, P2 = addPlayer(rapido);
+    assert.ok(P1.maxhp !== P2.maxhp, 'personajes con vida distinta');
+    assert.ok(P1.hp === lento.hp && P1.maxhp === lento.hp && P2.maxhp === rapido.hp, 'arrancan con su vida');
+    // Caminan en linea recta medio segundo por una calle libre, sin nada alrededor. Camina P2 con
+    // los dos personajes: el local (G.me) lee el teclado en cada update y pisa su ctl.
+    const anda = (P, def) => {
+      P.def = def;
+      G.cars = []; G.peds = []; G.cops = []; G.hinchas.length = 0;
+      let s = freeRoadSpot();
+      for (let k = 0; k < 200 && [-30, 30].some(dx => hitBuilding(s.x + dx, s.y, 8)); k++) s = freeRoadSpot();
+      const x0 = s.x;
+      Object.assign(P, { x: s.x, y: s.y, car: null, ctl: { ...idleControls(), x: 1 } });
+      for (let f = 0; f < 5; f++) update(1/60); // pocos frames: que no se cruce nada
+      P.ctl = idleControls();
+      return Math.abs(P.x - x0);
+    };
+    const d1 = anda(P2, lento), d2 = anda(P2, rapido);
+    assert.ok(Math.abs(d1 / d2 - lento.spd / rapido.spd) < 0.05, 'cada uno camina a su ritmo: ' + d1.toFixed(1) + ' vs ' + d2.toFixed(1));
+    // Bien comido se cura hasta su maximo, no hasta 100
+    P2.hp = P2.maxhp - 1; P2.food = P2.drink = 100;
+    for (let f = 0; f < 240; f++) update(1/60);
+    assert.equal(P2.hp, rapido.hp, 'se cura hasta su maximo');
+    P2.hp = -1; update(1/60);
+    G.cars = []; G.cops = []; G.hinchas.length = 0; // que nada lo golpee en el frame en que reaparece
+    P2.ctl = { ...idleControls(), respawn: true };
+    update(1/60);
+    assert.equal(P2.hp, rapido.hp, 'reaparece con su vida llena');
+    removePlayer(P2);
+  });
+
   // Pone a P sobre la calle, a d px de G.me (en una dirección donde haya calle libre)
   const lejos = (P, d) => {
     for (let k = 0; k < 64; k++) {
@@ -1989,7 +2150,11 @@ describe('multijugador', () => {
     startGame(CREW[0]);
     const D = addPlayer(CREW[1]), P2 = addPlayer(CREW[2]); // remotos: D lee el teclado
     G.me.x = 40; G.me.y = 40;
-    G.peds = []; G.cops = []; G.pickups = [];
+    G.peds = []; G.cops = []; G.pickups = []; G.hinchas.length = 0;
+    // Con lugar adelante: contra una pared rebota y no se ve que acelera
+    let s = freeRoadSpot();
+    for (let k = 0; k < 200 && [0, 1, 2, 3].some(d => hitBuilding(s.x + Math.cos(d * Math.PI / 2) * 50, s.y + Math.sin(d * Math.PI / 2) * 50, 12)); k++) s = freeRoadSpot();
+    D.x = s.x; D.y = s.y;
     const c = makeCar(D.x, D.y);
     c.ai = false;
     G.cars = [c];
@@ -1997,6 +2162,7 @@ describe('multijugador', () => {
     update(1/60);
     assert.ok(D.car === c && driverOf(c) === D, 'el primero maneja');
     D.ctl = idleControls();
+    G.cars = [c]; c.spd = 0; // que el E no agarre un auto que aparecio cerca
     Object.assign(P2, { x: c.x, y: c.y - 6, cool: 0, ctl: { ...idleControls(), use: true } });
     update(1/60);
     assert.ok(P2.car === c && P2.seat === 1 && driverOf(c) === D, 'el segundo va de acompañante');
@@ -2004,12 +2170,13 @@ describe('multijugador', () => {
     P2.cool = 0;
     P2.ctl = { ...idleControls(), x: 0, y: 1, fire: true };
     D.ctl = { ...idleControls(), y: -1 };
-    const n0 = G.bullets.length;
-    update(1/60);
+    // La bala puede chocar una pared y borrarse en el mismo update: se mide el disparo, que avisa con su dueño
+    const alarm = trafficAI.alarm, duenos = [];
+    trafficAI.alarm = (x, y, r, who, ...rest) => { duenos.push(who); return alarm.call(trafficAI, x, y, r, who, ...rest); };
+    try { update(1/60); } finally { trafficAI.alarm = alarm; }
     assert.ok(Math.abs(P2.ang - Math.PI / 2) < 0.01, 'el acompañante apunta con sus controles');
     assert.ok(Math.abs(c.ang - ang) < 0.01 && c.spd > 0, 'el auto sigue lo del conductor');
-    const mias = G.bullets.slice(n0).filter(b => b.owner === P2);
-    assert.ok(mias.length > 0, 'las balas son del acompañante');
+    assert.ok(duenos.includes(P2), 'las balas son del acompañante');
     const hp1 = D.hp, chapa = c.hp;
     for (let f = 0; f < 10; f++) { P2.ctl = idleControls(); D.ctl = idleControls(); update(1/60); }
     assert.ok(D.hp >= hp1 && c.hp >= chapa, 'no le pega al propio auto ni al conductor');
@@ -2036,13 +2203,18 @@ describe('multijugador', () => {
     assert.ok(ped.hp <= 0, 'la bala del remoto baja al peaton');
     assert.ok(P2.money > 0 && P2.wanted > 0, 'la guita y la busqueda son del que tiro');
     assert.equal(G.me.money, 0, 'el local no cobra lo que hizo el otro');
-    // Que no se cruce ningun peaton entre la bala y el blanco
-    G.peds = []; G.cops = [];
+    // Que no se cruce nada entre la bala y el blanco
+    G.peds = []; G.cops = []; G.cars = []; G.hinchas.length = 0;
+    { // en una calle sin paredes a los costados: la bala sale 20 px atras
+      let s = freeRoadSpot();
+      for (let k = 0; k < 200 && [-30, 30].some(dx => hitBuilding(s.x + dx, s.y, 8)); k++) s = freeRoadSpot();
+      G.me.x = s.x; G.me.y = s.y; P2.x = s.x; P2.y = s.y + 80;
+    }
     const hp0 = G.me.hp;
     G.bullets.push({ x: G.me.x - 20, y: G.me.y, vx: 1200, vy: 0, life: 1, owner: P2, dmg: 20 });
     update(1/60);
     assert.ok(G.me.hp < hp0, 'con PVP la bala de otro jugador lastima');
-    G.peds = []; G.cops = [];
+    G.peds = []; G.cops = []; G.cars = []; G.hinchas.length = 0;
     const hp1 = P2.hp;
     G.bullets.push({ x: P2.x - 20, y: P2.y, vx: 1200, vy: 0, life: 1, owner: P2, dmg: 20 });
     update(1/60);
@@ -2131,7 +2303,8 @@ describe('multijugador', () => {
     for (const id of ['messi', 'maradona']) {
       const M = makeFamous(FAMOUS.find(f => f.id === id), G.me.x + 40, G.me.y);
       G.peds.push(M);
-      const pk0 = G.pickups.length;
+      G.pickups = []; // que solo levante lo que suelta el famoso
+      const pk0 = 0;
       game.hurt(M, 999, P2);
       const drops = G.pickups.slice(pk0).filter(pk => pk.kind === M.famous.drop.kind);
       assert.equal(drops.length, M.famous.drop.n, M.famous.name + ' suelta sus premios');
@@ -2156,14 +2329,16 @@ describe('multijugador', () => {
     for (let f = 0; f < 300; f++) update(1/60);
     assert.ok(dist(H, G.me) < 110, 'vuela hasta el jugador y le da vueltas: ' + dist(H, G.me));
     assert.ok(!game.targetsOf(G.me).includes(H), 'no se le pega de a pie ni se lo atropella');
-    const g0 = G.pickups.length, m0 = G.me.money;
+    G.pickups = []; // que no levante otra cosa justo en ese frame
+    const g0 = 0, m0 = G.me.money;
     H.giftT = 0;
     update(1/60);
     // El billete cae cerca: o queda en la calle o el jugador ya lo levantó
     assert.ok((G.pickups.length > g0 || G.me.money > m0) && H.line === 'SORTEO PARA EL CHAT!', 'tira un sorteo para el chat');
     for (const h of [0.5, 0]) { G.t = h * DAY; render(); }
     const pk0 = G.pickups.length;
-    G.me.x += 200; // lejos, para que no levante los billetes en el mismo frame
+    G.me.x += 200; G.players.forEach(q => q !== G.me && (q.x = G.me.x, q.y = G.me.y)); // lejos, para que nadie levante los billetes en el mismo frame
+    G.hinchas.length = 0;
     G.bullets.push({ x: H.x - 20, y: H.y, vx: 600, vy: 0, life: 1, owner: G.me, dmg: 999 });
     update(1/60);
     assert.ok(H.hp <= 0, 'a tiros se viene abajo');
@@ -2189,6 +2364,7 @@ describe('multijugador', () => {
     F.sped = 0;
     const pk0 = G.pickups.length;
     G.me.x -= 300; // lejos, para no levantar los chocolates en el mismo frame
+    G.cars = []; G.hinchas.length = 0;
     G.bullets.push({ x: F.x - 6, y: F.y, vx: 600, vy: 0, life: 1, owner: G.me, dmg: 999 });
     update(1/60);
     assert.ok(F.hp <= 0, 'a tiros cae');
@@ -2204,6 +2380,7 @@ describe('multijugador', () => {
     startGame(CREW[0]);
     for (let f = 0; f < 5; f++) update(1/60);
     G.peds = []; G.cops = [];
+    G.cars = []; G.hinchas.length = 0; // que nada lo frene ni lo tape
     const F = makeFamous(FAMOUS.find(f => f.id === 'conductor'), G.me.x + 60, G.me.y);
     G.peds.push(F);
     let max = 0;
@@ -2211,7 +2388,7 @@ describe('multijugador', () => {
     assert.ok(max > 0, 'deja rastro al caminar');
     assert.ok(game.targetsOf(G.me).includes(F), 'se lo puede bajar');
     const pk0 = G.pickups.length;
-    G.me.x += 200;
+    G.me.x += 200; G.hinchas.length = 0;
     G.bullets.push({ x: F.x - 6, y: F.y, vx: 600, vy: 0, life: 1, owner: G.me, dmg: 999 });
     update(1/60);
     assert.ok(F.hp <= 0, 'a tiros cae');
@@ -2264,7 +2441,7 @@ describe('multijugador', () => {
     shop.purchase(P2, it('depall'));
     assert.ok(P2.money === 0 && P2.bank === 1500, 'deposita todo');
     assert.ok(!shop.status(it('dep100'), P2).can, 'sin guita encima no deposita');
-    P2.money = 200;
+    P2.money = 200; G.pickups = []; // que al reaparecer no levante un billete
     P2.ctl = idleControls(); P2.prev = idleControls();
     P2.hp = -1; update(1/60);
     assert.ok(P2.dead, 'muere');
@@ -2285,8 +2462,10 @@ describe('multijugador', () => {
     const cars = G.cars, me = G.me;
     G.me.money = 777;
     P2.money = 500;
+    G.pickups = []; // que al reaparecer no levante un billete
     P2.hp = -1; update(1/60);
     assert.ok(P2.dead, 'muere el remoto');
+    G.cops = []; G.hinchas.length = 0; // que nada lo golpee en el frame en que reaparece
     P2.ctl = { ...idleControls(), respawn: true };
     update(1/60);
     assert.ok(!P2.dead && P2.hp === P2.maxhp, 'reaparece con la vida llena');
@@ -2314,6 +2493,7 @@ describe('multijugador', () => {
     for (let f = 0; f < 10; f++) update(1/60);
     const c = G.cars.find(c => c.ai && c.hp > 0 && !c.chase);
     c.spd = 0;
+    G.cars = G.cars.filter(k => k === c || dist(k, c) > 80); // que el E no agarre otro mas cerca
     P2.x = c.x; P2.y = c.y + 12; P2.cool = 0; P2.wanted = 0;
     const n0 = G.peds.length;
     P2.ctl = { ...idleControls(), use: true };
@@ -2341,7 +2521,8 @@ describe('multijugador', () => {
     assert.equal(c.spd, 0, 'termina frenando');
     const rodo = Math.hypot(c.x - x0, c.y - y0);
     assert.ok(rodo > 5 && rodo < 70, 'rodo un poco y freno: ' + rodo.toFixed(1));
-    // Volver a subirse al propio no llama a nadie
+    // Volver a subirse al propio no llama a nadie (sin otro auto mas cerca que se lleve el E)
+    G.cars = G.cars.filter(k => k === c || dist(k, c) > 40);
     P2.wanted = 0; P2.x = c.x; P2.y = c.y + 12; P2.cool = 0;
     P2.ctl = { ...idleControls(), use: true };
     update(1/60);
@@ -2412,6 +2593,31 @@ describe('multijugador', () => {
     assert.ok(G.me.car === car, 'el local sigue en su auto');
     assert.ok(P2.seat > 0, 'el otro no se lo puede robar: sube de acompañante');
     assert.ok(driverOf(car) === G.me);
+  });
+
+  test('score: reglas de ganar y perder, con piso en 0', () => {
+    startGame(CREW[0]);
+    const P = G.me;
+    game.addScore(P, SCORE.choto);
+    assert.equal(P.score, SCORE.choto);
+    game.addScore(P, -SCORE.death);
+    assert.equal(P.score, SCORE.choto - SCORE.death);
+    game.addScore(P, -99999);
+    assert.equal(P.score, 0, 'nunca baja de 0');
+  });
+
+  test('score: bajar a otro jugador suma al que gana y resta al que cae; la tabla ordena por score', () => {
+    startGame(CREW[0]);
+    const P2 = addPlayer(CREW[1]);
+    G.me.score = 500; P2.score = 500;
+    P2.hitBy = G.me; P2.hitT = G.t;
+    game.playerDown(P2);
+    assert.equal(G.me.score, 500 + SCORE.pvp);
+    assert.equal(P2.score, 500 - SCORE.death - SCORE.pvpLoss);
+    const orden = G.players.slice().sort((a, b) => b.score - a.score);
+    assert.equal(orden[0], G.me, 'primero el de mas score');
+    G.rankOpen = true;
+    render();
   });
 });
 
@@ -2592,6 +2798,8 @@ describe('multijugador online', () => {
     const d = banks[0].door;
     P2.x = d.x + d.ox; P2.y = d.y + d.oy; P2.car = null;
     P2.money = 800; P2.bank = 0; P2.wanted = 0;
+    G.pickups = G.pickups.filter(pk => dist(pk, P2) > 60); // que no levante otro billete en la puerta
+    G.hinchas.length = 0;
     for (let f = 0; f < 6; f++) frame(red);
     assert.ok(C.G.me.nearBank, 'el cliente sabe que esta en la puerta');
     C.input.keys.KeyE = true;
@@ -2788,14 +2996,26 @@ describe('multijugador online', () => {
     game.dropTrapo(P2);
   });
 
+  test('el cliente ve de quien es el territorio y cuanto control hay', async () => {
+    const { red, P2 } = await conectar();
+    const B = G.barras[0];
+    Object.assign(B, { owner: P2, ctl: 0.5 });
+    P2.x = 5; P2.y = 5;
+    for (let f = 0; f < 4; f++) frame(red);
+    assert.ok(C.G.barras[0].owner === C.G.me && C.G.barras[0].ctl > 0.4, 'el cliente es el dueno');
+    C.render();
+    Object.assign(B, { owner: null, ctl: 0 });
+  });
+
   test('el cliente le roba el auto a uno: lo ve salir corriendo, y ve las balizas de los abandonados', async () => {
     const { red, P2 } = await conectar();
     const c = G.cars.find(c => c.ai && c.hp > 0 && !c.chase);
     c.spd = 0;
+    const solo = () => { G.cars = G.cars.filter(k => k === c || dist(k, c) > 80); }; // que el E no agarre otro mas cerca
     Object.assign(P2, { x: c.x, y: c.y + 12, car: null, cool: 0, wanted: 0 });
-    for (let f = 0; f < 4; f++) frame(red);
+    for (let f = 0; f < 4; f++) solo(), frame(red);
     C.input.keys.KeyE = true;
-    for (let f = 0; f < 4; f++) frame(red);
+    for (let f = 0; f < 4; f++) solo(), frame(red);
     C.input.keys.KeyE = false;
     for (let f = 0; f < 4; f++) frame(red);
     assert.ok(P2.car === c, 'el host lo sube al auto');
@@ -2819,22 +3039,24 @@ describe('multijugador online', () => {
     trafficAI.release(c);
     Object.assign(c, { ai: false, spd: 0 });
     Object.assign(G.me, { car: c, seat: 0, x: c.x, y: c.y });
+    const solo = () => { G.cars = G.cars.filter(k => k === c || dist(k, c) > 80); }; // que el E no agarre otro mas cerca
     Object.assign(P2, { x: c.x, y: c.y + 10, car: null, cool: 0, wanted: 0 });
-    for (let f = 0; f < 4; f++) frame(red);
+    for (let f = 0; f < 4; f++) solo(), frame(red);
     C.input.keys.KeyE = true;
-    for (let f = 0; f < 4; f++) frame(red);
+    for (let f = 0; f < 4; f++) solo(), frame(red);
     C.input.keys.KeyE = false;
     for (let f = 0; f < 4; f++) frame(red);
     assert.ok(P2.car === c && P2.seat === 1 && driverOf(c) === G.me, 'el host lo sienta de acompañante');
     assert.ok(C.G.me.car && C.G.me.seat === 1, 'el cliente se ve de acompañante');
     assert.ok(C.G.players.find(q => q.id !== C.G.me.id).car === C.G.me.car, 'en el mismo auto que el host');
     C.render();
-    const n0 = G.bullets.filter(b => b.owner === P2).length;
+    // La bala puede chocar y borrarse en el mismo update: se mide el disparo, que avisa con su dueño
+    const alarm = trafficAI.alarm, duenos = [];
+    trafficAI.alarm = (x, y, r, who, ...rest) => { duenos.push(who); return alarm.call(trafficAI, x, y, r, who, ...rest); };
     P2.cool = 0;
     C.input.keys.Space = true;
-    for (let f = 0; f < 3; f++) frame(red);
-    C.input.keys.Space = false;
-    assert.ok(G.bullets.filter(b => b.owner === P2).length > n0, 'las balas del cliente son suyas');
+    try { for (let f = 0; f < 3; f++) frame(red); } finally { trafficAI.alarm = alarm; C.input.keys.Space = false; }
+    assert.ok(duenos.includes(P2), 'los tiros del cliente son suyos');
     G.me.car = null;
     P2.car = null; P2.seat = 0;
   });
@@ -2892,5 +3114,14 @@ describe('multijugador online', () => {
     assert.equal(P2.bank, 150);
     assert.ok(G.me.money === 80 && P2.money === 80, 'el efectivo no se toca');
     assert.ok(vistos.includes(G.me) && vistos.includes(P2), 'a los dos les avisan');
+  });
+
+  test('el cliente ve el score de todos en la foto y dibuja la tabla', async () => {
+    const { red, P2 } = await conectar();
+    G.me.score = 400; P2.score = 900;
+    for (let f = 0; f < 5; f++) frame(red);
+    assert.deepEqual(C.G.players.map(p => p.score).sort(), [400, 900], 'el cliente lee q.score de la foto');
+    C.G.rankOpen = true;
+    C.render();
   });
 });

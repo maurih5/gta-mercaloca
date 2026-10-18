@@ -288,6 +288,7 @@ class NetManager {
       id(p), r1(p.x), r1(p.y), r2(p.ang), r2(p.fade),
       look('p' + p.nid, () => [p.face, p.shirt, p.pants, p.famous ? p.famous.id : 0]),
       p.famous && p.lineT > 0 ? [r2(p.lineT), p.line] : 0,
+      p.fest ? 1 : 0,
     ]);
     const cops = G.cops.filter(c => c.hp > 0).map(c => [id(c), r1(c.x), r1(c.y), r2(c.ang), r2(c.muzzle)]);
     const tranzas = G.tranzas.map(t => [r1(t.x), r1(t.y), r2(t.ang), r2(t.muzzle), t.hp > 0 ? 1 : 0]);
@@ -302,7 +303,7 @@ class NetManager {
       q === P ? packInv(q.inv) : 0,
       Math.round(q.food), Math.round(q.drink), q === P ? q.bag : 0,
       q.respect || 0, q.trapo ? G.barras.indexOf(q.trapo) + 1 : 0, r1(q.trapoT || 0), q.party || 0, r1(q.partyT || 0), q.bank,
-      q.seat || 0,
+      q.seat || 0, q.score || 0,
     ]);
     // Los hinchas: como la yuta, en el radar y el mapa de todos
     const hinchas = G.hinchas.filter(h => h.hp > 0).map(h => [id(h), r1(h.x), r1(h.y), r2(h.ang), G.barras.indexOf(h.barra), r2(h.swing || 0)]);
@@ -316,7 +317,8 @@ class NetManager {
 
     return {
       t: r2(G.t), c: cars, p: peds, k: cops, z: tranzas, va: villas.map(v => r1(v.angry)),
-      ba: G.barras.map(B => [B.trapo === 'hung' ? 0 : B.trapo === 'carried' ? 1 : 2, B.angry > 0 ? 1 : 0]),
+      ba: G.barras.map(B => [B.trapo === 'hung' ? 0 : B.trapo === 'carried' ? 1 : 2, B.angry > 0 ? 1 : 0,
+        B.owner ? G.players.indexOf(B.owner) + 1 : 0, r2(B.ctl), B.chal ? G.players.indexOf(B.chal) + 1 : 0]),
       hi: hinchas,
       pa: parrillas.map(g => [r1(g.t), g.cooking ? g.portions : 0]),
       sp: supers.map(b => [r1(b.robT || 0), Math.ceil(b.closed || 0), (b.robbing ? 1 : 0) | (b.alarm > 0 ? 2 : 0)]),
@@ -468,6 +470,7 @@ class NetManager {
     }, (p, a) => {
       this.aim(p, a[1], a[2], a[3]);
       p.fade = a[4];
+      p.fest = !!a[7];
       if (a[6]) {
         p.lineT = a[6][0];
         p.line = a[6][1];
@@ -489,7 +492,8 @@ class NetManager {
     s.va.forEach((v, i) => { if (villas[i]) villas[i].angry = v; });
     (s.ba || []).forEach((a, i) => {
       const B = G.barras[i];
-      if (B) Object.assign(B, { trapo: ['hung', 'carried', 'gone'][a[0]], angry: a[1] ? 1 : 0 });
+      if (B) Object.assign(B, { trapo: ['hung', 'carried', 'gone'][a[0]], angry: a[1] ? 1 : 0,
+        owner: G.players[a[2] - 1] || null, ctl: a[3] || 0, chal: G.players[a[4] - 1] || null });
     });
     G.hinchas = this.sync('h', s.hi || [], a => ({ kind: 'hincha', r: 5, hp: HINCHA_HP, walk: 0, swing: 0,
       face: 'ped' + (a[0] % 4), barra: G.barras[a[4]] || G.barras[0] }), (h, a) => {
@@ -565,6 +569,7 @@ class NetManager {
       q.partyT = a[28] || 0;
       q.bank = a[29] || 0;
       q.seat = q.car ? a[30] || 0 : 0;
+      q.score = a[31] || 0;
     });
 
     const me = G.players.find(q => q.id === this.myId) || null;

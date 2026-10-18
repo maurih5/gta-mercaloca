@@ -565,6 +565,23 @@ class Renderer {
 
   // Un trapo con los colores del club: Boca azul con la franja amarilla, River blanco con
   // la banda roja. (x, y) es la punta del palo; flamea un poco.
+  // Bandera argentina en un palito (la del festejo); ph hace que flamee
+  drawArgFlag(x, y, ph = 0) {
+    const ctx = this.ctx, w = 11, h = 7, wave = Math.sin(G.t * 8 + ph) * 1.1;
+    ctx.fillStyle = '#4a3a2a';
+    ctx.fillRect(px(x - 1), px(y), 1.5, 12);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.transform(1, wave / w, 0, 1, 0, 0);
+    ctx.fillStyle = '#75aadb';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, h / 3, w, h / 3);
+    ctx.fillStyle = '#f6b40e';
+    ctx.fillRect(w / 2 - 0.5, h / 2 - 0.5, 1.5, 1.5);
+    ctx.restore();
+  }
+
   drawFlag(k, x, y, s = 1) {
     const ctx = this.ctx, B = BARRAS.find(q => q.k === k), w = 16 * s, h = 10 * s;
     const wave = Math.sin(G.t * 6 + x * 0.1) * 1.2 * s;
@@ -2501,6 +2518,23 @@ class Renderer {
     });
   }
 
+  // Tabla de posiciones (mantener Tab): todos los jugadores por score
+  drawRanking() {
+    const ctx = this.ctx, rows = G.players.slice().sort((a, b) => (b.score || 0) - (a.score || 0));
+    const w = 260, h = 40 + rows.length * 12, x0 = (RW - w) / 2, y0 = (RH - h) / 2;
+    ctx.fillStyle = 'rgba(8,8,10,.92)';
+    ctx.fillRect(x0, y0, w, h);
+    ctx.fillStyle = '#e8b53a';
+    ctx.fillRect(x0, y0, w, 1);
+    this.text('RANKING', RW / 2, y0 + 12, '#ffd34a', 7, 'center');
+    rows.forEach((q, i) => {
+      const y = y0 + 28 + i * 12, col = q === G.me ? '#ffd34a' : '#e8e8e8';
+      this.text((i + 1) + '. ' + q.def.name.replace(/^EL /, ''), x0 + 10, y, col, 5);
+      this.text(String(q.score || 0), x0 + w - 10, y, '#e8c86a', 5, 'right');
+    });
+    this.text(SCORE_RULES, RW / 2, y0 + h - 6, '#9a9a9a', 3, 'center');
+  }
+
   text(t, x, y, col = '#fff', size = 8, align = 'left') {
     const ctx = this.ctx;
     ctx.font = size + 'px "Press Start 2P", monospace';
@@ -2763,6 +2797,16 @@ class Renderer {
       ctx.fillStyle = P.trapo.def.band;
       ctx.fillRect(X, Y, W * k2, 5);
     }
+    // Territorio: de quién es y cuánto control hay
+    const T = !P.dead && G.barras.find(B => dist(B.flag, P) < TERR_R && (B.owner || B.chal));
+    if (T) {
+      const W = 140, X = RW / 2 - W / 2, Y = P.trapo ? 50 : 30;
+      this.text(T.owner ? (T.owner === P ? 'ES TUYO: ' : 'DE ' + T.owner.def.name + ': ') + T.def.stadium.toUpperCase() : 'TOMANDO ' + T.def.stadium.toUpperCase(), RW / 2, Y - 4, T.def.band, 6, 'center');
+      ctx.fillStyle = '#000';
+      ctx.fillRect(X - 1, Y - 1, W + 2, 7);
+      ctx.fillStyle = T.def.band;
+      ctx.fillRect(X, Y, W * clamp(T.ctl, 0, 1), 5);
+    }
     if (P.nearTrapo && !P.car && !P.dead && !G.shopOpen) {
       const B = G.barras.find(q => q.trapo === 'hung' && dist(q.flag, P) < TRAPO_R);
       if (B) this.text('E: ROBAR EL TRAPO DE ' + B.def.name, RW / 2, RH - 44, Math.floor(G.t * 3) % 2 ? '#ff6a5a' : '#ffd34a', 7, 'center');
@@ -2906,6 +2950,7 @@ class Renderer {
       if (p.hp <= 0 || p.inside || p.air) continue;
       if (p.fade < 1) ctx.globalAlpha = p.fade;
       this.drawGuy(p, p.face, p.shirt, p.pants, false);
+      if (p.fest) this.drawArgFlag(p.x - G.cam.x + 3, p.y - G.cam.y - 14, p.walk);
       ctx.globalAlpha = 1;
     }
     for (const c of G.cops) {
@@ -3024,6 +3069,7 @@ class Renderer {
     this.drawRadar();
     this.drawHUD();
     if (G.mapOpen) this.drawMap();
+    if (G.rankOpen) this.drawRanking();
   }
 }
 

@@ -45,6 +45,9 @@ function inPlay(P) {
   return !!P && !P.dead && !P.busted && !P.healing && !P.party;
 }
 
+// Eventos aleatorios: cada uno es { id, weight, when?(), run() }. Solo corren en el host.
+const EVENTS = [];
+
 // El jugador más cercano a o (entre los que cumplen ok), con su distancia
 function nearestPlayer(o, ok = null) {
   let p = null, d = Infinity;
@@ -156,6 +159,9 @@ class Game {
     for (const g of parrillas) Object.assign(g, { cooking: false, t: 0, portions: 0, owner: null });
     copNav.reset();
     G.corralitoT = undefined;
+    G.eventT = undefined;
+    G.lastEvent = null;
+    G.festejo = null;
     G.peds = [];
     G.guards = [];
     G.cops = [];
@@ -271,6 +277,7 @@ class Game {
     P.cool = 0.5;
     this.dropTrapo(P);
     this.loseRespect(P, RESPECT_BUST);
+    this.addScore(P, -SCORE.bust);
     P.wantPeak = 0;
     // En la comisaria te sacan los fierros y el chaleco, y te dan un mate cocido
     P.food = Math.max(P.food, 50);
@@ -796,6 +803,10 @@ class Game {
     }
   }
 
+  addScore(P, n) {
+    if (P && n) P.score = Math.max(0, (P.score || 0) + n);
+  }
+
   loseRespect(P, frac, n = 0) {
     P.respect = Math.max(0, Math.round((P.respect || 0) * (1 - frac)) - n);
   }
@@ -810,8 +821,10 @@ class Game {
   playerDown(P) {
     const by = P.hitBy && G.t - P.hitT < 6 && G.players.includes(P.hitBy) && inPlay(P.hitBy) ? P.hitBy : null;
     this.loseRespect(P, RESPECT_DEATH, by ? RESPECT.pvpLoss : 0);
+    this.addScore(P, -SCORE.death - (by ? SCORE.pvpLoss : 0));
     P.wantPeak = 0;
     if (by) {
+      this.addScore(by, SCORE.pvp);
       this.gainRespect(by, RESPECT.pvp, 'BAJASTE A ' + P.def.name);
       if (P.trapo && !by.trapo) {
         const B = P.trapo;
@@ -846,7 +859,59 @@ class Game {
     Object.assign(B, { trapo: 'hung', by: null });
   }
 
+  // Territorio de cada barra: ver TERR_*. Un solo jugador en la zona toma o disputa; dos, se traban.
+  updateTerritorios(dt) {
+    for (const B of G.barras) {
+      if (B.owner && !G.players.includes(B.owner)) Object.assign(B, { owner: null, ctl: 0 });
+      if (B.chal && !G.players.includes(B.chal)) B.chal = null;
+      const inside = G.players.filter(p => inPlay(p) && dist(p, B.flag) < TERR_R);
+      const guards = !B.owner && G.hinchas.some(h => h.barra === B && h.hp > 0 && dist(h, B.flag) < TERR_R);
+      const rivals = inside.filter(p => p !== B.owner);
+      const ownerIn = !!B.owner && inside.includes(B.owner);
+      if (B.owner) {
+        B.chal = null;
+        if (ownerIn && !rivals.length) B.ctl = 1;
+        else if (!ownerIn && rivals.length === 1) {
+          B.ctl -= dt / TERR_TIME;
+          if (B.ctl <= 0) {
+            const old = B.owner, P = rivals[0];
+            Object.assign(B, { owner: P, ctl: 1, payT: 0 });
+            this.say('TE SACARON ' + B.def.club, 3, old);
+            this.takenMsg(P, B);
+          }
+        } else if (!inside.length && (B.ctl -= dt / TERR_HOLD) <= 0) {
+          this.say('LA BARRA RECUPERO ' + B.def.stadium.toUpperCase(), 3, B.owner);
+          Object.assign(B, { owner: null, ctl: 0 });
+        }
+        if (B.owner && (B.payT += dt) >= TERR_PAY) {
+          B.payT = 0;
+          B.owner.money += TERR_CASH;
+          sfxFor(B.owner, 'guita');
+          this.say('TERRITORIO: +$' + TERR_CASH, 2, B.owner);
+          this.gainRespect(B.owner, TERR_RESPECT, '', true);
+        }
+      } else if (guards || !rivals.length) {
+        B.ctl = Math.max(0, B.ctl - dt / TERR_TIME);
+        if (!B.ctl) B.chal = null;
+        if (guards && rivals.length) { B.angry = Math.max(B.angry, 20); B.tgt = rivals[0]; }
+      } else if (rivals.length === 1) {
+        if (B.chal !== rivals[0]) Object.assign(B, { chal: rivals[0], ctl: 0 });
+        if ((B.ctl += dt / TERR_TIME) >= 1) {
+          Object.assign(B, { owner: rivals[0], ctl: 1, chal: null, payT: 0 });
+          this.takenMsg(rivals[0], B);
+        }
+      }
+    }
+  }
+
+  takenMsg(P, B) {
+    this.say('TOMASTE ' + B.def.stadium.toUpperCase() + '! COBRAS $' + TERR_CASH + ' CADA ' + TERR_PAY + 's', 3.2, P);
+    for (const q of G.players) if (q !== P) this.say(P.def.name + ' SE QUEDO CON EL TERRITORIO DE ' + B.def.name, 2.8, q);
+    sfx('arma', B.flag.x, B.flag.y);
+  }
+
   updateBarras(dt) {
+    this.updateTerritorios(dt);
     for (const B of G.barras) {
       B.angry = Math.max(0, B.angry - dt);
       if (B.trapo === 'gone' && (B.backT -= dt) <= 0) Object.assign(B, { trapo: 'hung', by: null });
@@ -866,7 +931,7 @@ class Game {
         P.trapoT = 0;
         P.trapos++;
         Object.assign(B, { trapo: 'gone', by: null, backT: TRAPO_BACK, angry: BARRA_ANGRY });
-        this.gainRespect(P, RESPECT.trapo, 'EL TRAPO DE ' + B.def.name);
+        { this.gainRespect(P, RESPECT.trapo, 'EL TRAPO DE ' + B.def.name); this.addScore(P, SCORE.trapo); }
         for (const q of G.players) if (q !== P) this.say(P.def.name + ' SE QUEDO CON EL TRAPO DE ' + B.def.name, 2.8, q);
       }
     }
@@ -882,7 +947,7 @@ class Game {
       // El que cayó vuelve al rato, si nadie lo está mirando
       if (h.hp <= 0) {
         h.dead += dt;
-        if (h.dead > 60 && h.barra.angry <= 0 && farFromPlayers(h.home, OFFSCREEN)) {
+        if (h.dead > 60 && !h.barra.owner && h.barra.angry <= 0 && farFromPlayers(h.home, OFFSCREEN)) {
           Object.assign(h, { x: h.home.x, y: h.home.y, hp: HINCHA_HP, dead: 0 });
         }
         continue;
@@ -1053,7 +1118,7 @@ class Game {
     const msg = b.super === 'lanus' ? 'LA CAJA ESTABA VACIA. YA LA ROBARON AYER' : 'CAJA VACIA! JUNTA LA GUITA Y RAJA';
     for (const q of b.robbers) {
       this.say(msg, 3, q);
-      if (G.players.includes(q)) this.gainRespect(q, RESPECT[b.super], 'ROBO');
+      if (G.players.includes(q)) { this.gainRespect(q, RESPECT[b.super], 'ROBO'); this.addScore(q, SCORE[b.super]); }
     }
     boom(d.x + ax * 12, d.y + ay * 12, 10, '120,220,120');
     b.witnessT = ROB_WITNESS;
@@ -1085,7 +1150,7 @@ class Game {
       }
     }
     this.say('BAJASTE A ' + e.famous.name, 2.6, by);
-    if (by && by.kind === 'player') this.gainRespect(by, RESPECT.famoso, e.famous.name);
+    if (by && by.kind === 'player') { this.gainRespect(by, RESPECT.famoso, e.famous.name); this.addScore(by, SCORE.famoso); }
   }
 
   // Aparecen cerca de cada jugador cada tanto (sin que otro jugador los vea aparecer),
@@ -1104,6 +1169,84 @@ class Game {
       this.say('CORRALITO! EL GOBIERNO TE AGARRO LA MITAD DEL BANCO (-$' + loss + ')', 4, P);
       this.shakeFor(P, 4);
     }
+  }
+
+  // Festejo del Mundial: en el obelisco se junta gente con banderas, suenan bocinazos y la zona queda
+  // cortada al tránsito (lo frena trafficAI.festejoStop). La gente aparece cuando hay un jugador cerca.
+  startFestejo() {
+    G.festejo = { t: FESTEJO_TIME, spawn: 0 };
+    for (const P of G.players) if (inPlay(P)) this.say('SOMOS CAMPEONES DEL MUNDO! TODOS AL OBELISCO', 4, P);
+  }
+
+  updateFestejo(dt) {
+    const f = G.festejo, ob = getObelisco();
+    if (!f) return;
+    const crowd = G.peds.filter(p => p.fest && p.hp > 0);
+    f.t -= dt;
+    if (f.t <= 0 || !ob) {
+      for (const p of crowd) p.fest = false; // se van a su casa
+      G.festejo = null;
+      return;
+    }
+    const ox = ob.x + ob.w / 2, oy = ob.y + ob.h / 2, c = { x: ox, y: oy };
+    if (distToPlayers(c) > SIM_R * 0.9) return; // nadie lo ve: no se simula la gente
+    f.spawn -= dt;
+    if (crowd.length < FESTEJO_PEDS && f.spawn <= 0) {
+      f.spawn = 0.25;
+      const a = rnd(0, TAU), r = FESTEJO_CUT + rnd(15, 320);
+      const x = ox + Math.cos(a) * r, y = oy + Math.sin(a) * r, d = distToPlayers({ x, y });
+      if (d > OFFSCREEN && d < SIM_R && !pedBlocked(x, y, 5)) { // llegan caminando, nadie los ve aparecer
+        const p = makePedAt(x, y);
+        G.peds.push(Object.assign(p, { fest: true, shirt: Math.random() < 0.5 ? '#75aadb' : '#f2f2f2', pants: '#2a3552', face: 'ped' + ((Math.random() * 4) | 0), def: null }));
+      }
+    }
+    // Bocinazos y papel picado
+    if (Math.random() < dt * 1.5) {
+      const a = rnd(0, TAU), r = rnd(ROTONDA_ISLAND_R, FESTEJO_CUT);
+      sfx('bocina', ox + Math.cos(a) * r, oy + Math.sin(a) * r, rnd(0.4, 1));
+    }
+    if (Math.random() < dt * 6) {
+      const a = rnd(0, TAU), r = rnd(0, FESTEJO_CUT);
+      puff(ox + Math.cos(a) * r, oy + Math.sin(a) * r, Math.random() < 0.5 ? '117,170,219' : '255,255,255', 1, 20);
+    }
+  }
+
+  // Un festejante: va hacia el obelisco, se queda saltando en su lugar y de a ratos se mueve un poco
+  festPed(p, dt) {
+    const ob = getObelisco();
+    if (!ob) { p.fest = false; return; }
+    const ox = ob.x + ob.w / 2, oy = ob.y + ob.h / 2;
+    p.tt -= dt;
+    if (!p.fdest || p.tt <= 0) {
+      const a = rnd(0, TAU), r = rnd(ROTONDA_ISLAND_R + 4, FESTEJO_CUT);
+      p.fdest = p.fdest && dist(p, { x: ox, y: oy }) < FESTEJO_CUT + 10 ? { x: p.x + rnd(-18, 18), y: p.y + rnd(-18, 18) } : { x: ox + Math.cos(a) * r, y: oy + Math.sin(a) * r };
+      p.tt = rnd(1.5, 4);
+    }
+    const d = dist(p, p.fdest);
+    if (d < 4) { p.ang += dt * 4; p.walk += dt * 4; return; } // bailando
+    p.ang = Math.atan2(p.fdest.y - p.y, p.fdest.x - p.x);
+    const s = p.sped * 1.3, nx = p.x + Math.cos(p.ang) * s * dt, ny = p.y + Math.sin(p.ang) * s * dt;
+    if (pedBlocked(nx, ny, p.r)) { p.fdest = null; p.tt = 0; return; }
+    p.x = nx; p.y = ny; p.walk += (dt * s) / 8;
+  }
+
+  registerEvent(def) {
+    EVENTS.push({ weight: 1, ...def });
+  }
+
+  // Timer del mundo: al llegar a 0 elige por peso entre los eventos que cumplan when() (sin repetir el ultimo si hay otro) y lo corre
+  updateEvents(dt) {
+    if (G.eventT === undefined) G.eventT = rnd(EVENT_EVERY[0], EVENT_EVERY[1]);
+    G.eventT -= dt;
+    if (G.eventT > 0) return;
+    let ok = G.players.some(inPlay) ? EVENTS.filter(e => e.weight > 0 && (!e.when || e.when())) : [];
+    if (ok.length > 1) ok = ok.filter(e => e.id !== G.lastEvent);
+    if (!ok.length) { G.eventT = 5; return; } // nada para disparar: se prueba de nuevo enseguida
+    G.eventT = rnd(EVENT_EVERY[0], EVENT_EVERY[1]);
+    let r = Math.random() * ok.reduce((a, e) => a + e.weight, 0), ev = ok[ok.length - 1];
+    for (const e of ok) { if ((r -= e.weight) < 0) { ev = e; break; } }
+    G.lastEvent = ev.id;
+    ev.run();
   }
 
   updateFamous(dt) {
@@ -1348,7 +1491,7 @@ class Game {
       }
     } else {
       const running = ctl.run;
-      const spd = running ? 94 : 58;
+      const spd = (running ? 94 : 58) * (P.def.spd || 1);
       P.run = lerp(P.run, running ? 1 : 0, rdt * 8);
       const m = Math.hypot(ix, iy) || 1;
       const nx = P.x + (ix / m) * spd * rdt;
@@ -1580,6 +1723,7 @@ class Game {
         continue;
       }
       p.fade = Math.min(1, p.fade + dt * 2.6);
+      if (p.fest) { this.festPed(p, dt); continue; }
 
       p.tt -= dt;
       // Algún jugador con la yuta encima cerca: nadie se va a un edificio, todos atentos.
@@ -1783,6 +1927,8 @@ class Game {
 
     this.updateFamous(dt);
     this.updateCorralito(dt);
+    this.updateEvents(dt);
+    this.updateFestejo(dt);
     this.updateSupers(dt);
     this.updateGrills(dt);
     this.updateBarras(dt);
@@ -2085,7 +2231,7 @@ class Game {
         P.wanted--;
         this.say(P.wanted ? 'BAJO LA BUSQUEDA' : 'LOS PERDISTE', 2.6, P);
         if (!P.wanted) {
-          if (P.wantPeak >= 3) this.gainRespect(P, RESPECT.star * P.wantPeak, 'LOS PERDISTE');
+          if (P.wantPeak >= 3) { this.gainRespect(P, RESPECT.star * P.wantPeak, 'LOS PERDISTE'); this.addScore(P, SCORE.star * P.wantPeak); }
           P.wantPeak = 0;
         }
       }
@@ -2175,6 +2321,12 @@ class Game {
 }
 
 const game = new Game();
+game.registerEvent({
+  id: 'festejo',
+  weight: 1,
+  when: () => !G.festejo && !!getObelisco(),
+  run: () => game.startFestejo(),
+});
 
 // Exportación para compatibilidad. Sin jugador explícito, actúan sobre el local (G.me).
 const say = (t, s, P) => game.say(t, s, P);

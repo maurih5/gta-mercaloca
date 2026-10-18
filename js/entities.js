@@ -14,8 +14,8 @@ class EntityManager {
       y: 0,
       ang: 0,
       r: 5,
-      hp: 100,
-      maxhp: 100,
+      hp: def.hp || 100,
+      maxhp: def.hp || 100,
       car: null,
       seat: 0,         // en el auto: 0 maneja, 1+ acompañante
       cool: 0,
@@ -31,6 +31,7 @@ class EntityManager {
       food: 100,       // hambre: 100 lleno, 0 muerto de hambre
       drink: 100,      // sed
       bag: {},         // mochila: comida y bebida por id (FOOD)
+      score: 0,        // puntos del ranking (SCORE)
       respect: 0,      // respeto (RANKS)
       wantPeak: 0,     // estrellas máximas desde la última vez en 0 (para el respeto al perderlos)
       trapo: null,     // la barra cuyo trapo lleva encima
@@ -231,6 +232,7 @@ class EntityManager {
         flag: { x: d.x + d.ox * 1.6, y: d.y + d.oy * 1.6 }, // en la vereda, frente a la puerta
         trapo: 'hung', // 'hung' colgado · 'carried' lo lleva alguien · 'gone' robado
         by: null, backT: 0, angry: 0, tgt: null,
+        owner: null, ctl: 0, chal: null, payT: 0, // territorio: dueño (jugador), control 0..1, el que lo está tomando
       });
     }
     return out;

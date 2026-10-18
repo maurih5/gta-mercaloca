@@ -7,13 +7,14 @@
 const VERSION = 'local';
 
 const CREW = [
+  // hp y spd (multiplicador de velocidad a pie) son las stats propias de cada uno
   // crop: [x, y, ancho, alto] de la cara en la foto (de la frente o la gorra al mentón)
-  {id:'p1', name:'EL MORO',          img:'img/p1.jpeg',   crop:[0.43,0.13,0.22,0.25],  shirt:'#3f9a4a', pants:'#232323'},
-  {id:'p2', name:'EL IVO',           img:'img/p2.jpeg',   crop:[0.41,0.10,0.16,0.11],  shirt:'#1d1d22', pants:'#2a2a33'},
-  {id:'p3', name:'EL CIEGO AUGUSTO', img:'img/p3.jpeg',   crop:[0.38,0.045,0.17,0.115], shirt:'#26262c', pants:'#3a3f4a'},
-  {id:'p4', name:'EL KEVIN',         img:'img/p4.jpeg',   crop:[0.43,0.19,0.22,0.19],  shirt:'#4a4238', pants:'#1c1c1c'},
-  {id:'p5', name:'EL ALEXIS',        img:'img/p5.jpeg',   crop:[0.575,0.18,0.18,0.15], shirt:'#e8e8e0', pants:'#242424'},
-  {id:'p6', name:'EL GER',           img:'img/crew.jpeg', crop:[0.42,0.10,0.24,0.29],  shirt:'#3a7d3c', pants:'#2a2a2a'},
+  {id:'p1', name:'EL MORO',          img:'img/p1.jpeg',   crop:[0.43,0.13,0.22,0.25],  shirt:'#3f9a4a', pants:'#232323', hp:100, spd:1},
+  {id:'p2', name:'EL IVO',           img:'img/p2.jpeg',   crop:[0.41,0.10,0.16,0.11],  shirt:'#1d1d22', pants:'#2a2a33', hp:90, spd:1.08},
+  {id:'p3', name:'EL CIEGO AUGUSTO', img:'img/p3.jpeg',   crop:[0.38,0.045,0.17,0.115], shirt:'#26262c', pants:'#3a3f4a', hp:120, spd:0.92},
+  {id:'p4', name:'EL KEVIN',         img:'img/p4.jpeg',   crop:[0.43,0.19,0.22,0.19],  shirt:'#4a4238', pants:'#1c1c1c', hp:110, spd:0.96},
+  {id:'p5', name:'EL ALEXIS',        img:'img/p5.jpeg',   crop:[0.575,0.18,0.18,0.15], shirt:'#e8e8e0', pants:'#242424', hp:85, spd:1.1},
+  {id:'p6', name:'EL GER',           img:'img/crew.jpeg', crop:[0.42,0.10,0.24,0.29],  shirt:'#3a7d3c', pants:'#2a2a2a', hp:100, spd:1},
 ];
 
 const TIPS = [
@@ -198,6 +199,10 @@ const FAMOUS = [
 ];
 const FAMOUS_EVERY = [40, 80];          // cada cuánto (s, al azar) puede aparecer uno cerca de cada jugador
 const CORRALITO_EVERY = [240, 480];   // cada cuánto (s, al azar) el gobierno se queda con la mitad de la plata del banco
+const EVENT_EVERY = [90, 180];        // cada cuánto (s, al azar) el mundo intenta disparar un evento aleatorio registrado
+const FESTEJO_TIME = 120;             // segundos que dura el festejo del Mundial en el Obelisco
+const FESTEJO_PEDS = 26;              // cuánta gente junta (cerca de algún jugador)
+const FESTEJO_CUT = ROTONDA_R + 22;   // radio (desde el obelisco) que queda cortado al tránsito
 const CORRALITO_MIN = 100;            // plata mínima en el banco para que valga el corralito
 const FAMOUS_LIFE = 150;                // segundos que pasea antes de irse (cuando nadie lo ve)
 const FAMOUS_TALK = 34;                 // distancia a la que te habla
@@ -417,6 +422,16 @@ const RESPECT = {
   trapo: 50,                       // aguantar el trapo de una barra
   asado: 2,                        // que otro coma de tu asado
 };
+// Score del ranking (tabla con Tab): ganar y perder puntos, nunca baja de 0
+const SCORE = {
+  choto: 100, noche: 60, lanus: 10,   // robar un super
+  famoso: 80,                         // bajar a un famoso
+  star: 50,                           // por estrella, al perder a la yuta con 3 o más
+  pvp: 150, pvpLoss: 100,             // bajar a otro jugador (y lo que pierde el que cae)
+  trapo: 300,                         // aguantar el trapo de una barra
+  death: 50, bust: 75,                // morir / caer preso
+};
+const SCORE_RULES = 'GANAS: ROBAR SUPER, BAJAR FAMOSO O JUGADOR, PERDER A LA YUTA, TRAPO. PERDES: MORIR, CAER PRESO, QUE TE BAJEN';
 const RESPECT_DEATH = 0.10;  // lo que se pierde al morir
 const RESPECT_BUST = 0.15;   // y al caer preso
 const RANK_DISCOUNT = 0.05;  // por rango: más barato en la armería y con los tranzas
@@ -437,6 +452,9 @@ const BARRAS = [
 const TRAPO_TIME = 60;
 const TRAPO_BACK = 180;
 const TRAPO_R = 16;         // distancia para agarrarlo
+// Territorio: la zona de TERR_R alrededor del trapo es de la barra hasta que un jugador, sin hinchas
+// vivos en la zona, la aguanta TERR_TIME segundos. Dueño: cobra TERR_CASH cada TERR_PAY segundos.
+const TERR_R = 130, TERR_TIME = 30, TERR_HOLD = 240, TERR_PAY = 30, TERR_CASH = 60, TERR_RESPECT = 2;
 const BARRA_ANGRY = 90;     // cuánto dura la bronca
 const BARRA_CHASE = 420;    // hasta dónde te siguen
 // Corren más que vos caminando y menos que corriendo (SHIFT); pegan los HINCHA_FRONT más cerca
