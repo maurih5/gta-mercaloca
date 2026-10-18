@@ -750,7 +750,7 @@ describe('simulacion', () => {
     console.log('  vereda: ' + Math.round(onWalk/walking.length*100) + '% de los peatones que deambulan');
     // ninguno puede quedar adentro de un edificio ni fuera del mapa
     for(const p of G.peds){
-      if(p.hp <= 0 || p.inside) continue;
+      if(p.hp <= 0 || p.inside || p.air) continue; // el del helicoptero vuela sobre los edificios
       assert.ok(!hitBuilding(p.x, p.y, 2), 'peaton empotrado en un edificio');
       assert.ok(p.x > 0 && p.y > 0 && p.x < WORLD && p.y < WORLD, 'peaton fuera del mapa');
     }
