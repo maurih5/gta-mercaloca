@@ -1860,7 +1860,7 @@ describe('festejo del mundial', () => {
     for (let f = 0; f < 60 * 12; f++) {
       const antes = new Set(G.peds);
       game.updateFestejo(1 / 60), update(1 / 60);
-      for (const p of G.peds) if (p.fest && !antes.has(p)) assert.ok(dist(p, G.me) > OFFSCREEN, 'aparecio en pantalla');
+      for (const p of G.peds) if (p.fest && !antes.has(p)) assert.ok(dist(p, G.me) > OFFSCREEN - 5, 'aparecio en pantalla'); // -5: ya dio un paso en el mismo update
     }
     const gente = G.peds.filter(p => p.fest);
     assert.ok(gente.length >= FESTEJO_PEDS / 2, 'hay gente: ' + gente.length);
@@ -1886,6 +1886,36 @@ describe('festejo del mundial', () => {
 });
 
 describe('multijugador', () => {
+  test('cada uno con sus stats: vida, velocidad a pie, cura y reaparece con su maximo', () => {
+    const lento = CREW.find(c => c.spd < 1), rapido = CREW.find(c => c.spd > 1);
+    startGame(lento);
+    const P1 = G.me, P2 = addPlayer(rapido);
+    assert.ok(P1.maxhp !== P2.maxhp, 'personajes con vida distinta');
+    assert.ok(P1.hp === lento.hp && P1.maxhp === lento.hp && P2.maxhp === rapido.hp, 'arrancan con su vida');
+    // Caminan en linea recta medio segundo por una calle libre, sin nada alrededor. Camina P2 con
+    // los dos personajes: el local (G.me) lee el teclado en cada update y pisa su ctl.
+    const anda = (P, def) => {
+      P.def = def;
+      G.cars = []; G.peds = []; G.cops = []; G.hinchas.length = 0;
+      const s = freeRoadSpot(), x0 = s.x;
+      Object.assign(P, { x: s.x, y: s.y, car: null, ctl: { ...idleControls(), x: hitBuilding(s.x + 60, s.y, 6) ? -1 : 1 } });
+      for (let f = 0; f < 5; f++) update(1/60); // pocos frames: que no se cruce nada
+      P.ctl = idleControls();
+      return Math.abs(P.x - x0);
+    };
+    const d1 = anda(P2, lento), d2 = anda(P2, rapido);
+    assert.ok(Math.abs(d1 / d2 - lento.spd / rapido.spd) < 0.05, 'cada uno camina a su ritmo: ' + d1.toFixed(1) + ' vs ' + d2.toFixed(1));
+    // Bien comido se cura hasta su maximo, no hasta 100
+    P2.hp = P2.maxhp - 1; P2.food = P2.drink = 100;
+    for (let f = 0; f < 240; f++) update(1/60);
+    assert.equal(P2.hp, rapido.hp, 'se cura hasta su maximo');
+    P2.hp = -1; update(1/60);
+    P2.ctl = { ...idleControls(), respawn: true };
+    update(1/60);
+    assert.equal(P2.hp, rapido.hp, 'reaparece con su vida llena');
+    removePlayer(P2);
+  });
+
   // Pone a P sobre la calle, a d px de G.me (en una dirección donde haya calle libre)
   const lejos = (P, d) => {
     for (let k = 0; k < 64; k++) {
@@ -2438,6 +2468,7 @@ describe('multijugador', () => {
     for (let f = 0; f < 10; f++) update(1/60);
     const c = G.cars.find(c => c.ai && c.hp > 0 && !c.chase);
     c.spd = 0;
+    G.cars = G.cars.filter(k => k === c || dist(k, c) > 80); // que el E no agarre otro mas cerca
     P2.x = c.x; P2.y = c.y + 12; P2.cool = 0; P2.wanted = 0;
     const n0 = G.peds.length;
     P2.ctl = { ...idleControls(), use: true };
@@ -2953,7 +2984,7 @@ describe('multijugador online', () => {
     const { red, P2 } = await conectar();
     const c = G.cars.find(c => c.ai && c.hp > 0 && !c.chase);
     c.spd = 0;
-    G.cars = G.cars.filter(k => k === c || dist(k, c) > 40); // que el E no agarre otro mas cerca
+    G.cars = G.cars.filter(k => k === c || dist(k, c) > 80); // que el E no agarre otro mas cerca
     Object.assign(P2, { x: c.x, y: c.y + 12, car: null, cool: 0, wanted: 0 });
     for (let f = 0; f < 4; f++) frame(red);
     C.input.keys.KeyE = true;
@@ -2981,6 +3012,7 @@ describe('multijugador online', () => {
     trafficAI.release(c);
     Object.assign(c, { ai: false, spd: 0 });
     Object.assign(G.me, { car: c, seat: 0, x: c.x, y: c.y });
+    G.cars = G.cars.filter(k => k === c || dist(k, c) > 80); // que el E no agarre otro mas cerca
     Object.assign(P2, { x: c.x, y: c.y + 10, car: null, cool: 0, wanted: 0 });
     for (let f = 0; f < 4; f++) frame(red);
     C.input.keys.KeyE = true;
