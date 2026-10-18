@@ -1491,7 +1491,7 @@ class Game {
       }
     } else {
       const running = ctl.run;
-      const spd = running ? 94 : 58;
+      const spd = (running ? 94 : 58) * (P.def.spd || 1);
       P.run = lerp(P.run, running ? 1 : 0, rdt * 8);
       const m = Math.hypot(ix, iy) || 1;
       const nx = P.x + (ix / m) * spd * rdt;

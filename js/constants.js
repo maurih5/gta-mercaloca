@@ -7,13 +7,14 @@
 const VERSION = 'local';
 
 const CREW = [
+  // hp y spd (multiplicador de velocidad a pie) son las stats propias de cada uno
   // crop: [x, y, ancho, alto] de la cara en la foto (de la frente o la gorra al mentón)
-  {id:'p1', name:'EL MORO',          img:'img/p1.jpeg',   crop:[0.43,0.13,0.22,0.25],  shirt:'#3f9a4a', pants:'#232323'},
-  {id:'p2', name:'EL IVO',           img:'img/p2.jpeg',   crop:[0.41,0.10,0.16,0.11],  shirt:'#1d1d22', pants:'#2a2a33'},
-  {id:'p3', name:'EL CIEGO AUGUSTO', img:'img/p3.jpeg',   crop:[0.38,0.045,0.17,0.115], shirt:'#26262c', pants:'#3a3f4a'},
-  {id:'p4', name:'EL KEVIN',         img:'img/p4.jpeg',   crop:[0.43,0.19,0.22,0.19],  shirt:'#4a4238', pants:'#1c1c1c'},
-  {id:'p5', name:'EL ALEXIS',        img:'img/p5.jpeg',   crop:[0.575,0.18,0.18,0.15], shirt:'#e8e8e0', pants:'#242424'},
-  {id:'p6', name:'EL GER',           img:'img/crew.jpeg', crop:[0.42,0.10,0.24,0.29],  shirt:'#3a7d3c', pants:'#2a2a2a'},
+  {id:'p1', name:'EL MORO',          img:'img/p1.jpeg',   crop:[0.43,0.13,0.22,0.25],  shirt:'#3f9a4a', pants:'#232323', hp:100, spd:1},
+  {id:'p2', name:'EL IVO',           img:'img/p2.jpeg',   crop:[0.41,0.10,0.16,0.11],  shirt:'#1d1d22', pants:'#2a2a33', hp:90, spd:1.08},
+  {id:'p3', name:'EL CIEGO AUGUSTO', img:'img/p3.jpeg',   crop:[0.38,0.045,0.17,0.115], shirt:'#26262c', pants:'#3a3f4a', hp:120, spd:0.92},
+  {id:'p4', name:'EL KEVIN',         img:'img/p4.jpeg',   crop:[0.43,0.19,0.22,0.19],  shirt:'#4a4238', pants:'#1c1c1c', hp:110, spd:0.96},
+  {id:'p5', name:'EL ALEXIS',        img:'img/p5.jpeg',   crop:[0.575,0.18,0.18,0.15], shirt:'#e8e8e0', pants:'#242424', hp:85, spd:1.1},
+  {id:'p6', name:'EL GER',           img:'img/crew.jpeg', crop:[0.42,0.10,0.24,0.29],  shirt:'#3a7d3c', pants:'#2a2a2a', hp:100, spd:1},
 ];
 
 const TIPS = [
