@@ -845,6 +845,18 @@ class TrafficAI {
     return pts;
   }
 
+  // Festejo del Mundial: la zona del obelisco queda cortada. Distancia hasta donde tiene que frenar
+  // (Infinity si no hay festejo, o si ya está en la rotonda o se está yendo)
+  festejoStop(c, pts) {
+    const ob = G.festejo && getObelisco();
+    if (!ob) return Infinity;
+    const ox = ob.x + ob.w / 2, oy = ob.y + ob.h / 2, d = Math.hypot(c.x - ox, c.y - oy);
+    if (d < ROTONDA_R + 10) return Infinity;
+    if (d < FESTEJO_CUT && (ox - c.x) * Math.cos(c.ang) + (oy - c.y) * Math.sin(c.ang) < 0) return Infinity;
+    for (const p of pts) if (Math.hypot(p.x - ox, p.y - oy) < FESTEJO_CUT) return Math.max(0, p.s - c.w / 2 - 2);
+    return Infinity;
+  }
+
   // Lo más cercano que hay adelante sobre el camino: auto, jugador o peatón
   leader(c, pts) {
     let s = Infinity, v = 0, who = null, obj = null;
@@ -1376,6 +1388,11 @@ class TrafficAI {
     const blocker = lead.who === 'player' || (lead.who && lead.who.kind === 'car' && driverOf(lead.who));
     if (blocker && lead.s < 20 && c.spd < 8 && Math.random() < dt * style.horn * 2) this.honk(c, 1.1);
     if (stopAt < s) { s = stopAt; vl = 0; why = lineWhy || 'semaforo'; }
+    const fStop = this.festejoStop(c, pts);
+    if (fStop < s) {
+      s = fStop; vl = 0; why = 'festejo';
+      if (c.spd < 8) { c.queued = true; if (Math.random() < dt * style.horn * 2) this.honk(c, 1.1); }
+    }
     if ((why === 'bocacalle' || why === 'cruce') && c.spd < 8) c.queued = true;
     if (c.yieldCop && c.spd < 8) { c.queued = true; why = 'sirena'; }
 

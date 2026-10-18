@@ -288,6 +288,7 @@ class NetManager {
       id(p), r1(p.x), r1(p.y), r2(p.ang), r2(p.fade),
       look('p' + p.nid, () => [p.face, p.shirt, p.pants, p.famous ? p.famous.id : 0]),
       p.famous && p.lineT > 0 ? [r2(p.lineT), p.line] : 0,
+      p.fest ? 1 : 0,
     ]);
     const cops = G.cops.filter(c => c.hp > 0).map(c => [id(c), r1(c.x), r1(c.y), r2(c.ang), r2(c.muzzle)]);
     const tranzas = G.tranzas.map(t => [r1(t.x), r1(t.y), r2(t.ang), r2(t.muzzle), t.hp > 0 ? 1 : 0]);
@@ -469,6 +470,7 @@ class NetManager {
     }, (p, a) => {
       this.aim(p, a[1], a[2], a[3]);
       p.fade = a[4];
+      p.fest = !!a[7];
       if (a[6]) {
         p.lineT = a[6][0];
         p.line = a[6][1];

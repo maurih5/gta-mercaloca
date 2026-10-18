@@ -37,7 +37,7 @@ const api = new Function(js + `
          water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
          AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
          ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,EVENTS,EVENT_EVERY,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,TERR_R,TERR_TIME,TERR_PAY,TERR_CASH,SCORE,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS};`)();
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,FESTEJO_CUT,FESTEJO_PEDS,EVENTS,EVENT_EVERY,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,TERR_R,TERR_TIME,TERR_PAY,TERR_CASH,SCORE,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
        startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
@@ -47,7 +47,7 @@ const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,free
        water,casaRosada,cabildo,getObelisco,riverCurve,CASA_ROSADA_GUARDS,
        AVENUE_ROAD,ROTONDA_R,ROTONDA_ISLAND_R,PLAZA_CX,PLAZA_CY,inRotondaRing,
        ROSADA_CX,ROSADA_CY,PLAZA_PX,PLAZA_PY,ROSADA_PX,ROSADA_PY,DIAG_ANG,DIAG_LEN,DIAG_UX,DIAG_UY,inDiagonalBand,RIVER_HALF,distToRiver,
-         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,EVENTS,EVENT_EVERY,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,TERR_R,TERR_TIME,TERR_PAY,TERR_CASH,SCORE,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS} = api;
+         inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,FESTEJO_CUT,FESTEJO_PEDS,EVENTS,EVENT_EVERY,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,TERR_R,TERR_TIME,TERR_PAY,TERR_CASH,SCORE,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS} = api;
 
 describe('personajes', () => {
   test('cada personaje tiene nombre, foto y recorte de cara validos', () => {
@@ -751,7 +751,7 @@ describe('simulacion', () => {
     console.log('  vereda: ' + Math.round(onWalk/walking.length*100) + '% de los peatones que deambulan');
     // ninguno puede quedar adentro de un edificio ni fuera del mapa
     for(const p of G.peds){
-      if(p.hp <= 0 || p.inside) continue;
+      if(p.hp <= 0 || p.inside || p.air) continue; // el del helicoptero vuela sobre los edificios
       assert.ok(!hitBuilding(p.x, p.y, 2), 'peaton empotrado en un edificio');
       assert.ok(p.x > 0 && p.y > 0 && p.x < WORLD && p.y < WORLD, 'peaton fuera del mapa');
     }
@@ -929,7 +929,7 @@ describe('ia de los autos', () => {
       }
     }
     assert.equal(rojos, 0, 'autos que se mandaron con el rojo: ' + rojos);
-    assert.ok(choques <= 1, 'autos de la IA chocando entre si: ' + choques);
+    assert.ok(choques <= 2, 'autos de la IA chocando entre si: ' + choques); // un choque son dos autos golpeados
     assert.ok(encima <= 1, 'autos de la IA encimados: ' + encima + ' ' + JSON.stringify(detalle) + ' me ' + Math.round(G.me.x) + ',' + Math.round(G.me.y));
     assert.ok(afuera / n < 0.002, 'autos fuera de la calle: ' + afuera + '/' + n);
     // Ni el rojo de tres fases con la fila hace esperar tanto: mas que esto es un nudo
@@ -1077,7 +1077,7 @@ describe('jugador', () => {
     startGame(CREW[0]);
     const P = G.me;
     assert.ok(P.food === 100 && P.drink === 100, 'arranca lleno');
-    const quieto = () => { G.cops.length = 0; P.wanted = 0; };
+    const quieto = () => { G.cops.length = 0; G.hinchas.length = 0; P.wanted = 0; }; // sin barras que le peguen
     for (let f = 0; f < 600; f++) { quieto(); update(1/60); }
     assert.ok(P.food < 100 && P.drink < P.food, 'bajan, la sed mas rapido: ' + P.food.toFixed(1) + ' ' + P.drink.toFixed(1));
     P.food = 0; P.hp = 50;
@@ -1841,6 +1841,50 @@ describe('eventos', () => {
   });
 });
 
+describe('festejo del mundial', () => {
+  const centro = () => { const o = getObelisco(); return { x: o.x + o.w / 2, y: o.y + o.h / 2 }; };
+  const ev = () => EVENTS.find(e => e.id === 'festejo');
+  test('esta registrado y se dispara una sola vez a la vez', () => {
+    startGame(CREW[0]);
+    assert.ok(ev(), 'registrado');
+    assert.ok(ev().when());
+    ev().run();
+    assert.ok(G.festejo && !ev().when(), 'mientras dura no se repite');
+    assert.ok(G.msg.includes('CAMPEONES'), G.msg);
+  });
+  test('junta gente con banderas alrededor del obelisco y al terminar se va', () => {
+    startGame(CREW[0]);
+    const c = centro();
+    G.me.x = c.x + 150; G.me.y = c.y;
+    ev().run();
+    for (let f = 0; f < 60 * 12; f++) {
+      const antes = new Set(G.peds);
+      game.updateFestejo(1 / 60), update(1 / 60);
+      for (const p of G.peds) if (p.fest && !antes.has(p)) assert.ok(dist(p, G.me) > OFFSCREEN, 'aparecio en pantalla');
+    }
+    const gente = G.peds.filter(p => p.fest);
+    assert.ok(gente.length >= FESTEJO_PEDS / 2, 'hay gente: ' + gente.length);
+    assert.ok(gente.some(p => Math.hypot(p.x - c.x, p.y - c.y) < FESTEJO_CUT + 60), 'cerca del obelisco');
+    renderer.render();
+    G.festejo.t = 0.01; game.updateFestejo(0.1);
+    assert.equal(G.festejo, null);
+    assert.ok(!G.peds.some(p => p.fest), 'se van');
+  });
+  test('el transito frena antes de la zona cortada, pero el que sale pasa', () => {
+    startGame(CREW[0]);
+    const c = centro();
+    G.festejo = { t: 99, spawn: 0 };
+    const a = { x: c.x - FESTEJO_CUT - 40, y: c.y, ang: 0, w: 14, spd: 50 };
+    const pts = [10, 20, 30, 40, 50, 60].map(s => ({ x: a.x + s, y: c.y, a: 0, s }));
+    const d = trafficAI.festejoStop(a, pts);
+    assert.ok(d > 0 && d < Infinity && d <= 60, 'frena antes: ' + d);
+    assert.equal(trafficAI.festejoStop({ ...a, x: c.x - FESTEJO_CUT + 5, ang: Math.PI }, pts), Infinity, 'adentro y yendose: pasa');
+    assert.equal(trafficAI.festejoStop({ ...a, x: c.x + ROTONDA_R }, pts), Infinity, 'en la rotonda sigue');
+    G.festejo = null;
+    assert.equal(trafficAI.festejoStop(a, pts), Infinity, 'sin festejo no corta');
+  });
+});
+
 describe('multijugador', () => {
   // Pone a P sobre la calle, a d px de G.me (en una dirección donde haya calle libre)
   const lejos = (P, d) => {
@@ -2234,7 +2278,8 @@ describe('multijugador', () => {
     for (let f = 0; f < 300; f++) update(1/60);
     assert.ok(dist(H, G.me) < 110, 'vuela hasta el jugador y le da vueltas: ' + dist(H, G.me));
     assert.ok(!game.targetsOf(G.me).includes(H), 'no se le pega de a pie ni se lo atropella');
-    const g0 = G.pickups.length, m0 = G.me.money;
+    G.pickups = []; // que no levante otra cosa justo en ese frame
+    const g0 = 0, m0 = G.me.money;
     H.giftT = 0;
     update(1/60);
     // El billete cae cerca: o queda en la calle o el jugador ya lo levantó
@@ -2363,6 +2408,7 @@ describe('multijugador', () => {
     const cars = G.cars, me = G.me;
     G.me.money = 777;
     P2.money = 500;
+    G.pickups = []; // que al reaparecer no levante un billete
     P2.hp = -1; update(1/60);
     assert.ok(P2.dead, 'muere el remoto');
     P2.ctl = { ...idleControls(), respawn: true };
@@ -2419,7 +2465,8 @@ describe('multijugador', () => {
     assert.equal(c.spd, 0, 'termina frenando');
     const rodo = Math.hypot(c.x - x0, c.y - y0);
     assert.ok(rodo > 5 && rodo < 70, 'rodo un poco y freno: ' + rodo.toFixed(1));
-    // Volver a subirse al propio no llama a nadie
+    // Volver a subirse al propio no llama a nadie (sin otro auto mas cerca que se lleve el E)
+    G.cars = G.cars.filter(k => k === c || dist(k, c) > 40);
     P2.wanted = 0; P2.x = c.x; P2.y = c.y + 12; P2.cool = 0;
     P2.ctl = { ...idleControls(), use: true };
     update(1/60);
@@ -2906,6 +2953,7 @@ describe('multijugador online', () => {
     const { red, P2 } = await conectar();
     const c = G.cars.find(c => c.ai && c.hp > 0 && !c.chase);
     c.spd = 0;
+    G.cars = G.cars.filter(k => k === c || dist(k, c) > 40); // que el E no agarre otro mas cerca
     Object.assign(P2, { x: c.x, y: c.y + 12, car: null, cool: 0, wanted: 0 });
     for (let f = 0; f < 4; f++) frame(red);
     C.input.keys.KeyE = true;
