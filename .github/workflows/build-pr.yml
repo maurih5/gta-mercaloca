@@ -74,24 +74,20 @@ jobs:
               core.setFailed(`Las PRs a main tienen que venir de dev, no de '${pr.head.ref}'. Cambiá la base de la PR a dev.`);
               return;
             }
-            const aplica = true;
 
             core.setOutput('numero', numero);
             core.setOutput('titulo', pr.title);
             core.setOutput('head_sha', pr.head.sha);
             core.setOutput('base_ref', pr.base.ref);
             core.setOutput('tipo', tipo);
-            core.setOutput('aplica', aplica);
 
       - name: Checkout de la PR
-        if: steps.pr.outputs.aplica == 'true'
         uses: actions/checkout@v7
         with:
           ref: ${{ steps.pr.outputs.head_sha }}
           fetch-depth: 0
 
       - name: Esperar publicaciones en curso y verificar contra la rama destino
-        if: steps.pr.outputs.aplica == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -128,7 +124,6 @@ jobs:
           echo "BASE_SHA=$(git rev-parse "origin/$BASE_REF")" >> "$GITHUB_ENV"
 
       - name: Calcular versión
-        if: steps.pr.outputs.aplica == 'true'
         shell: bash
         env:
           BASE_REF: ${{ steps.pr.outputs.base_ref }}
@@ -154,12 +149,10 @@ jobs:
           echo "✅ Versión a publicar: $version (versionCode $versionCode, tipo $TIPO)"
 
       - uses: actions/setup-node@v7
-        if: steps.pr.outputs.aplica == 'true'
         with:
           node-version: 24
 
       - name: Compilar
-        if: steps.pr.outputs.aplica == 'true'
         shell: bash
         env:
           # La PR a dev entra en las novedades de su versión (la de dev -> main no: es la
@@ -173,7 +166,6 @@ jobs:
           (cd "$RUNNER_TEMP/sitio" && zip -qr "$GITHUB_WORKSPACE/artefacto/gta-mercaloca-$version.zip" .)
 
       - name: Datos de la compilación
-        if: steps.pr.outputs.aplica == 'true'
         shell: bash
         env:
           PR: ${{ steps.pr.outputs.numero }}
@@ -194,7 +186,6 @@ jobs:
           cat artefacto/compilacion.json
 
       - name: Subir artefacto
-        if: steps.pr.outputs.aplica == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: artefacto-pr
