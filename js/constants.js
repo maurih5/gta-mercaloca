@@ -37,7 +37,7 @@ const FOCAL = 300;                      // menor = mas perspectiva en la extrusi
 
 // Geometria del mundo y grilla
 const CELL = 190, ROAD = 56, SIDEWALK = 10;
-const GRID = 24, WORLD = CELL * GRID;
+const GRID = 24, WORLD_W = CELL * GRID, WORLD_H = CELL * GRID;
 const MARGIN = 8;
 
 // Avenida central (9 de Julio): fila/columna de la grilla que pasa por la plaza,

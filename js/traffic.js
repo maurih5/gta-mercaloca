@@ -265,7 +265,7 @@ class TrafficAI {
   }
 
   roadOK(x, y) {
-    return x > 10 && y > 10 && x < WORLD - 10 && y < WORLD - 10
+    return x > 10 && y > 10 && x < WORLD_W - 10 && y < WORLD_H - 10
       && onRoad(x, y) && !hitBuilding(x, y, 4) && !hitCarBlock(x, y, 4);
   }
 
@@ -1040,7 +1040,7 @@ class TrafficAI {
       if (!hitBuilding(px, py, 4)) { x = px; y = py; break; }
     }
     if (hitBuilding(x, y, 4)) { x = c.x; y = c.y; }
-    const p = makePedAt(clamp(x, 12, WORLD - 12), clamp(y, 12, WORLD - 12));
+    const p = makePedAt(clamp(x, 12, WORLD_W - 12), clamp(y, 12, WORLD_H - 12));
     p.fleeT = rnd(8, 13);
     p.fleeFrom = from;
     p.fade = 1;
@@ -1185,7 +1185,7 @@ class TrafficAI {
   // Lugar libre adelante (px) si en p se puede poner un auto, o -1
   spawnGap(p) {
     const d = p.dir, fx = DXS[d], fy = DYS[d];
-    if (p.x < 20 || p.y < 20 || p.x > WORLD - 20 || p.y > WORLD - 20) return -1;
+    if (p.x < 20 || p.y < 20 || p.x > WORLD_W - 20 || p.y > WORLD_H - 20) return -1;
     if (!this.roadOK(p.x, p.y) || this.nearJunction(p.x, p.y, 18, d)) return -1;
     if (!this.roadOK(p.x + fx * 30, p.y + fy * 30) || !this.roadOK(p.x - fx * 16, p.y - fy * 16)) return -1;
     let gap = 200;
@@ -1235,8 +1235,8 @@ class TrafficAI {
       c.brake = false;
       c.why = 'maniobra';
       c.queued = true;
-      c.x = clamp(c.x, 10, WORLD - 10);
-      c.y = clamp(c.y, 10, WORLD - 10);
+      c.x = clamp(c.x, 10, WORLD_W - 10);
+      c.y = clamp(c.y, 10, WORLD_H - 10);
       if (c.revT <= 0) { c.path = null; c.rot = false; c.inRing = false; c.dodge = null; c.planKey = -1; c.move = null; this.release(c); c.nav = false; }
       return;
     }
@@ -1476,7 +1476,7 @@ class TrafficAI {
     // Avanzar. Si igual se iba contra una pared, frena y busca otro sentido despacio
     const nx = c.x + Math.cos(c.ang) * c.spd * dt, ny = c.y + Math.sin(c.ang) * c.spd * dt;
     const CR = c.h * 0.5 + 1;
-    if (hitBuilding(nx, ny, CR) || hitCarBlock(nx, ny, CR) || nx < 10 || ny < 10 || nx > WORLD - 10 || ny > WORLD - 10) {
+    if (hitBuilding(nx, ny, CR) || hitCarBlock(nx, ny, CR) || nx < 10 || ny < 10 || nx > WORLD_W - 10 || ny > WORLD_H - 10) {
       c.spd = 0;
       c.why = 'pared';
       c.wallT = (c.wallT || 0) + dt;
@@ -1490,8 +1490,8 @@ class TrafficAI {
       c.wallT = 0;
     }
     // Un choque puede empujarlo afuera: nunca sale del mapa
-    c.x = clamp(c.x, 10, WORLD - 10);
-    c.y = clamp(c.y, 10, WORLD - 10);
+    c.x = clamp(c.x, 10, WORLD_W - 10);
+    c.y = clamp(c.y, 10, WORLD_H - 10);
 
     // Estado de la rotonda (para el radar de vueltas y la cesión de paso de los demás)
     if (c.rot && c.path) {
@@ -1560,7 +1560,7 @@ class TrafficAI {
       c.ang += side * 1.4 * dt;
       const CR0 = c.h * 0.5 + 1;
       const bx = c.x - Math.cos(c.ang) * 22 * dt, by = c.y - Math.sin(c.ang) * 22 * dt;
-      if (!hitBuilding(bx, by, CR0) && !hitCarBlock(bx, by, CR0)) { c.x = clamp(bx, 10, WORLD - 10); c.y = clamp(by, 10, WORLD - 10); }
+      if (!hitBuilding(bx, by, CR0) && !hitCarBlock(bx, by, CR0)) { c.x = clamp(bx, 10, WORLD_W - 10); c.y = clamp(by, 10, WORLD_H - 10); }
       c.spd = -22;
       c.brake = false;
       return;
@@ -1598,13 +1598,13 @@ class TrafficAI {
     const nx2 = c.x + Math.cos(c.ang) * c.spd * dt;
     const ny2 = c.y + Math.sin(c.ang) * c.spd * dt;
 
-    if (hitBuilding(nx2, ny2, CR2) || hitCarBlock(nx2, ny2, CR2) || nx2 < 10 || ny2 < 10 || nx2 > WORLD - 10 || ny2 > WORLD - 10) {
+    if (hitBuilding(nx2, ny2, CR2) || hitCarBlock(nx2, ny2, CR2) || nx2 < 10 || ny2 < 10 || nx2 > WORLD_W - 10 || ny2 > WORLD_H - 10) {
       let got = false;
       for (const t2 of [0.7, -0.7, 1.5, -1.5, 2.4, -2.4, Math.PI]) {
         const a2 = c.ang + t2;
         const tx3 = c.x + Math.cos(a2) * (Math.abs(c.spd) * dt + CR2 + 6);
         const ty3 = c.y + Math.sin(a2) * (Math.abs(c.spd) * dt + CR2 + 6);
-        if (!hitBuilding(tx3, ty3, CR2) && !hitCarBlock(tx3, ty3, CR2) && tx3 > 10 && ty3 > 10 && tx3 < WORLD - 10 && ty3 < WORLD - 10) {
+        if (!hitBuilding(tx3, ty3, CR2) && !hitCarBlock(tx3, ty3, CR2) && tx3 > 10 && ty3 > 10 && tx3 < WORLD_W - 10 && ty3 < WORLD_H - 10) {
           c.ang = a2;
           // Se compromete con el desvío: si al frame siguiente vuelve a apuntar al jugador,
           // choca contra la misma pared y queda girando en el lugar para siempre
@@ -1630,8 +1630,8 @@ class TrafficAI {
     }
     // Un choque puede empujarlo afuera del mapa, y desde ahí todo movimiento choca con el
     // borde y queda girando en el lugar para siempre
-    c.x = clamp(c.x, 10, WORLD - 10);
-    c.y = clamp(c.y, 10, WORLD - 10);
+    c.x = clamp(c.x, 10, WORLD_W - 10);
+    c.y = clamp(c.y, 10, WORLD_H - 10);
 
     // Si en 2s no se movió y no está encima del jugador, se trabó (callejón, encajonado
     // entre autos): fuera de pantalla desaparece; a la vista hace marcha atrás y reintenta
