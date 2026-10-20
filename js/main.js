@@ -231,7 +231,7 @@ async function boot() {
       const px0 = parseFloat(q.get('x')), py0 = parseFloat(q.get('y'));
       if (!isNaN(px0) && !isNaN(py0)) {
         G.me.x = px0; G.me.y = py0;
-        G.cam.x = clamp(px0 - RW / 2, 0, WORLD - RW); G.cam.y = clamp(py0 - RH / 2, 0, WORLD - RH);
+        G.cam.x = clamp(px0 - RW / 2, 0, WORLD_W - RW); G.cam.y = clamp(py0 - RH / 2, 0, WORLD_H - RH);
       }
       const fam = FAMOUS.find(f => f.id === q.get('famoso'));
       if (fam) {

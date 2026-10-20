@@ -161,12 +161,13 @@ function wetSpans(horiz, line, w) {
     return false;
   };
   let a = -1;
-  for (let u = 0; u <= WORLD; u += 4) {
+  const U = horiz ? WORLD_W : WORLD_H;
+  for (let u = 0; u <= U; u += 4) {
     const w2 = wet(u);
     if (w2 && a < 0) a = u;
     else if (!w2 && a >= 0) { out.push([Math.max(0, a - 12), u + 12]); a = -1; }
   }
-  if (a >= 0) out.push([Math.max(0, a - 12), WORLD]);
+  if (a >= 0) out.push([Math.max(0, a - 12), U]);
   return out;
 }
 // Las dos avenidas siempre cruzan. Ademas, algunas calles comunes: las que cruzan mas
@@ -178,7 +179,7 @@ function planBridges(skip) {
     const w = horiz ? roadWidthRow(i) : roadWidthCol(i), line = i * CELL;
     const avenue = horiz ? i === PLAZA_CY : i === PLAZA_CX;
     for (const [a, b] of wetSpans(horiz, line, w)) {
-      if (a <= 0 || b >= WORLD) continue; // el rio entra o sale por este borde: no hay costa enfrente
+      if (a <= 0 || b >= (horiz ? WORLD_W : WORLD_H)) continue; // el rio entra o sale por este borde: no hay costa enfrente
       const mid = (a + b) / 2, n = riverNearest(horiz ? mid : line + w / 2, horiz ? line + w / 2 : mid);
       cand.push({ horiz, line, w, half: w / 2 + 6, a, b, avenue, t: n.t, key: (horiz ? 'h' : 'v') + i });
     }
@@ -251,13 +252,13 @@ function layoutBridge(br, w) {
 // (negativa adentro del agua) y el t de la curva mas cercana: con eso la playa, el
 // renderer y lo que haga falta preguntan por la costa sin volver a recorrer la curva.
 const WATER_CELL = 12;
-const WMW = Math.ceil(WORLD / WATER_CELL) + 1;
+const WMW = Math.ceil(WORLD_W / WATER_CELL) + 1, WMH = Math.ceil(WORLD_H / WATER_CELL) + 1;
 let WATER_MASK = null, SHORE_D = null, SHORE_T = null;
 function bakeWaterMask() {
-  WATER_MASK = new Uint8Array(WMW * WMW);
-  SHORE_D = new Float32Array(WMW * WMW);
-  SHORE_T = new Float32Array(WMW * WMW);
-  for (let j = 0; j < WMW; j++) {
+  WATER_MASK = new Uint8Array(WMW * WMH);
+  SHORE_D = new Float32Array(WMW * WMH);
+  SHORE_T = new Float32Array(WMW * WMH);
+  for (let j = 0; j < WMH; j++) {
     for (let i = 0; i < WMW; i++) {
       const x = i * WATER_CELL + WATER_CELL / 2, y = j * WATER_CELL + WATER_CELL / 2;
       const n = riverNearest(x, y), k = j * WMW + i;
@@ -270,7 +271,7 @@ function bakeWaterMask() {
 function inWater(x, y) {
   if (!WATER_MASK) return false;
   const i = (x / WATER_CELL) | 0, j = (y / WATER_CELL) | 0;
-  if (i < 0 || j < 0 || i >= WMW || j >= WMW) return false;
+  if (i < 0 || j < 0 || i >= WMW || j >= WMH) return false;
   return WATER_MASK[j * WMW + i] === 1;
 }
 // Distancia a la orilla (interpolada): < 0 es agua (sin contar puentes), 0 la linea
@@ -278,7 +279,7 @@ function inWater(x, y) {
 function shoreDist(x, y) {
   if (!SHORE_D) { const n = riverNearest(x, y); return n.d - riverWidthAt(n.t); }
   const fx = x / WATER_CELL - 0.5, fy = y / WATER_CELL - 0.5;
-  const i = Math.max(0, Math.min(WMW - 2, Math.floor(fx))), j = Math.max(0, Math.min(WMW - 2, Math.floor(fy)));
+  const i = Math.max(0, Math.min(WMW - 2, Math.floor(fx))), j = Math.max(0, Math.min(WMH - 2, Math.floor(fy)));
   const u = Math.max(0, Math.min(1, fx - i)), v = Math.max(0, Math.min(1, fy - j)), k = j * WMW + i;
   const top = SHORE_D[k] * (1 - u) + SHORE_D[k + 1] * u;
   const bot = SHORE_D[k + WMW] * (1 - u) + SHORE_D[k + WMW + 1] * u;
@@ -290,7 +291,7 @@ function shoreDist(x, y) {
 function shoreT(x, y) {
   if (!SHORE_T) return riverNearest(x, y).t;
   const fx = x / WATER_CELL - 0.5, fy = y / WATER_CELL - 0.5;
-  const i = Math.max(0, Math.min(WMW - 2, Math.floor(fx))), j = Math.max(0, Math.min(WMW - 2, Math.floor(fy)));
+  const i = Math.max(0, Math.min(WMW - 2, Math.floor(fx))), j = Math.max(0, Math.min(WMH - 2, Math.floor(fy)));
   const u = Math.max(0, Math.min(1, fx - i)), v = Math.max(0, Math.min(1, fy - j)), k = j * WMW + i;
   const top = SHORE_T[k] * (1 - u) + SHORE_T[k + 1] * u;
   const bot = SHORE_T[k + WMW] * (1 - u) + SHORE_T[k + WMW + 1] * u;
@@ -789,7 +790,7 @@ class World {
     for (let zy = 0; zy < 3; zy++) {
       for (let zx = 0; zx < 3; zx++) {
         if ((zx + zy) % 2) continue;
-        const zcx = (zx + 0.5) * WORLD / 3, zcy = (zy + 0.5) * WORLD / 3;
+        const zcx = (zx + 0.5) * WORLD_W / 3, zcy = (zy + 0.5) * WORLD_H / 3;
         let best = null, bd = Infinity;
         for (const b of this.buildings) {
           const d = b.door;
@@ -857,7 +858,7 @@ class World {
         return Math.abs(x - ex) < hx + 14 + r && Math.abs(y - ey) < hy + 14 + r;
       };
       // Arena que se ve: bakeGround le come hasta 8px al borde contra el pasto
-      const arena = (x, y) => x > 16 && y > 16 && x < WORLD - 16 && y < WORLD - 16 && sandZone(x, y)
+      const arena = (x, y) => x > 16 && y > 16 && x < WORLD_W - 16 && y < WORLD_H - 16 && sandZone(x, y)
         && (onDeadRoad(x, y) || shoreDist(x, y) < beachBandAt(shoreT(x, y)) - 8);
       const libre = (x, y, r, g, minD = 6, mp = BEACH_BRIDGE_CLEAR) => {
         if (!arena(x, y) || shoreDist(x, y) < minD) return false;
@@ -1068,7 +1069,7 @@ class World {
         ['fogata', 6, 0, 240], ['guardavidas', 5, 0, 400]]) {
         const hay = this.props.filter(q => q.t === tipo);
         for (let i = 0; i < 4000 && hay.length < meta; i++) {
-          const x = rnd(0, WORLD), y = rnd(0, WORLD);
+          const x = rnd(0, WORLD_W), y = rnd(0, WORLD_H);
           if (!arena(x, y) || shoreT(x, y) < tMin) continue;
           if (hay.some(q => Math.hypot(q.x - x, q.y - y) < sep)) continue;
           const q = riverNearest(x, y), nx = (x - this.river[q.i].x) / (q.d || 1), ny = (y - this.river[q.i].y) / (q.d || 1);
@@ -1077,7 +1078,7 @@ class World {
       }
       // La arena que gano el asfalto de los tramos muertos (lejos de la costa) tambien se usa
       for (let i = 0, n = 0; i < 6000 && n < 40; i++) {
-        const x = rnd(0, WORLD), y = rnd(0, WORLD);
+        const x = rnd(0, WORLD_W), y = rnd(0, WORLD_H);
         if (!onDeadRoad(x, y) || !arena(x, y)) continue;
         const horiz = (y % CELL) < roadWidthRow(Math.floor(y / CELL));
         const ux = horiz ? 1 : 0, uy = horiz ? 0 : 1;
@@ -1170,7 +1171,7 @@ class World {
 
     // Hospitales: dos edificios existentes, uno en cada mitad del mapa, convertidos
     // en centro de salud (pintados de blanco/rojo, con puerta ya lista para entrar)
-    const targets = [[WORLD * 0.28, WORLD * 0.32], [WORLD * 0.72, WORLD * 0.68]];
+    const targets = [[WORLD_W * 0.28, WORLD_H * 0.32], [WORLD_W * 0.72, WORLD_H * 0.68]];
     for (const [tx, ty] of targets) {
       let best = null, bd = Infinity;
       for (const b of this.buildings) {
@@ -1194,7 +1195,7 @@ class World {
         const d = b.door;
         if (!d || b.hospital || b.shop || b.villa || b.casaRosada || b.cabildo || b.stadium || b.ty.k === 'torre') continue;
         if (!this.onRoad(d.x + d.ox * 4, d.y + d.oy * 4)) continue;
-        const dd = Math.hypot(b.x + b.w / 2 - WORLD * 0.5, b.y + b.h / 2 - WORLD * 0.42);
+        const dd = Math.hypot(b.x + b.w / 2 - WORLD_W * 0.5, b.y + b.h / 2 - WORLD_H * 0.42);
         if (dd < bd) { bd = dd; best = b; }
       }
       if (best) {
@@ -1206,7 +1207,7 @@ class World {
     // Supermercados: el edificio más grande cerca de cada punto, con la puerta a la calle.
     // Se pintan con los colores de la cadena y quedan bajitos, como un super de barrio.
     for (const S of SUPERS) {
-      const tx = S.at[0] * WORLD, ty = S.at[1] * WORLD;
+      const tx = S.at[0] * WORLD_W, ty = S.at[1] * WORLD_H;
       let best = null, bs = -Infinity;
       for (const b of this.buildings) {
         const d = b.door;
@@ -1227,7 +1228,7 @@ class World {
 
     // Boliches: un local chico cerca de cada punto, con la puerta a la calle, pintado de oscuro
     for (const D of BOLICHES) {
-      const tx = D.at[0] * WORLD, ty = D.at[1] * WORLD;
+      const tx = D.at[0] * WORLD_W, ty = D.at[1] * WORLD_H;
       let best = null, bd = CELL * 2.5;
       for (const b of this.buildings) {
         const d = b.door;
@@ -1315,12 +1316,13 @@ class World {
 
   paintGround() {
     GROUND = document.createElement('canvas');
-    GROUND.width = GROUND.height = WORLD;
+    GROUND.width = WORLD_W;
+    GROUND.height = WORLD_H;
     const g = GCTX = GROUND.getContext('2d');
 
     // Asfalto base
     g.fillStyle = '#31343a';
-    g.fillRect(0, 0, WORLD, WORLD);
+    g.fillRect(0, 0, WORLD_W, WORLD_H);
 
     // Villas: calles de tierra
     for (const v of villas) {
@@ -1528,9 +1530,9 @@ class World {
       const D = img.data;
       const ESQ = [0, 0, 11, 0, 0, 11, 11, 11, 6, 6]; // puntos de prueba de cada celda
       const ALGA = [122, 124, 80], RAMITA = [138, 112, 78], CARACOL = [244, 238, 224], CARACOL_ROSA = [228, 176, 164];
-      const sd = (i, j) => SHORE_D[Math.max(0, Math.min(WMW - 1, j)) * WMW + Math.max(0, Math.min(WMW - 1, i))];
-      for (let y0 = 0; y0 < WORLD; y0 += S) {
-        for (let x0 = 0; x0 < WORLD; x0 += S) {
+      const sd = (i, j) => SHORE_D[Math.max(0, Math.min(WMH - 1, j)) * WMW + Math.max(0, Math.min(WMW - 1, i))];
+      for (let y0 = 0; y0 < WORLD_H; y0 += S) {
+        for (let x0 = 0; x0 < WORLD_W; x0 += S) {
           let algo = false, limpio = false;
           for (let cj = 0; cj < S; cj += WATER_CELL) {
             for (let ci = 0; ci < S; ci += WATER_CELL) {
@@ -1610,7 +1612,7 @@ class World {
       // Pisadas: hileras de huellitas que van y vienen del agua
       g.fillStyle = 'rgba(110,88,52,.32)';
       for (let i = 0, n = 0; i < 4000 && n < 140; i++) {
-        let x = rnd(0, WORLD), y = rnd(0, WORLD);
+        let x = rnd(0, WORLD_W), y = rnd(0, WORLD_H);
         if (!sandZone(x, y) || shoreDist(x, y) < 8) continue;
         n++;
         let a = rnd(0, TAU);
@@ -1759,9 +1761,9 @@ class World {
       const T = 240, M = WATER_MUD_W, wc = (t) => riverWidthAt(t);
       let done = false;
       try {
-        for (let ty = 0; ty < WORLD; ty += T) {
-          for (let tx = 0; tx < WORLD; tx += T) {
-            const w = Math.min(T, WORLD - tx), h = Math.min(T, WORLD - ty);
+        for (let ty = 0; ty < WORLD_H; ty += T) {
+          for (let tx = 0; tx < WORLD_W; tx += T) {
+            const w = Math.min(T, WORLD_W - tx), h = Math.min(T, WORLD_H - ty);
             // El tile se procesa solo si alguna celda de la mascara cae cerca del agua
             let near = false;
             for (let y = ty; y <= ty + h && !near; y += WATER_CELL) {
@@ -2016,7 +2018,7 @@ class World {
       const rx = i * CELL, ry = i * CELL;
       const rw = isAveCol ? AVENUE_ROAD : ROAD, rh = isAveRow ? AVENUE_ROAD : ROAD;
       g.fillStyle = '#c9a227';
-      for (let y = 0; y < WORLD; y += 16) {
+      for (let y = 0; y < WORLD_H; y += 16) {
         if (this.onRoad(rx + rw / 2, y) && (y % CELL) > rw && !noRoadPaint(rx + rw / 2, y) && !this.villaAt(rx + rw / 2, y)) {
           if (!isAveCol) g.fillRect(rx + rw / 2 - 1, y, 2, 9); // avenida: sin raya al medio, va el cantero
           if (isAveCol) {
@@ -2025,7 +2027,7 @@ class World {
           }
         }
       }
-      for (let x = 0; x < WORLD; x += 16) {
+      for (let x = 0; x < WORLD_W; x += 16) {
         if (this.onRoad(x, ry + rh / 2) && (x % CELL) > rh && !noRoadPaint(x, ry + rh / 2) && !this.villaAt(x, ry + rh / 2)) {
           if (!isAveRow) g.fillRect(x, ry + rh / 2 - 1, 9, 2);
           if (isAveRow) {
@@ -2049,22 +2051,22 @@ class World {
         return true;
       };
       g.fillStyle = '#3f5a34';
-      for (let y = 0; y < WORLD; y += 4) {
+      for (let y = 0; y < WORLD_H; y += 4) {
         if (this.onRoad(midX, y) && (y % CELL) > AVENUE_ROAD && medianOk(midX, y)) g.fillRect(midX - MW / 2, y, MW, 4);
       }
-      for (let x = 0; x < WORLD; x += 4) {
+      for (let x = 0; x < WORLD_W; x += 4) {
         if (this.onRoad(x, midY) && (x % CELL) > AVENUE_ROAD && medianOk(x, midY)) g.fillRect(x, midY - MW / 2, 4, MW);
       }
       // Los arboles del cantero son props de verdad (se dibujan con volumen en el
       // renderer), aca solo va la sombra horneada al pie de cada uno.
       g.fillStyle = 'rgba(0,0,0,.22)';
-      for (let y = 28; y < WORLD; y += 38) {
+      for (let y = 28; y < WORLD_H; y += 38) {
         if (this.onRoad(midX, y) && (y % CELL) > AVENUE_ROAD && medianOk(midX, y)) {
           this.props.push({ t: 'arbol', x: midX, y, s: rnd(0.9, 1.25) });
           g.beginPath(); g.ellipse(midX + 4, y + 5, MW * 0.8, MW * 0.5, 0, 0, TAU); g.fill();
         }
       }
-      for (let x = 28; x < WORLD; x += 38) {
+      for (let x = 28; x < WORLD_W; x += 38) {
         if (this.onRoad(x, midY) && (x % CELL) > AVENUE_ROAD && medianOk(x, midY)) {
           this.props.push({ t: 'arbol', x, y: midY, s: rnd(0.9, 1.25) });
           g.beginPath(); g.ellipse(x + 4, midY + 5, MW * 0.8, MW * 0.5, 0, 0, TAU); g.fill();
@@ -2091,7 +2093,7 @@ class World {
 
     // Sucio del asfalto: parches, tapas de cloaca, grietas
     for (let i = 0; i < 4200; i++) {
-      const x = rnd(0, WORLD), y = rnd(0, WORLD);
+      const x = rnd(0, WORLD_W), y = rnd(0, WORLD_H);
       if (!this.onRoad(x, y) || overBridge(x, y)) continue;
       g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.14)' : 'rgba(255,255,255,.05)';
       g.fillRect(x, y, rnd(4, 22), rnd(3, 12));
@@ -2119,7 +2121,7 @@ class World {
       }
     }
     for (let i = 0; i < 420; i++) {
-      const x = rnd(0, WORLD), y = rnd(0, WORLD);
+      const x = rnd(0, WORLD_W), y = rnd(0, WORLD_H);
       if (!this.onRoad(x, y) || overBridge(x, y)) continue;
       g.fillStyle = '#26282c';
       g.fillRect(x, y, 8, 8);
@@ -2156,7 +2158,7 @@ class World {
     const MS = 320;
     MINI = document.createElement('canvas');
     MINI.width = MINI.height = MS;
-    const m = MINI.getContext('2d'), k = MS / WORLD;
+    const m = MINI.getContext('2d'), k = MS / Math.max(WORLD_W, WORLD_H);
     m.fillStyle = '#23262b';
     m.fillRect(0, 0, MS, MS);
     for (const v of villas) {
@@ -2171,8 +2173,8 @@ class World {
       }
     }
     m.fillStyle = '#3f5a34'; // bulevar central sobre la avenida, para que se distinga de una calle comun
-    m.fillRect(PLAZA_PX * k - k, 0, 2 * k, MS);
-    m.fillRect(0, PLAZA_PY * k - k, MS, 2 * k);
+    m.fillRect(PLAZA_PX * k - k, 0, 2 * k, WORLD_H * k);
+    m.fillRect(0, PLAZA_PY * k - k, WORLD_W * k, 2 * k);
     m.fillStyle = '#4a5240';
     m.save();
     m.translate(PLAZA_PX * k, PLAZA_PY * k);
@@ -2316,7 +2318,7 @@ class World {
 
   freeRoadSpot() {
     for (let i = 0; i < 400; i++) {
-      const x = rnd(ROAD, WORLD - ROAD), y = rnd(ROAD, WORLD - ROAD);
+      const x = rnd(ROAD, WORLD_W - ROAD), y = rnd(ROAD, WORLD_H - ROAD);
       if (this.onRoad(x, y) && !this.inEdgeStub(x, y) && !this.hitBuilding(x, y, 10)) return { x, y };
     }
     return { x: ROAD / 2, y: ROAD / 2 };
@@ -2326,8 +2328,8 @@ class World {
     const c0 = spawnCenter(center), px0 = c0.x, py0 = c0.y;
     for (let i = 0; i < 120; i++) {
       const a = rnd(0, TAU), d = rnd(near, far);
-      const x = clamp(px0 + Math.cos(a) * d, 12, WORLD - 12);
-      const y = clamp(py0 + Math.sin(a) * d, 12, WORLD - 12);
+      const x = clamp(px0 + Math.cos(a) * d, 12, WORLD_W - 12);
+      const y = clamp(py0 + Math.sin(a) * d, 12, WORLD_H - 12);
       if (needRoad && (!this.onRoad(x, y) || this.inEdgeStub(x, y))) continue;
       if (this.hitBuilding(x, y, 10)) continue;
       return { x, y };
@@ -2344,7 +2346,7 @@ class World {
   }
 
   pedBlocked(x, y, r) {
-    if (x < MARGIN || y < MARGIN || x > WORLD - MARGIN || y > WORLD - MARGIN) return true;
+    if (x < MARGIN || y < MARGIN || x > WORLD_W - MARGIN || y > WORLD_H - MARGIN) return true;
     return !!this.hitBuilding(x, y, r);
   }
 

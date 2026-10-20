@@ -30,7 +30,7 @@ global.innerWidth = 1920; global.innerHeight = 1080;
 const api = new Function(js + `
 ;return {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
          boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
-         startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
+         startGame,update,render,WORLD_W,WORLD_H,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
          PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
          lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
          bust,finishBust,makeChaser,makeCop,addPlayer,removePlayer,nearestPlayer,inPlay,driverOf,MAX_PLAYERS,idleControls,PORRO_TIME,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup,
@@ -40,7 +40,7 @@ const api = new Function(js + `
          inWater,riverWidthAt,riverNearest,inPark,inPlazaMayo,hitCarBlock,PM_X0,PM_Y0,PM_X1,PM_Y1,onBeach,BEACH_BAND,villaAt,segAliveV,segAliveH,onDeadRoad,sandZone,audibleFor,sound,sfx,sfxFor,AUDIO_R,game,radio,STATIONS,SONGS,compileSong,noteNum,DRUMS,INSTRUMENTS,FAMOUS,makeFamous,OFFSCREEN,FAMOUS_TALK,CORRALITO_MIN,FESTEJO_CUT,FESTEJO_PEDS,EVENTS,EVENT_EVERY,clamp,net,world,shops,supers,CHOTO_ITEMS,NOCHE_ITEMS,LANUS_ITEMS,FOOD,BAG_MAX,NEED_HURT,NEED_REGEN,parrillas,ASADO_PUNTO,ASADO_QUEMA,ASADO_CARBON,ASADO_PORCIONES,ROB_TIME,ROB_STARS,ROB_LOOT,ROB_WITNESS,SUPER_CLOSED,stadiums,STADIUMS,RANKS,RESPECT,BARRAS,TRAPO_TIME,TRAPO_BACK,BARRA_ANGRY,TERR_R,TERR_TIME,TERR_PAY,TERR_CASH,SCORE,RESPECT_DEATH,RESPECT_BUST,RANK_CALM,SHOP_ITEMS,boliches,BOLICHES,BOLICHE_TIME,bolicheOpen,makeTranza,shop,say,input,packCtl,unpackCtl,ui,NOVEDADES,newsMax,newsFresh,NEWS_KEY,mapCtl,renderer,MAP_LEG_W,RW,RH,trafficAI,carOverlap,STYLES,segHitsCar,makeCar,DIRS,jkey,banks,BANK_ITEMS};`)();
 const {G,CREW,buildCity,bakeGround,buildings,props,lamps,onRoad,hitBuilding,freeRoadSpot,
        boatsAt,floatsAt,shoreDist,bridgeAt,BOAT_DIM,RIVER_BOATS,
-       startGame,update,render,WORLD,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
+       startGame,update,render,WORLD_W,WORLD_H,dist,shade,mix,hash,ambient,darkness,dayT,DAY,
        PED_TARGET,CAR_TARGET,SIM_R,laneSnap,ringSpot,CELL,ROAD,PEDTYPE,CARMODEL,onSidewalk,toSidewalk,SIDEWALK,
        lights,lightState,LIGHT_CYCLE,GREEN,AMBER,lightAhead,nearestDoor,GRID,
        bust,finishBust,makeChaser,makeCop,addPlayer,removePlayer,nearestPlayer,inPlay,driverOf,MAX_PLAYERS,idleControls,PORRO_TIME,hospitals,HOSPITAL_TIME,FOOD_HEAL,FOODS,makePickup,
@@ -129,7 +129,7 @@ describe('semaforos', () => {
   test('lightAhead apunta a la bocacalle de adelante', () => {
     // lightAhead apunta a la bocacalle de adelante, nunca a la de atras
     for(let i=0;i<300;i++){
-      const x = 20+Math.random()*(WORLD-40), y = 20+Math.random()*(WORLD-40);
+      const x = 20+Math.random()*(WORLD_W-40), y = 20+Math.random()*(WORLD_H-40);
       const ang = [0, Math.PI, Math.PI/2, -Math.PI/2][(Math.random()*4)|0];
       const LA = lightAhead(x, y, ang);
       if(LA) assert.ok(Number.isFinite(LA.fwd), 'lightAhead fwd NaN');
@@ -169,7 +169,7 @@ describe('edificios', () => {
     }
     const boca = stadiums.find(b => b.stadium === 'boca'), river = stadiums.find(b => b.stadium === 'river');
     assert.ok(distToRiver(boca.x + boca.w / 2, boca.y + boca.h / 2) < CELL * 4, 'LA CHOCOLATERA cerca del Riachuelo');
-    assert.ok(river.y < WORLD / 3, 'EL MONUMENTAZO en el norte');
+    assert.ok(river.y < WORLD_H / 3, 'EL MONUMENTAZO en el norte');
     const inde = stadiums.find(b => b.stadium === 'inde'), racing = stadiums.find(b => b.stadium === 'racing');
     assert.ok(dist(inde, racing) < CELL * 1.5, 'en Avellaneda, los vecinos a una cuadra');
     assert.ok(inde.y > boca.y && racing.y > boca.y, 'del otro lado del Riachuelo');
@@ -224,8 +224,8 @@ describe('edificios', () => {
 describe('riachuelo y monumentos', () => {
   test('el riachuelo cruza el mapa entre dos bordes', () => {
     const p0 = riverCurve[0], p2 = riverCurve[riverCurve.length - 1], eps = 4;
-    const onBorder = p => (Math.abs(p.x) < eps ? 'w' : Math.abs(p.x - WORLD) < eps ? 'e'
-      : Math.abs(p.y) < eps ? 'n' : Math.abs(p.y - WORLD) < eps ? 's' : null);
+    const onBorder = p => (Math.abs(p.x) < eps ? 'w' : Math.abs(p.x - WORLD_W) < eps ? 'e'
+      : Math.abs(p.y) < eps ? 'n' : Math.abs(p.y - WORLD_H) < eps ? 's' : null);
     const b0 = onBorder(p0), b2 = onBorder(p2);
     assert.ok(b0, 'el riachuelo tiene que arrancar pegado a un borde del mapa: ' + JSON.stringify(p0));
     assert.ok(b2, 'el riachuelo tiene que terminar pegado a un borde del mapa: ' + JSON.stringify(p2));
@@ -269,9 +269,9 @@ describe('riachuelo y monumentos', () => {
     // ancho de calle comun (ROAD) daria false.
     const off = (ROAD + AVENUE_ROAD) / 2;
     const y = PLAZA_CY * CELL + off, x = PLAZA_CX * CELL + off;
-    assert.ok(onRoad(WORLD * 0.1, y), 'la fila de la avenida central tiene que ser mas ancha que una calle comun');
-    assert.ok(onRoad(x, WORLD * 0.1), 'la columna de la avenida central tiene que ser mas ancha que una calle comun');
-    assert.ok(!onRoad(WORLD * 0.1, (PLAZA_CY + 1) * CELL + off), 'lejos de la avenida el ancho vuelve a ser el normal');
+    assert.ok(onRoad(WORLD_W * 0.1, y), 'la fila de la avenida central tiene que ser mas ancha que una calle comun');
+    assert.ok(onRoad(x, WORLD_H * 0.1), 'la columna de la avenida central tiene que ser mas ancha que una calle comun');
+    assert.ok(!onRoad(WORLD_W * 0.1, (PLAZA_CY + 1) * CELL + off), 'lejos de la avenida el ancho vuelve a ser el normal');
     }
     const cx = ob.x + ob.w / 2, cy = ob.y + ob.h / 2, r = ob.w / 2 + 8;
     for (let i = 0; i < 16; i++) {
@@ -298,7 +298,7 @@ describe('riachuelo y monumentos', () => {
     const edges = new Set();
     for (let i = 0; i < riverCurve.length * 30; i++) {
       const t = i / (riverCurve.length * 30);
-      const p = { x: WORLD * 0.3 + t * WORLD * 0.5, y: t * WORLD * 0.6 };
+      const p = { x: WORLD_W * 0.3 + t * WORLD_W * 0.5, y: t * WORLD_H * 0.6 };
       if (inWater(p.x, p.y)) edges.add(Math.round(p.x % CELL));
     }
     assert.ok(edges.size > 3, 'la orilla tiene que cortar las manzanas en cualquier lado, no en el borde de celda: ' + edges.size);
@@ -320,7 +320,7 @@ describe('riachuelo y monumentos', () => {
     assert.ok(arenados > water.length * 0.7,
       'casi todo el cauce tiene que tener playa al lado, no solo la desembocadura: ' + arenados + '/' + water.length);
     // (se saltea el ultimo punto: cae justo sobre el borde del mapa, fuera de la mascara)
-    assert.ok(water.every(c => c.x >= WORLD || c.y >= WORLD || !onBeach(c.x, c.y)),
+    assert.ok(water.every(c => c.x >= WORLD_W || c.y >= WORLD_H || !onBeach(c.x, c.y)),
       'el centro del cauce es agua, no arena');
     assert.ok(buildings.every(b => !onBeach(b.x + b.w / 2, b.y + b.h / 2)), 'no se planta un edificio arriba de la playa');
   });
@@ -330,7 +330,7 @@ describe('riachuelo y monumentos', () => {
     // entero, asi la calle termina en la esquina anterior.
     let sobreAgua = 0;
     for (let i = 0; i < 40000; i++) {
-      const x = Math.random() * WORLD, y = Math.random() * WORLD;
+      const x = Math.random() * WORLD_W, y = Math.random() * WORLD_H;
       if (onRoad(x, y) && (inWater(x, y) || onBeach(x, y))) sobreAgua++;
     }
     assert.equal(sobreAgua, 0, 'ninguna calle puede meterse en el agua ni en la playa: ' + sobreAgua);
@@ -440,7 +440,7 @@ describe('riachuelo y monumentos', () => {
         assert.ok(!hitBuilding(x, y, 3), 'la avenida (columna) tiene que cruzar el puente sin chocar: ' + JSON.stringify({x,y}));
       }
     }
-    for (let t = 0; t <= WORLD; t += 10) {
+    for (let t = 0; t <= WORLD_W; t += 10) {
       const x = t, y = PLAZA_PY;
       if (distToRiver(x, y) < RIVER_HALF) {
         assert.ok(!hitBuilding(x, y, 3), 'la avenida (fila) tiene que cruzar el puente sin chocar: ' + JSON.stringify({x,y}));
@@ -471,14 +471,14 @@ describe('riachuelo y monumentos', () => {
         assert.ok(Number.isFinite(b.x) && Number.isFinite(b.y) && Number.isFinite(b.ang), 'lancha con posicion valida');
         for (const [u, v] of [[D.L / 2, 0], [D.L / 2 - 4, -D.W / 2], [D.L / 2 - 4, D.W / 2], [-D.L / 2, -D.W / 2], [-D.L / 2, D.W / 2]]) {
           const x = b.x + c * u - s * v, y = b.y + s * u + c * v;
-          if (x < 0 || y < 0 || x > WORLD || y > WORLD) continue; // entrando o saliendo del mapa
+          if (x < 0 || y < 0 || x > WORLD_W || y > WORLD_H) continue; // entrando o saliendo del mapa
           assert.ok(shoreDist(x, y) < -1, b.k + ' encallada en ' + JSON.stringify({ t, x, y, sd: shoreDist(x, y) }));
         }
         if (bridgeAt(b.x, b.y)) pasoBajoPuente = true;
       }
       if (t % 5 === 0) {
         for (const f of floatsAt(t)) {
-          if (f.x < 0 || f.y < 0 || f.x > WORLD || f.y > WORLD) continue;
+          if (f.x < 0 || f.y < 0 || f.x > WORLD_W || f.y > WORLD_H) continue;
           assert.ok(shoreDist(f.x, f.y) < -2, f.k + ' varado en la orilla ' + JSON.stringify({ t, x: f.x, y: f.y }));
         }
       }
@@ -669,7 +669,7 @@ describe('simulacion', () => {
   test('laneSnap da un carril valido y un angulo cardinal', () => {
     // laneSnap devuelve siempre un carril valido y un angulo cardinal
     for(let i=0;i<200;i++){
-      const L = laneSnap(Math.random()*WORLD, Math.random()*WORLD, Math.random()*Math.PI*2);
+      const L = laneSnap(Math.random()*WORLD_W, Math.random()*WORLD_H, Math.random()*Math.PI*2);
       assert.ok(Number.isFinite(L.x) && Number.isFinite(L.y), 'laneSnap NaN');
       const ok = [0, Math.PI, Math.PI/2, -Math.PI/2].some(a => Math.abs(L.ang-a) < 1e-9);
       assert.ok(ok, 'laneSnap angulo raro: ' + L.ang);
@@ -697,7 +697,7 @@ describe('simulacion', () => {
           { x: i * CELL + 2, y: midY }, { x: i * CELL + rw - 2, y: midY },     // veredas de la columna
           { x: midX, y: j * CELL + 2 }, { x: midX, y: j * CELL + rh - 2 },     // veredas de la fila
         ]) {
-          if (Math.min(c.x, c.y, WORLD - c.x, WORLD - c.y) < BORDE) continue;
+          if (Math.min(c.x, c.y, WORLD_W - c.x, WORLD_H - c.y) < BORDE) continue;
           if (!onSidewalk(c.x, c.y) || hitBuilding(c.x, c.y, 3) || inDiagonalBand(c.x, c.y)) continue;
           const d = Math.hypot(c.x - P.x, c.y - P.y);
           if (d < bd) { bd = d; best = c; }
@@ -711,7 +711,7 @@ describe('simulacion', () => {
       render();                                     // el render no debe explotar ni con stubs
       const P = G.me;
       assert.ok(Number.isFinite(P.x) && Number.isFinite(P.y), 'pos NaN en frame ' + f);
-      assert.ok(P.x >= 0 && P.x <= WORLD && P.y >= 0 && P.y <= WORLD, 'fuera del mapa en frame ' + f);
+      assert.ok(P.x >= 0 && P.x <= WORLD_W && P.y >= 0 && P.y <= WORLD_H, 'fuera del mapa en frame ' + f);
       assert.ok(P.hp <= 100, 'hp no supera el maximo');
       for(const c of G.cars) assert.ok(Number.isFinite(c.x) && Number.isFinite(c.spd), 'auto NaN frame ' + f);
       // Sin yuta: aca se mide el transito de la ciudad. Un operativo policial traba la calle
@@ -753,7 +753,7 @@ describe('simulacion', () => {
     for(const p of G.peds){
       if(p.hp <= 0 || p.inside || p.air) continue; // el del helicoptero vuela sobre los edificios
       assert.ok(!hitBuilding(p.x, p.y, 2), 'peaton empotrado en un edificio');
-      assert.ok(p.x > 0 && p.y > 0 && p.x < WORLD && p.y < WORLD, 'peaton fuera del mapa');
+      assert.ok(p.x > 0 && p.y > 0 && p.x < WORLD_W && p.y < WORLD_H, 'peaton fuera del mapa');
     }
     // nadie trabado mucho tiempo contra una pared
     const stuckPeds = G.peds.filter(p => p.hp > 0 && (p.stuck || 0) > 1.2).length;
@@ -770,7 +770,7 @@ describe('simulacion', () => {
   test('toSidewalk devuelve un punto de vereda', () => {
     // toSidewalk siempre devuelve un punto dentro de la franja de vereda
     for(let i=0;i<300;i++){
-      const t = toSidewalk(Math.random()*WORLD, Math.random()*WORLD);
+      const t = toSidewalk(Math.random()*WORLD_W, Math.random()*WORLD_H);
       assert.ok(onSidewalk(t.x, t.y), 'toSidewalk devolvio un punto que no es vereda');
     }
   });
@@ -839,7 +839,7 @@ describe('ia de los autos', () => {
     let best = null, bd = Infinity;
     for (let dx = -240; dx <= 240; dx += 4) for (let dy = -240; dy <= 240; dy += 4) {
       const px = x + dx, py = y + dy;
-      if (Math.min(px, py, WORLD - px, WORLD - py) < SIM_R) continue;
+      if (Math.min(px, py, WORLD_W - px, WORLD_H - py) < SIM_R) continue;
       if (!onSidewalk(px, py) || hitBuilding(px, py, 3) || inDiagonalBand(px, py)) continue;
       const d = Math.hypot(dx, dy);
       if (d < bd) { bd = d; best = { x: px, y: py }; }
@@ -1439,7 +1439,7 @@ describe('jugador', () => {
     assert.equal(G.me.hp, G.me.maxhp, 'salis con la vida llena');
     assert.equal(G.cops.length, 0, 'no quedan canas encima al salir');
     assert.ok(!G.cars.some(c => c.chase), 'no quedan patrulleros persiguiendo');
-    assert.ok(G.me.x > 0 && G.me.x < WORLD, 'reaparecas dentro del mapa');
+    assert.ok(G.me.x > 0 && G.me.x < WORLD_W, 'reaparecas dentro del mapa');
   });
 
   test('la multa nunca deja la guita en negativo', () => {
@@ -1653,7 +1653,7 @@ describe('mapa', () => {
   test('se abre centrado en vos y se mueve sin salirse del mundo', () => {
     startGame(CREW[0]);
     const P = G.me;
-    Object.assign(P, { x: WORLD * 0.4, y: WORLD * 0.6 });
+    Object.assign(P, { x: WORLD_W * 0.4, y: WORLD_H * 0.6 });
     G.mapZoom = 4;
     mapCtl.open();
     assert.ok(G.mapX === P.x && G.mapY === P.y, 'arranca en el jugador');
@@ -1661,12 +1661,12 @@ describe('mapa', () => {
     assert.ok(Math.abs(v0.sx + v0.viewW / 2 - P.x) < 1, 'el jugador queda en el medio');
     mapCtl.pan(500, -300);
     assert.ok(G.mapX === P.x + 500 && G.mapY === P.y - 300, 'se desplaza');
-    mapCtl.pan(-WORLD * 3, -WORLD * 3);
+    mapCtl.pan(-WORLD_W * 3, -WORLD_H * 3);
     const v1 = mapCtl.view();
     assert.ok(v1.sx === 0 && v1.sy === 0, 'no se va mas alla del borde');
-    mapCtl.pan(WORLD * 3, WORLD * 3);
+    mapCtl.pan(WORLD_W * 3, WORLD_H * 3);
     const v2 = mapCtl.view();
-    assert.ok(Math.abs(v2.sx + v2.viewW - WORLD) < 1 && Math.abs(v2.sy + v2.viewH - WORLD) < 1, 'ni del otro');
+    assert.ok(Math.abs(v2.sx + v2.viewW - WORLD_W) < 1 && Math.abs(v2.sy + v2.viewH - WORLD_H) < 1, 'ni del otro');
     assert.equal(v2.MW, RW - MAP_LEG_W, 'el panel de referencias le saca lugar');
     G.mapLegend = false;
     assert.equal(mapCtl.view().MW, RW, 'sin referencias, el mapa ocupa todo');
@@ -1702,13 +1702,209 @@ describe('mapa', () => {
       mapCtl.open();
       render();
       G.mapZoom = 8;
-      mapCtl.pan(WORLD, WORLD); // lejos del jugador: flecha en el borde
+      mapCtl.pan(WORLD_W, WORLD_H); // lejos del jugador: flecha en el borde
       render();
       G.mapZoom = 1;
     }
     G.mapOpen = false;
     G.mapLegend = true;
   });
+});
+
+// Mundo rectangular: se arma una copia aparte del juego con WORLD_W y WORLD_H distintos (sin tocar
+// js/). La grilla de manzanas sigue 24x24, asi que de un lado sobran manzanas: solo se prueban
+// limites, camara, spawns y mapa, nada de la ciudad.
+describe('mundo no cuadrado', () => {
+  const ORIGINAL = 'WORLD_W = CELL * GRID, WORLD_H = CELL * GRID';
+  // Math.random con semilla fija (LCG) mientras corre fn, para que el test sea determinista
+  const conSemilla = fn => {
+    const orig = Math.random;
+    let s = 12345;
+    Math.random = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
+    try { return fn(); } finally { Math.random = orig; }
+  };
+  const mundo = (w, h) => conSemilla(() => {
+    assert.ok(js.includes(ORIGINAL), 'cambio el texto de WORLD_W/WORLD_H en constants.js: actualizar el test');
+    const cod = js.replace(ORIGINAL, 'WORLD_W = ' + w + ', WORLD_H = ' + h);
+    assert.notEqual(cod, js, 'el reemplazo no cambio nada: el test seria verde sin probar nada');
+    const R = new Function(cod + `
+;return {G,WORLD_W,WORLD_H,GROUND:() => GROUND,MINI:() => MINI,buildCity,bakeGround,CREW,startGame,update,render,
+         mapCtl,RW,RH,addPlayer,makeCar,makeChaser,makeCop,sidewalkSpot,spawnCenter,inView,game,CELL};`)();
+    R.buildCity(); R.bakeGround();
+    return R;
+  });
+
+  for (const [w, h] of [[3200, 4560], [4560, 3200]]) {
+    describe('WORLD_W=' + w + ' WORLD_H=' + h, () => {
+      const R = mundo(w, h);
+      const { G, WORLD_W, WORLD_H, RW, RH, CELL } = R;
+
+      test('el mundo es rectangular y los canvas respetan cada eje', () => {
+        assert.equal(WORLD_W, w); assert.equal(WORLD_H, h);
+        assert.notEqual(WORLD_W, WORLD_H);
+        assert.equal(R.GROUND().width, WORLD_W, 'GROUND de ancho WORLD_W');
+        assert.equal(R.GROUND().height, WORLD_H, 'GROUND de alto WORLD_H');
+        assert.equal(R.MINI().width, 320, 'el minimapa sigue cuadrado');
+        assert.equal(R.MINI().height, 320, 'el minimapa sigue cuadrado');
+      });
+
+      test('el centro del mundo es el de cada eje', () => {
+        conSemilla(() => {
+          const antes = G.me;
+          G.me = null;
+          const c = R.spawnCenter();
+          G.me = antes;
+          assert.equal(c.x, WORLD_W / 2); assert.equal(c.y, WORLD_H / 2);
+        });
+      });
+
+      test('la camara se frena contra el borde de cada eje por separado', () => {
+        conSemilla(() => {
+          R.startGame(R.CREW[0]);
+          const P = G.me;
+          const cam = (x, y) => { P.x = x; P.y = y; R.game.snapCam(); return { x: G.cam.x, y: G.cam.y }; };
+          assert.deepEqual(cam(0, 0), { x: 0, y: 0 }, 'esquina de arriba a la izquierda');
+          assert.deepEqual(cam(WORLD_W, WORLD_H), { x: WORLD_W - RW, y: WORLD_H - RH }, 'esquina opuesta');
+          assert.deepEqual(cam(WORLD_W, 0), { x: WORLD_W - RW, y: 0 }, 'borde derecho, arriba');
+          assert.deepEqual(cam(0, WORLD_H), { x: 0, y: WORLD_H - RH }, 'borde izquierdo, abajo');
+          assert.deepEqual(cam(WORLD_W / 2, WORLD_H / 2), { x: WORLD_W / 2 - RW / 2, y: WORLD_H / 2 - RH / 2 }, 'en el medio no se frena');
+          cam(WORLD_W, WORLD_H);
+          assert.notEqual(G.cam.x, G.cam.y, 'el tope de la camara es distinto en cada eje');
+          // update() la mueve suave hacia el jugador: tampoco puede pasarse del borde
+          P.x = WORLD_W - 6; P.y = WORLD_H - 6;
+          for (let f = 0; f < 300; f++) {
+            R.update(1 / 60); R.render();
+            assert.ok(G.cam.x >= 0 && G.cam.x <= WORLD_W - RW + 1e-6, 'cam.x fuera de [0, W-RW] en frame ' + f + ': ' + G.cam.x);
+            assert.ok(G.cam.y >= 0 && G.cam.y <= WORLD_H - RH + 1e-6, 'cam.y fuera de [0, H-RH] en frame ' + f + ': ' + G.cam.y);
+          }
+        });
+      });
+
+      test('inView usa la camara frenada de cada eje', () => {
+        conSemilla(() => {
+          R.startGame(R.CREW[0]);
+          const P = G.me;
+          P.x = WORLD_W - 6; P.y = WORLD_H - 6;
+          assert.ok(R.inView(P, { x: WORLD_W - 1, y: WORLD_H - 1 }), 'lo de la esquina se ve');
+          assert.ok(R.inView(P, { x: WORLD_W - RW + 1, y: WORLD_H - RH + 1 }), 'el borde de la pantalla se ve');
+          assert.ok(!R.inView(P, { x: WORLD_W - RW - 1, y: WORLD_H - 1 }), 'a la izquierda de la pantalla no');
+          assert.ok(!R.inView(P, { x: WORLD_W - 1, y: WORLD_H - RH - 1 }), 'arriba de la pantalla no');
+        });
+      });
+
+      test('a pie, el jugador queda dentro de WORLD_W x WORLD_H', () => {
+        conSemilla(() => {
+          R.startGame(R.CREW[0]);
+          const P = G.me;
+          P.x = P.y = 1e5;
+          R.update(1 / 60);
+          assert.equal(P.x, WORLD_W - 6, 'x pegada al borde del ancho');
+          assert.equal(P.y, WORLD_H - 6, 'y pegada al borde del alto');
+          P.x = P.y = -1e5;
+          R.update(1 / 60);
+          assert.equal(P.x, 6); assert.equal(P.y, 6);
+        });
+      });
+
+      test('en auto, el auto queda dentro de WORLD_W x WORLD_H', () => {
+        conSemilla(() => {
+          R.startGame(R.CREW[0]);
+          const P = G.me, car = R.makeCar(300, 300);
+          G.cars.push(car);
+          P.car = car; P.seat = 0; car.ai = false; car.spd = 0;
+          car.x = car.y = 1e5;
+          R.update(1 / 60);
+          assert.equal(car.x, WORLD_W - 8, 'x del auto pegada al borde del ancho');
+          assert.equal(car.y, WORLD_H - 8, 'y del auto pegada al borde del alto');
+        });
+      });
+
+      test('lo que aparece alrededor de un jugador en la esquina cae dentro del mundo', () => {
+        conSemilla(() => {
+          R.startGame(R.CREW[0]);
+          const esquina = { x: WORLD_W, y: WORLD_H };
+          let n = 0;
+          // toSidewalk() acomoda a la vereda de la grilla y puede pasarse del borde hasta media manzana
+          // (pasa igual en el mundo cuadrado). Los ejes difieren en 1360 px: si se mezclan, se pasa de sobra
+          const dentro = (e, m, que, tol = 0) => {
+            n++;
+            assert.ok(e.x >= m - tol && e.x <= WORLD_W - m + tol && e.y >= m - tol && e.y <= WORLD_H - m + tol,
+              que + ' fuera del mundo: ' + Math.round(e.x) + ',' + Math.round(e.y));
+          };
+          for (let i = 0; i < 40; i++) {
+            const s = R.sidewalkSpot(120, 300, esquina); if (s) dentro(s, 12, 'peaton', CELL / 2);
+            const c = R.makeChaser(esquina); if (c) dentro(c, 20, 'patrullero');
+            const k = R.makeCop(esquina); if (k) dentro(k, 10, 'yuta');
+          }
+          assert.ok(n > 0, 'no aparecio nada para probar');
+          // y el eje largo se aprovecha: con los ejes cruzados, nada pasaria del tamano del eje corto
+          const corto = Math.min(WORLD_W, WORLD_H), largo = WORLD_W > WORLD_H ? 'x' : 'y';
+          for (const [que, hacer] of [['peaton', () => R.sidewalkSpot(120, 300, esquina)], ['patrullero', () => R.makeChaser(esquina)]]) {
+            let max = 0;
+            for (let i = 0; i < 60; i++) { const e = hacer(); if (e) max = Math.max(max, e[largo]); }
+            assert.ok(max > (corto + Math.max(WORLD_W, WORLD_H)) / 2, que + ': tendria que aparecer cerca del borde del eje largo (' + Math.max(WORLD_W, WORLD_H) + ') sobre ' + largo + ': ' + Math.round(max));
+          }
+        });
+      });
+
+      test('el mapa grande se mueve sin salirse del mundo, eje por eje, y se dibuja', () => {
+        conSemilla(() => {
+          R.startGame(R.CREW[0]);
+          const { mapCtl } = R;
+          G.mapZoom = 4;
+          mapCtl.open();
+          mapCtl.pan(-1e6, -1e6);
+          let v = mapCtl.view();
+          assert.ok(v.sx === 0 && v.sy === 0, 'no se va mas alla del borde de arriba/izquierda');
+          mapCtl.pan(1e6, 1e6);
+          v = mapCtl.view();
+          assert.ok(Math.abs(v.sx + v.viewW - WORLD_W) < 1, 'borde derecho en WORLD_W: ' + (v.sx + v.viewW));
+          assert.ok(Math.abs(v.sy + v.viewH - WORLD_H) < 1, 'borde de abajo en WORLD_H: ' + (v.sy + v.viewH));
+          assert.equal(G.mapX, WORLD_W - v.viewW / 2, 'el centro X llega hasta WORLD_W - viewW/2');
+          assert.equal(G.mapY, WORLD_H - v.viewH / 2, 'el centro Y llega hasta WORLD_H - viewH/2');
+          // view() tambien acota por su cuenta, aunque el centro venga de afuera del mundo (la foto del host)
+          G.mapX = G.mapY = 1e6;
+          v = mapCtl.view();
+          assert.ok(Math.abs(v.sx + v.viewW - WORLD_W) < 1 && Math.abs(v.sy + v.viewH - WORLD_H) < 1, 'view() acota cada eje');
+          G.mapOpen = true;
+          for (const zoom of [1, 4, 8]) {
+            for (const leg of [true, false]) {
+              G.mapZoom = zoom; G.mapLegend = leg;
+              mapCtl.open(); mapCtl.pan(1e6, 1e6);
+              R.render();
+              v = mapCtl.view();
+              assert.ok(v.sx <= Math.max(0, WORLD_W - v.viewW) && v.sy <= Math.max(0, WORLD_H - v.viewH), 'la vista no se pasa');
+            }
+          }
+          G.mapOpen = false; G.mapLegend = true; G.mapZoom = 1;
+          // zoom 1: entra el eje mas largo y los topes de cada eje salen de su propio tamano
+          v = mapCtl.view();
+          assert.equal(v.viewW, Math.max(WORLD_W, WORLD_H), 'zoom 1 muestra el eje mas largo');
+          G.mapX = G.mapY = -1e6;
+          v = mapCtl.view();
+          assert.equal(v.sx, Math.min(0, WORLD_W - v.viewW), 'zoom 1: tope izquierdo segun WORLD_W');
+          assert.equal(v.sy, Math.min(0, WORLD_H - v.viewH), 'zoom 1: tope de arriba segun WORLD_H');
+          G.mapX = G.mapY = 1e6;
+          v = mapCtl.view();
+          assert.equal(v.sx, Math.max(0, WORLD_W - v.viewW), 'zoom 1: tope derecho segun WORLD_W');
+          assert.equal(v.sy, Math.max(0, WORLD_H - v.viewH), 'zoom 1: tope de abajo segun WORLD_H');
+        });
+      });
+
+      test('el juego corre y se dibuja varios segundos con dos jugadores', () => {
+        conSemilla(() => {
+          R.startGame(R.CREW[0]);
+          R.addPlayer(R.CREW[1]);
+          for (let f = 0; f < 600; f++) {
+            R.update(1 / 60); R.render();
+            for (const P of G.players) {
+              assert.ok(P.x >= 0 && P.x <= WORLD_W && P.y >= 0 && P.y <= WORLD_H, 'jugador fuera del mundo en frame ' + f);
+            }
+          }
+        });
+      });
+    });
+  }
 });
 
 describe('novedades', () => {
@@ -1929,7 +2125,7 @@ describe('multijugador', () => {
   const lejos = (P, d) => {
     for (let k = 0; k < 64; k++) {
       const a = k * Math.PI / 8, x = G.me.x + Math.cos(a) * d, y = G.me.y + Math.sin(a) * d;
-      if (x > 40 && y > 40 && x < WORLD - 40 && y < WORLD - 40 && onRoad(x, y) && !hitBuilding(x, y, 10)) { P.x = x; P.y = y; return true; }
+      if (x > 40 && y > 40 && x < WORLD_W - 40 && y < WORLD_H - 40 && onRoad(x, y) && !hitBuilding(x, y, 10)) { P.x = x; P.y = y; return true; }
       if (k === 31) d *= 0.75;
     }
     const s = freeRoadSpot(); P.x = s.x; P.y = s.y; return false;
@@ -2345,7 +2541,7 @@ describe('multijugador', () => {
     assert.equal(G.pickups.slice(pk0).filter(pk => pk.kind === 'cash').length, H.famous.drop.n, 'suelta su guita');
   });
 
-  const playa = () => { for (let x = 200; x < WORLD; x += 20) for (let y = 200; y < WORLD; y += 20) if (onBeach(x, y) && !hitBuilding(x, y, 6)) return { x, y }; };
+  const playa = () => { for (let x = 200; x < WORLD_W; x += 20) for (let y = 200; y < WORLD_H; y += 20) if (onBeach(x, y) && !hitBuilding(x, y, 6)) return { x, y }; };
 
   test('el famoso de playa nace en la arena, suelta chocolates y curan', () => {
     startGame(CREW[0]);

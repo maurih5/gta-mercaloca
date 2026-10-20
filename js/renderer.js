@@ -2254,7 +2254,7 @@ class Renderer {
   drawRadar() {
     if (!MINI) return;
     const ctx = this.ctx;
-    const S = 58, ox = 7, oy = RH - S - 7, MS = 320, k = MS / WORLD;
+    const S = 58, ox = 7, oy = RH - S - 7, MS = 320, k = MS / Math.max(WORLD_W, WORLD_H);
     const P = G.me, half = S / 2;
     ctx.fillStyle = '#000';
     ctx.fillRect(ox - 2, oy - 2, S + 4, S + 4);
@@ -3109,9 +3109,9 @@ const MAP_LEGEND = [
 const mapCtl = {
   view() {
     const MW = G.mapLegend ? RW - MAP_LEG_W : RW;
-    const viewW = clamp(WORLD / G.mapZoom, 40, WORLD), viewH = viewW * (RH / MW);
-    const sx = clamp(G.mapX - viewW / 2, Math.min(0, WORLD - viewW), Math.max(0, WORLD - viewW));
-    const sy = clamp(G.mapY - viewH / 2, Math.min(0, WORLD - viewH), Math.max(0, WORLD - viewH));
+    const viewW = clamp(Math.max(WORLD_W, WORLD_H) / G.mapZoom, 40, Math.max(WORLD_W, WORLD_H)), viewH = viewW * (RH / MW);
+    const sx = clamp(G.mapX - viewW / 2, Math.min(0, WORLD_W - viewW), Math.max(0, WORLD_W - viewW));
+    const sy = clamp(G.mapY - viewH / 2, Math.min(0, WORLD_H - viewH), Math.max(0, WORLD_H - viewH));
     return { MW, viewW, viewH, sx, sy, k: MW / viewW };
   },
   // Centrado en el jugador
@@ -3123,8 +3123,8 @@ const mapCtl = {
   // Mover el centro (en unidades del mundo), sin salirse del mapa
   pan(dx, dy) {
     const v = this.view();
-    G.mapX = clamp(G.mapX + dx, Math.min(v.viewW / 2, WORLD / 2), Math.max(WORLD - v.viewW / 2, WORLD / 2));
-    G.mapY = clamp(G.mapY + dy, Math.min(v.viewH / 2, WORLD / 2), Math.max(WORLD - v.viewH / 2, WORLD / 2));
+    G.mapX = clamp(G.mapX + dx, Math.min(v.viewW / 2, WORLD_W / 2), Math.max(WORLD_W - v.viewW / 2, WORLD_W / 2));
+    G.mapY = clamp(G.mapY + dy, Math.min(v.viewH / 2, WORLD_H / 2), Math.max(WORLD_H - v.viewH / 2, WORLD_H / 2));
   },
 };
 const text = (t, x, y, col, size, align) => renderer.text(t, x, y, col, size, align);

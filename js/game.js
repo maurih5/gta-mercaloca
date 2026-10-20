@@ -64,7 +64,7 @@ const farFromPlayers = (o, r) => distToPlayers(o) > r;
 // ¿o se ve en la pantalla de P (con margen m)? La cámara sigue al jugador pero se frena
 // contra el borde del mapa, así que ahí el jugador no está en el centro
 function inView(P, o, m = 0) {
-  const cx = clamp(P.x - RW / 2, 0, WORLD - RW), cy = clamp(P.y - RH / 2, 0, WORLD - RH);
+  const cx = clamp(P.x - RW / 2, 0, WORLD_W - RW), cy = clamp(P.y - RH / 2, 0, WORLD_H - RH);
   return o.x > cx - m && o.x < cx + RW + m && o.y > cy - m && o.y < cy + RH + m;
 }
 // Ninguno de los otros jugadores lo ve (para aparecer gente alrededor de uno sin que se vea en la pantalla del otro)
@@ -143,8 +143,8 @@ class Game {
 
   snapCam() {
     if (!G.me) return;
-    G.cam.x = clamp(G.me.x - RW / 2, 0, WORLD - RW);
-    G.cam.y = clamp(G.me.y - RH / 2, 0, WORLD - RH);
+    G.cam.x = clamp(G.me.x - RW / 2, 0, WORLD_W - RW);
+    G.cam.y = clamp(G.me.y - RH / 2, 0, WORLD_H - RH);
   }
 
   startGame(def) {
@@ -602,9 +602,9 @@ class Game {
       n.t -= dt;
       const nx = n.x + n.vx * dt, ny = n.y + n.vy * dt;
       if (hitBuilding(nx, n.y, 2)) n.vx *= -0.5;
-      else n.x = clamp(nx, 4, WORLD - 4);
+      else n.x = clamp(nx, 4, WORLD_W - 4);
       if (hitBuilding(n.x, ny, 2)) n.vy *= -0.5;
-      else n.y = clamp(ny, 4, WORLD - 4);
+      else n.y = clamp(ny, 4, WORLD_H - 4);
       n.vz -= 260 * dt;
       n.z += n.vz * dt;
       if (n.z <= 0) {
@@ -1324,8 +1324,8 @@ class Game {
     const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy);
     if (d > 1) {
       const s = Math.min(d, p.sped * dt);
-      p.x = clamp(p.x + (dx / d) * s, 8, WORLD - 8);
-      p.y = clamp(p.y + (dy / d) * s, 8, WORLD - 8);
+      p.x = clamp(p.x + (dx / d) * s, 8, WORLD_W - 8);
+      p.y = clamp(p.y + (dy / d) * s, 8, WORLD_H - 8);
       p.ang = Math.atan2(dy, dx);
     }
   }
@@ -1456,8 +1456,8 @@ class Game {
         }
         car.spd *= -0.25;
       } else {
-        car.x = clamp(nx, 8, WORLD - 8);
-        car.y = clamp(ny, 8, WORLD - 8);
+        car.x = clamp(nx, 8, WORLD_W - 8);
+        car.y = clamp(ny, 8, WORLD_H - 8);
       }
       for (const q of ridersOf(car)) {
         q.x = car.x;
@@ -1496,8 +1496,8 @@ class Game {
       const m = Math.hypot(ix, iy) || 1;
       const nx = P.x + (ix / m) * spd * rdt;
       const ny = P.y + (iy / m) * spd * rdt;
-      if (!hitBuilding(nx, P.y, P.r)) P.x = clamp(nx, 6, WORLD - 6);
-      if (!hitBuilding(P.x, ny, P.r)) P.y = clamp(ny, 6, WORLD - 6);
+      if (!hitBuilding(nx, P.y, P.r)) P.x = clamp(nx, 6, WORLD_W - 6);
+      if (!hitBuilding(P.x, ny, P.r)) P.y = clamp(ny, 6, WORLD_H - 6);
       if (ix || iy) {
         P.ang = Math.atan2(iy, ix);
         P.walk += (rdt * spd) / 8;
@@ -1864,8 +1864,8 @@ class Game {
                 p.x = sp3.x;
                 p.y = sp3.y;
               } else {
-                p.x = clamp(p.x, MARGIN + 2, WORLD - MARGIN - 2);
-                p.y = clamp(p.y, MARGIN + 2, WORLD - MARGIN - 2);
+                p.x = clamp(p.x, MARGIN + 2, WORLD_W - MARGIN - 2);
+                p.y = clamp(p.y, MARGIN + 2, WORLD_H - MARGIN - 2);
               }
             }
             p.stuck = 0;
@@ -1956,7 +1956,7 @@ class Game {
         c.spd -= Math.sign(c.spd) * Math.min(Math.abs(c.spd), 110 * dt);
         const nx = c.x + Math.cos(c.ang) * c.spd * dt, ny = c.y + Math.sin(c.ang) * c.spd * dt;
         if (hitBuilding(nx, ny, c.h * 0.5 + 1) || hitCarBlock(nx, ny, c.h * 0.5 + 1)) c.spd *= -0.2;
-        else { c.x = clamp(nx, 10, WORLD - 10); c.y = clamp(ny, 10, WORLD - 10); }
+        else { c.x = clamp(nx, 10, WORLD_W - 10); c.y = clamp(ny, 10, WORLD_H - 10); }
         c.brake = false;
         c.signal = 0;
       }
@@ -1978,7 +1978,7 @@ class Game {
           for (let a = 0; a < TAU; a += TAU / 16) {
             n++;
             const x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
-            if (x > 0 && y > 0 && x < WORLD && y < WORLD && onRoad(x, y) && !hitBuilding(x, y, 2)) road++;
+            if (x > 0 && y > 0 && x < WORLD_W && y < WORLD_H && onRoad(x, y) && !hitBuilding(x, y, 2)) road++;
           }
         }
         P.carCap = Math.round(CAR_TARGET * clamp(road / n / 0.45, 0.65, 1));
@@ -2107,7 +2107,7 @@ class Game {
         const halfAx = a.x - ux * overlap * 0.5, halfAy = a.y - uy * overlap * 0.5;
         const halfBx = b.x + ux * overlap * 0.5, halfBy = b.y + uy * overlap * 0.5;
         // Libre = sin edificio y adentro del mapa: el empujón no puede sacar a nadie del borde
-        const free = (x, y, r) => !hitBuilding(x, y, r) && x > 10 && y > 10 && x < WORLD - 10 && y < WORLD - 10;
+        const free = (x, y, r) => !hitBuilding(x, y, r) && x > 10 && y > 10 && x < WORLD_W - 10 && y < WORLD_H - 10;
         const aClear = free(halfAx, halfAy, (a.w + a.h) / 4);
         const bClear = free(halfBx, halfBy, (b.w + b.h) / 4);
         if (aClear && bClear) {
@@ -2313,8 +2313,8 @@ class Game {
     const P = G.me;
     if (!P) return;
     const lead = P.car ? clamp(P.car.spd / 195, 0, 1) * 52 : 0;
-    const tx = clamp(P.x + Math.cos(P.ang) * lead - RW / 2, 0, WORLD - RW);
-    const ty = clamp(P.y + Math.sin(P.ang) * lead - RH / 2, 0, WORLD - RH);
+    const tx = clamp(P.x + Math.cos(P.ang) * lead - RW / 2, 0, WORLD_W - RW);
+    const ty = clamp(P.y + Math.sin(P.ang) * lead - RH / 2, 0, WORLD_H - RH);
     G.cam.x = lerp(G.cam.x, tx, clamp(rdt * 7, 0, 1));
     G.cam.y = lerp(G.cam.y, ty, clamp(rdt * 7, 0, 1));
   }

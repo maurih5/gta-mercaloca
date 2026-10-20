@@ -116,8 +116,8 @@ class EntityManager {
     const c0 = spawnCenter(center), px0 = c0.x, py0 = c0.y;
     for (let i = 0; i < 150; i++) {
       const a = rnd(0, TAU), d = rnd(near, far);
-      const x = clamp(px0 + Math.cos(a) * d, 12, WORLD - 12);
-      const y = clamp(py0 + Math.sin(a) * d, 12, WORLD - 12);
+      const x = clamp(px0 + Math.cos(a) * d, 12, WORLD_W - 12);
+      const y = clamp(py0 + Math.sin(a) * d, 12, WORLD_H - 12);
       const t = toSidewalk(x, y);
       if (!hitBuilding(t.x, t.y, 6)) return t;
     }
@@ -199,8 +199,8 @@ class EntityManager {
     let x = 0, y = 0, ok = false;
     for (let i = 0; i < 20 && !ok; i++) {
       const a = rnd(0, TAU), d = rnd(200, 310);
-      x = clamp(px0 + Math.cos(a) * d, 10, WORLD - 10);
-      y = clamp(py0 + Math.sin(a) * d, 10, WORLD - 10);
+      x = clamp(px0 + Math.cos(a) * d, 10, WORLD_W - 10);
+      y = clamp(py0 + Math.sin(a) * d, 10, WORLD_H - 10);
       ok = !villaAt(x, y) && !hitBuilding(x, y, 6);
     }
     if (!ok) return null;
@@ -284,10 +284,10 @@ class EntityManager {
     let c = null;
     for (let i = 0; i < 20 && !c; i++) {
       const a = rnd(0, TAU), d = rnd(240, 380);
-      const t = this.makeCar(clamp(px0 + Math.cos(a) * d, 20, WORLD - 20), clamp(py0 + Math.sin(a) * d, 20, WORLD - 20), true);
+      const t = this.makeCar(clamp(px0 + Math.cos(a) * d, 20, WORLD_W - 20), clamp(py0 + Math.sin(a) * d, 20, WORLD_H - 20), true);
       // makeCar lo acomoda al carril más cercano, que cerca del borde puede quedar afuera del
       // mapa (onRoad sigue dando true ahí): de afuera no vuelve y queda girando para siempre
-      const adentro = t.x > 20 && t.y > 20 && t.x < WORLD - 20 && t.y < WORLD - 20;
+      const adentro = t.x > 20 && t.y > 20 && t.x < WORLD_W - 20 && t.y < WORLD_H - 20;
       if (adentro && onRoad(t.x, t.y) && !hitBuilding(t.x, t.y, 8) && !hitCarBlock(t.x, t.y, 8)) c = t;
     }
     if (!c) {
@@ -386,7 +386,7 @@ const entities = new EntityManager();
 function spawnCenter(center) {
   if (center) return center;
   if (typeof G !== 'undefined' && G.me) return G.me;
-  return { x: WORLD / 2, y: WORLD / 2 };
+  return { x: WORLD_W / 2, y: WORLD_H / 2 };
 }
 
 // Exportación de funciones clásicas para compatibilidad
