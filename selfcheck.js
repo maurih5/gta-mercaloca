@@ -4,7 +4,7 @@
 const { describe, test } = require('node:test');
 const fs = require('fs'), assert = require('assert');
 const scriptFiles = [
-  'constants.js', 'utils.js', 'audio.js', 'songs.js', 'instruments.js', 'radio.js', 'input.js', 'world.js',
+  'constants.js', 'utils.js', 'audio.js', 'songs.js', 'instruments.js', 'radio.js', 'input.js', 'world.js', 'streets.js',
   'entities.js', 'traffic.js', 'game.js', 'renderer.js', 'net.js', 'novedades.js', 'ui.js', 'shop.js'
 ];
 let js = scriptFiles.map(f => fs.readFileSync(__dirname + '/js/' + f, 'utf8')).join('\n');
@@ -1903,6 +1903,503 @@ describe('mundo no cuadrado', () => {
           }
         });
       });
+    });
+  }
+});
+
+describe('grafo de calles', () => {
+  const G2 = new Function(js + `
+;return {Streets,STREET_CELL,buildCity,world,onRoad,inDiagonalBand,bridgeAt,segAliveV,segAliveH,roadWidthCol,roadWidthRow,
+         CELL,WORLD_W,WORLD_H,AVENUE_ROAD,ROAD,SIDEWALK};`)();
+  const { Streets, STREET_CELL } = G2;
+  // Cruz: una calle este-oeste (0-1-2) y una avenida norte-sur (3-1-4) que se cortan en el nodo 1,
+  // más una curva que sale del 2 y un puente (level 1) que pasa por arriba de la calle sin bocacalle
+  const cruz = () => {
+    const curva = [];
+    for (let a = 0; a <= Math.PI / 2 + 1e-9; a += Math.PI / 2 / 40) curva.push([400 + 200 * Math.sin(a), 300 + 200 * (1 - Math.cos(a))]);
+    return {
+      nodes: [{ id: 0, x: 0, y: 300 }, { id: 1, x: 200, y: 300 }, { id: 2, x: 400, y: 300 }, { id: 3, x: 200, y: 100 },
+        { id: 4, x: 200, y: 500 }, { id: 5, x: 600, y: 500 }, { id: 6, x: 300, y: 150 }, { id: 7, x: 300, y: 450 }],
+      edges: [
+        { id: 'a', from: 0, to: 1, pts: [[0, 300], [200, 300]], roadW: 56 },
+        { id: 'b', from: 1, to: 2, pts: [[200, 300], [400, 300]], roadW: 56 },
+        { id: 'c', from: 3, to: 1, pts: [[200, 100], [200, 300]], roadW: 108, laneCount: 2, median: true, roadType: 'avenida' },
+        { id: 'd', from: 1, to: 4, pts: [[200, 300], [200, 500]], roadW: 108, laneCount: 2, median: true, roadType: 'avenida' },
+        { id: 'curva', from: 2, to: 5, pts: curva, roadW: 56 },
+        { id: 'sur', from: 4, to: 5, pts: [[200, 500], [600, 500]], roadW: 56 },
+        { id: 'subida', from: 3, to: 6, pts: [[200, 100], [300, 150]], roadW: 40, roadType: 'rampa' },
+        { id: 'puente', from: 6, to: 7, pts: [[300, 150], [300, 450]], roadW: 56, sidewalkW: 0, roadType: 'puente', level: 1,
+          bridgeStyle: 'hormigon' },
+        { id: 'bajada', from: 7, to: 4, pts: [[300, 450], [200, 500]], roadW: 40, roadType: 'rampa' },
+      ],
+    };
+  };
+  // Muestra fija de puntos (LCG) contra onRoad. La única diferencia conocida es la bocacalle sin salida
+  // (le llega uno o ningún tramo vivo, porque el río se comió el resto): la grilla la
+  // cuenta entera si el tramo sale de ella, nada si el tramo llega, y entera si no le
+  // queda ninguno; el grafo la tapa entera si le llega un tramo y nada si no le llega
+  // ninguno. Tolerancia: hasta 0,1% de los puntos en esas bocacalles; cualquier otra categoría tiene que dar 0.
+  const muestrear = (R, S, N, seed = 12345) => {
+    let s = seed, revisadas = 0;
+    const r = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
+    const cat = { bocacalle: 0, diagonal: 0, borde: 0, puente: 0, otras: 0 };
+    for (let i = 0; i < N; i++) {
+      const x = r() * R.WORLD_W, y = r() * R.WORLD_H;
+      const grafo = S.onRoadAt(x, y);
+      revisadas = Math.max(revisadas, S.checked);
+      if (grafo === R.onRoad(x, y)) continue;
+      const cx = Math.floor(x / R.CELL), cy = Math.floor(y / R.CELL);
+      const enCuadrado = x % R.CELL < R.roadWidthCol(cx) && y % R.CELL < R.roadWidthRow(cy);
+      const muerta = [R.segAliveV(cx, cy), R.segAliveV(cx, cy - 1), R.segAliveH(cx, cy), R.segAliveH(cx - 1, cy)].filter(Boolean).length < 2;
+      if (R.bridgeAt(x, y)) cat.puente++;
+      else if (R.inDiagonalBand(x, y)) cat.diagonal++;
+      else if (enCuadrado && muerta) cat.bocacalle++;
+      else if (x < R.ROAD || y < R.ROAD || x > R.WORLD_W - R.ROAD || y > R.WORLD_H - R.ROAD) cat.borde++;
+      else cat.otras++;
+    }
+    return { cat, revisadas };
+  };
+  const veredicto = (cat, N) => {
+    assert.ok(cat.bocacalle <= N * 0.001, 'bocacalles muertas: ' + cat.bocacalle + ' de ' + N);
+    assert.deepEqual({ ...cat, bocacalle: 0 }, { bocacalle: 0, diagonal: 0, borde: 0, puente: 0, otras: 0 },
+      'discrepancias por categoría: ' + JSON.stringify(cat));
+  };
+  const errores = (fn) => { const d = cruz(); fn(d); return new Streets(d).validate().join(' | '); };
+
+  test('un grafo armado a mano valida y responde las consultas', () => {
+    const S = new Streets(cruz());
+    assert.deepEqual(S.validate(), []);
+    assert.deepEqual(S.edgesOf(1).map(e => e.id).sort(), ['a', 'b', 'c', 'd'], 'aristas del nodo de la bocacalle');
+    assert.deepEqual(S.edgesOf(99), [], 'nodo que no existe');
+    // Bocacalle: todo el cuadrado de 108x56 es asfalto, esquinas incluidas, y no más allá
+    for (const [x, y] of [[147, 273], [253, 273], [147, 327], [253, 327], [200, 300]]) {
+      assert.ok(S.onRoadAt(x, y, 0), 'bocacalle cubierta en ' + x + ',' + y);
+    }
+    assert.ok(!S.onRoadAt(140, 260, 0), 'afuera de la esquina es manzana');
+    assert.equal(S.near(200, 300, 0).edge.roadType, 'avenida', 'en el medio manda la más ancha');
+    // Vereda: el borde de la franja, salvo en la bocacalle (ahí cruza el asfalto de la otra)
+    assert.ok(S.onSidewalkAt(100, 274) && S.onSidewalkAt(100, 326), 'veredas de la calle');
+    assert.ok(!S.onSidewalkAt(100, 290), 'el medio es asfalto');
+    assert.ok(!S.onSidewalkAt(200, 274), 'en la bocacalle no hay vereda sobre la avenida');
+    assert.ok(S.onSidewalkAt(149, 274), 'la esquina de la bocacalle es vereda');
+    // Curva: la consulta sigue a la polilínea
+    const c = S.near(400 + 200 * Math.SQRT1_2 + 5, 300 + 200 * (1 - Math.SQRT1_2), 0);
+    assert.equal(c.edge.id, 'curva');
+    assert.ok(c.d < 6, 'distancia a la curva: ' + c.d);
+    assert.ok(Math.abs(c.t - c.edge.len / 2) < 8, 'a mitad de la curva: ' + c.t + ' de ' + c.edge.len);
+  });
+
+  test('carril y sentido de un punto', () => {
+    const S = new Streets(cruz());
+    // Calle a (de oeste a este): por la derecha va de from a to
+    assert.deepEqual([S.laneAt(100, 310, 0).dir, S.laneAt(100, 310, 0).lane], [1, 0]);
+    assert.equal(S.laneAt(100, 290, 0).dir, -1, 'la otra mano');
+    // Avenida c (de norte a sur): la derecha de la marcha es el oeste
+    const ave = x => { const L = S.laneAt(x, 150, 0); return [L.edge.id, L.dir, L.lane]; };
+    assert.deepEqual(ave(190), ['c', 1, 0], 'carril de adentro, junto al cantero');
+    assert.deepEqual(ave(160), ['c', 1, 1], 'carril de la vereda');
+    assert.deepEqual(ave(240), ['c', -1, 1], 'la otra mano, carril de la vereda');
+    assert.equal(S.laneAt(100, 200, 0), null, 'en la manzana no hay carril');
+    // Mano única: un solo sentido, carriles desde la izquierda de la marcha
+    const d = cruz();
+    Object.assign(d.edges[0], { oneway: -1, laneCount: 2 });
+    const U = new Streets(d);
+    assert.deepEqual([U.laneAt(100, 310, 0).dir, U.laneAt(100, 310, 0).lane], [-1, 0]);
+    assert.deepEqual([U.laneAt(100, 285, 0).dir, U.laneAt(100, 285, 0).lane], [-1, 1]);
+  });
+
+  test('un puente que pasa por arriba de una calle no es bocacalle', () => {
+    const S = new Streets(cruz());
+    assert.equal(S.near(300, 300, 1).edge.id, 'puente', 'arriba está el puente');
+    assert.equal(S.near(300, 300, 0).edge.id, 'b', 'abajo sigue la calle');
+    assert.ok(S.onRoadAt(300, 300, 1) && S.onRoadAt(300, 300, 0));
+    assert.ok(!S.edgesOf(1).some(e => e.id === 'puente') && S.edgesOf(6).every(e => ['subida', 'puente'].includes(e.id)),
+      'no comparten nodo');
+    assert.ok(!S.onSidewalkAt(300, 300, 1), 'el tablero no tiene vereda');
+    assert.ok(S.onRoadAt(300, 200, 1) && !S.onRoadAt(300, 200, 0), 'fuera del cruce solo está el puente');
+  });
+
+  test('las validaciones encuentran cada falla', () => {
+    assert.match(errores(d => d.nodes.push({ id: 9, x: 900, y: 900 })), /nodo 9 huérfano/);
+    assert.match(errores(d => { d.nodes.push({ id: 8, x: 900, y: 900 }, { id: 9, x: 990, y: 900 });
+      d.edges.push({ id: 'isla', from: 8, to: 9, pts: [[900, 900], [990, 900]], roadW: 56 }); }), /grafo disconexo: 2 de 10/);
+    assert.match(errores(d => { d.edges[0].to = 42; }), /arista a rota: no existe el nodo 42/);
+    assert.match(errores(d => { d.edges[0].pts = [[0, 300]]; }), /arista a: necesita 2 puntos/);
+    assert.match(errores(d => { d.nodes.push({ id: 9, x: 2, y: 300 }); d.edges.push({ id: 'corta', from: 0, to: 9, pts: [[0, 300], [2, 300]], roadW: 56 }); }),
+      /arista corta: necesita 2 puntos y medir 4px/);
+    assert.match(errores(d => { d.edges[0].pts = [[0, 310], [200, 300]]; }), /arista a: las puntas de la polilínea no caen/);
+    assert.match(errores(d => { d.edges[0].roadW = 300; }), /arista a: ancho inválido 300/);
+    assert.match(errores(d => { d.edges[0].laneCount = 0; }), /arista a: carriles inválidos 0/);
+    assert.match(errores(d => { d.edges[0].roadType = 'pasaje'; }), /arista a: tipo inválido/);
+    assert.match(errores(d => { d.edges[0].id = 'b'; }), /arista b repetida/);
+    assert.match(errores(d => { d.edges = d.edges.filter(e => e.id !== 'subida' && e.id !== 'bajada'); }), /puente puente colgado/);
+  });
+
+  test('el índice mira solo las aristas de una celda', () => {
+    const S = new Streets(cruz());
+    for (const c of S.grid.values()) assert.ok(c.length <= 5, 'celda con ' + c.length + ' aristas');
+    // Cada punto de asfalto está en la celda de la arista que lo cubre (también en las tapas)
+    for (const e of S.edges.values()) {
+      for (const g of e.segs) {
+        for (let a = g.lo; a <= g.hi; a += 4) {
+          for (const v of [-1, 0, 1]) {
+            const x = g.ax + g.ux * a - g.uy * v * (e.roadW / 2 + e.sidewalkW - 0.1), y = g.ay + g.uy * a + g.ux * v * (e.roadW / 2 + e.sidewalkW - 0.1);
+            assert.ok(S.cell(x, y).includes(e), e.id + ' falta en la celda de ' + x + ',' + y);
+          }
+        }
+      }
+    }
+  });
+
+  test('el grafo de la ciudad coincide con onRoad', () => {
+    const R = G2;
+    R.buildCity(4242);
+    const S = Streets.fromGrid();
+    assert.deepEqual(S.validate(), [], 'la ciudad sale conexa y sin aristas rotas');
+    const tipos = new Set([...S.edges.values()].map(e => e.roadType));
+    for (const t of ['calle', 'avenida', 'puente']) assert.ok(tipos.has(t), 'falta ' + t);
+    assert.ok([...S.edges.values()].some(e => e.roadType === 'puente' && e.level === 1 && e.bridgeStyle), 'puentes en level 1');
+    // Costo acotado: ninguna celda tiene más de 8 aristas (la bocacalle de la Diagonal con la avenida)
+    let max = 0;
+    for (const c of S.grid.values()) max = Math.max(max, c.length);
+    assert.ok(max <= 8, 'celda con ' + max + ' aristas');
+    // Muestra fija de puntos (LCG): ver muestrear()
+    const { cat, revisadas } = muestrear(R, S, 40000);
+    assert.ok(revisadas <= max, 'una consulta miró ' + revisadas + ' aristas');
+    veredicto(cat, 40000);
+  });
+
+  test('host y cliente arman el mismo grafo con la misma semilla, sin G ni Math.random', () => {
+    const src = fs.readFileSync(__dirname + '/js/streets.js', 'utf8');
+    // El chequeo de texto ignora comentarios (uno que nombre G. o Math.random no es un falso positivo)
+    const codigo = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    const prohibido = t => /\bG\b|\bglobalThis\b|\bwindow\b|\bMath\s*\[|Math\s*\.\s*random|\brnd\s*\(|Date\s*\.\s*now|new\s+Date|performance|\bcrypto\b/.test(codigo(t));
+    assert.ok(!prohibido(src), 'streets.js no puede leer G ni tirar dados');
+    assert.ok(prohibido('const t = G.t;') && prohibido('x = Math.random()') && prohibido('x = G [ "t" ]') && prohibido('Date.now()'), 'el chequeo detecta lo prohibido');
+    assert.ok(!prohibido('// G.t y Math.random()\n/* rnd( */ const a = 1;'), 'los comentarios no cuentan');
+    // Comportamiento: sin game.js (G no existe), con Math.random y Date.now prohibidos, fromGrid funciona igual
+    const solo = ['constants.js', 'utils.js', 'audio.js', 'songs.js', 'instruments.js', 'radio.js', 'input.js', 'world.js', 'streets.js']
+      .map(f => fs.readFileSync(__dirname + '/js/' + f, 'utf8')).join('\n');
+    const C = new Function(solo + `;return {Streets,buildCity,gDefinida:typeof G !== 'undefined'};`)();
+    assert.equal(C.gDefinida, false, 'este contexto no tiene G');
+    const plano = S => JSON.stringify([...S.edges.values()].map(e => [e.from, e.to, e.pts, e.roadW, e.level, e.roadType]));
+    G2.buildCity(777); C.buildCity(777);
+    const a = G2.Streets.fromGrid();
+    const { random, now } = { random: Math.random, now: Date.now };
+    let b;
+    Math.random = Date.now = () => { throw new Error('fromGrid no puede depender de dados ni de la hora'); };
+    try { b = C.Streets.fromGrid(); } finally { Math.random = random; Date.now = now; }
+    assert.equal(plano(a), plano(b));
+    assert.equal(a.grid.size, b.grid.size);
+    assert.equal(STREET_CELL, 64);
+  });
+
+  // Datos planos (JSON) de un grafo ya armado
+  const plano = S => JSON.parse(JSON.stringify({ nodes: [...S.nodes.values()], edges: [...S.edges.values()] }));
+  const indice = S => JSON.stringify([...S.grid].map(([k, v]) => [k, v.map(e => e.id)]));
+
+  test('los mismos datos planos arman el mismo índice, también después de pasar por JSON', () => {
+    const a = new Streets(cruz()), b = new Streets(cruz()), c = new Streets(JSON.parse(JSON.stringify(cruz())));
+    assert.equal(indice(a), indice(b));
+    assert.equal(indice(a), indice(c));
+    assert.ok(a.grid.size > 10, 'el índice no está vacío');
+    G2.buildCity(4242);
+    const g = Streets.fromGrid(), h = new Streets(plano(g));
+    assert.equal(indice(g), indice(h), 'la ciudad serializada arma el mismo índice');
+    assert.deepEqual(h.validate(), []);
+    assert.equal(indice(Streets.fromGrid()), indice(g), 'fromGrid dos veces da lo mismo');
+    // Los datos de entrada no se tocan
+    const d = cruz(), antes = JSON.stringify(d);
+    new Streets(d);
+    assert.equal(JSON.stringify(d), antes, 'new Streets no modifica sus datos');
+  });
+
+  test('una diagonal que llega a un cruce cardinal cubre la bocacalle y mide su ancho', () => {
+    for (const deg of [30, 45, 60]) {
+      const t = deg * Math.PI / 180, ux = Math.cos(t), uy = Math.sin(t);
+      const S = new Streets({
+        nodes: [{ id: 0, x: 500, y: 500 }, { id: 1, x: 200, y: 500 }, { id: 2, x: 800, y: 500 }, { id: 3, x: 500, y: 200 },
+          { id: 4, x: 500, y: 800 }, { id: 5, x: 500 + 300 * ux, y: 500 + 300 * uy }],
+        edges: [
+          { id: 'w', from: 1, to: 0, pts: [[200, 500], [500, 500]], roadW: 56 },
+          { id: 'e', from: 0, to: 2, pts: [[500, 500], [800, 500]], roadW: 56 },
+          { id: 'n', from: 3, to: 0, pts: [[500, 200], [500, 500]], roadW: 56 },
+          { id: 's', from: 0, to: 4, pts: [[500, 500], [500, 800]], roadW: 56 },
+          { id: 'd', from: 0, to: 5, pts: [[500, 500], [500 + 300 * ux, 500 + 300 * uy]], roadW: 90, sidewalkW: 0, roadType: 'avenida' },
+        ],
+      });
+      const msg = deg + '°: ';
+      assert.deepEqual(S.validate(), [], msg + 'grafo válido');
+      // A 150px del cruce, de lado a lado de la diagonal: adentro, justo en el borde y justo afuera
+      const lado = (along, lat) => S.onRoadAt(500 + along * ux - lat * uy, 500 + along * uy + lat * ux);
+      for (const sg of [1, -1]) {
+        assert.ok(lado(150, 0), msg + 'eje');
+        assert.ok(lado(150, sg * 44.95), msg + 'justo adentro del borde, lado ' + sg);
+        assert.ok(!lado(150, sg * 45.05), msg + 'justo afuera del borde, lado ' + sg);
+      }
+      assert.ok(!S.near(500 + 250 * ux - 60 * uy, 500 + 250 * uy + 60 * ux), msg + 'a 60px del eje no hay calle');
+      // Las cuatro esquinas del cuadrado de la bocacalle (56x56) son asfalto, y un poco más allá en diagonal no
+      for (const [sx, sy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        assert.ok(S.onRoadAt(500 + sx * 27.9, 500 + sy * 27.9), msg + 'esquina ' + sx + ',' + sy);
+        assert.ok(S.onRoadAt(500, 500) && S.onRoadAt(500 + sx * 27.9, 500) && S.onRoadAt(500, 500 + sy * 27.9));
+      }
+      assert.ok(!S.onRoadAt(500 - 40, 500 - 40), msg + 'detrás de la esquina es manzana');
+      // Contra un modelo geométrico (brazos cardinales + franja de la diagonal), en la ventana de la bocacalle:
+      // todo lo que el modelo da por asfalto lo es, y nada queda a más de 5px del modelo. Límite
+      // conocido (ver streets.js): la tapa de la diagonal puede pasarse unos px del cuadrado.
+      const modelo = (x, y, m) => {
+        const along = (x - 500) * ux + (y - 500) * uy, lat = -(x - 500) * uy + (y - 500) * ux;
+        return (Math.abs(x - 500) <= 28 + m && Math.abs(y - 500) <= 300) || (Math.abs(y - 500) <= 28 + m && Math.abs(x - 500) <= 300)
+          || (along >= -m && along <= 300 && Math.abs(lat) <= 45 + m);
+      };
+      let faltan = 0, sobran = 0;
+      for (let x = 380.37; x < 620; x += 1.3) {
+        for (let y = 380.11; y < 620; y += 1.3) {
+          const v = S.onRoadAt(x, y);
+          if (modelo(x, y, -0.5) && !v) faltan++;
+          if (!modelo(x, y, 5) && v) sobran++;
+        }
+      }
+      assert.deepEqual([faltan, sobran], [0, 0], msg + 'puntos sin cubrir / pasados del modelo');
+    }
+  });
+
+  test('en una curva near devuelve distancia, recorrido y lado correctos, en el tramo y en el vértice', () => {
+    const curva = [[100, 100], [200, 100], [200, 200], [300, 200]];
+    const S = new Streets({ nodes: [{ id: 0, x: 100, y: 100 }, { id: 1, x: 300, y: 200 }],
+      edges: [{ id: 'k', from: 0, to: 1, pts: curva, roadW: 56 }] });
+    assert.deepEqual(S.validate(), []);
+    assert.equal(S.edges.get('k').len, 300);
+    const cerca = (x, y, d, t, lat) => {
+      const h = S.near(x, y);
+      assert.ok(h, 'hay calle en ' + x + ',' + y);
+      assert.ok(Math.abs(h.d - d) < 1e-6, 'd en ' + x + ',' + y + ': ' + h.d + ' esperaba ' + d);
+      assert.ok(Math.abs(h.t - t) < 1e-6, 't en ' + x + ',' + y + ': ' + h.t + ' esperaba ' + t);
+      if (lat !== undefined) assert.ok(Math.abs(h.lat - lat) < 1e-6, 'lat en ' + x + ',' + y + ': ' + h.lat + ' esperaba ' + lat);
+    };
+    cerca(150, 100, 0, 50, 0);                // sobre el primer tramo
+    cerca(150, 90, 10, 50, -10);              // yendo hacia +x la derecha es +y: arriba es la izquierda
+    cerca(190, 150, 10, 150, 10);             // en el tramo vertical (hacia +y), al oeste es la derecha
+    cerca(210, 150, 10, 150, -10);
+    cerca(250, 205, 5, 250, 5);               // tercer tramo
+    cerca(210, 90, Math.hypot(10, 10), 100);  // afuera del vértice (200,100): el punto más cercano es el vértice
+    cerca(200, 100, 0, 100);                  // en el vértice
+    const inter = S.near(190, 110);           // adentro de la curva: equidista de dos tramos
+    assert.ok(Math.abs(inter.d - 10) < 1e-6 && inter.t >= 90 && inter.t <= 110, 'esquina interior: d ' + inter.d + ' t ' + inter.t);
+    cerca(80, 100, 0, 0);                     // en la tapa de la punta (medio ancho) el recorrido no baja de t = 0
+    cerca(80, 120, 20, 0, 20);
+    cerca(320, 200, 0, 300);                  // ni pasa de t = len en la otra punta
+    assert.equal(S.near(340, 200), null, 'pasada la tapa ya no es la calle');
+    assert.equal(S.near(70, 100), null);
+    assert.ok(S.onRoadAt(250, 227) && !S.onRoadAt(250, 229), 'el ancho (56) se mide contra el tramo curvo');
+    assert.ok(S.near(250, 235) && !S.near(250, 239), 'la vereda suma 10px más');
+  });
+
+  test('autopista con rampas: los niveles no se fusionan y laneAt respeta la mano única', () => {
+    const auto = oneway => ({
+      nodes: [{ id: 'A', x: 0, y: 0 }, { id: 'B', x: 200, y: 0 }, { id: 'C', x: 1000, y: 0 }, { id: 'D', x: 1200, y: 0 },
+        { id: 'E', x: 500, y: -300 }, { id: 'F', x: 500, y: 300 }],
+      edges: [
+        { id: 'sube', from: 'A', to: 'B', pts: [[0, 0], [200, 0]], roadW: 60, roadType: 'rampa' },
+        { id: 'auto', from: 'B', to: 'C', pts: [[200, 0], [1000, 0]], roadW: 80, sidewalkW: 0, laneCount: 3, oneway, roadType: 'autopista', level: 1 },
+        { id: 'baja', from: 'C', to: 'D', pts: [[1000, 0], [1200, 0]], roadW: 60, roadType: 'rampa' },
+        { id: 'calle', from: 'E', to: 'F', pts: [[500, -300], [500, 300]], roadW: 56 },
+        { id: 'enlace', from: 'A', to: 'E', pts: [[0, 0], [0, -300], [500, -300]], roadW: 56 },
+      ],
+    });
+    const S = new Streets(auto(1));
+    assert.deepEqual(S.validate(), [], 'el cruce por debajo sin nodo compartido no es una falla');
+    // Debajo de la autopista pasa la calle: cada nivel ve la suya
+    assert.equal(S.near(500, 0, 1).edge.id, 'auto');
+    assert.equal(S.near(500, 0, 0).edge.id, 'calle');
+    assert.equal(S.near(500, 0).edge.id, 'auto', 'sin nivel manda la que tiene el punto más adentro de la franja');
+    assert.ok(S.onRoadAt(500, 0, 1) && S.onRoadAt(500, 0, 0));
+    assert.ok(!S.onRoadAt(500, 0, -1), 'nada bajo nivel');
+    assert.ok(S.onRoadAt(700, 0, 1) && !S.onRoadAt(700, 0, 0), 'fuera del cruce, abajo no hay calle');
+    assert.equal(S.near(700, 0, 0), null);
+    assert.equal(S.near(500, 150, 1), null, 'la calle de abajo no se ve desde arriba');
+    assert.equal(S.near(500, 150, 0).edge.id, 'calle');
+    // Las rampas están en tierra: la autopista empieza donde termina la rampa
+    assert.equal(S.near(100, 0, 0).edge.id, 'sube');
+    assert.equal(S.near(100, 0, 1), null, 'la rampa no es level 1');
+    assert.equal(S.near(300, 0, 1).edge.id, 'auto');
+    assert.equal(S.near(300, 0, 0), null);
+    assert.equal(S.near(1100, 0, 0).edge.id, 'baja');
+    assert.equal(S.near(1100, 0, 1), null);
+    assert.ok(S.near(199, 0, 1) === null && S.near(201, 0, 1).edge.id === 'auto', 'el corte entre rampa y autopista está en el nodo');
+    // Mano única hacia +x: los dos lados van de from a to, con tres carriles desde la izquierda de la marcha
+    const ln = (x, y, nivel) => { const L = S.laneAt(x, y, nivel); return L && [L.edge.id, L.dir, L.lane]; };
+    assert.deepEqual(ln(700, -35, 1), ['auto', 1, 0], 'izquierda de la marcha');
+    assert.deepEqual(ln(700, 0, 1), ['auto', 1, 1]);
+    assert.deepEqual(ln(700, 35, 1), ['auto', 1, 2], 'derecha de la marcha');
+    assert.deepEqual(ln(490, 0, 0), ['calle', 1, 0], 'abajo, la calle de dos manos (hacia +y la derecha es el oeste)');
+    assert.deepEqual(ln(510, 0, 0), ['calle', -1, 0]);
+    assert.equal(ln(700, 43, 1), null, 'afuera de la franja no hay carril');
+    // La misma autopista hacia -x: sentido -1 y los carriles se cuentan desde el otro lado
+    const R = new Streets(auto(-1));
+    const lr = (y) => { const L = R.laneAt(700, y, 1); return [L.dir, L.lane]; };
+    assert.deepEqual(lr(-35), [-1, 2], 'yendo hacia -x la derecha es -y');
+    assert.deepEqual(lr(0), [-1, 1]);
+    assert.deepEqual(lr(35), [-1, 0], 'izquierda de la marcha');
+    assert.equal(R.laneAt(700, 0).dir, -1, 'sin nivel, también');
+  });
+
+  test('las consultas fuera del mundo o con NaN no tiran y no encuentran nada', () => {
+    G2.buildCity(4242);
+    const S = Streets.fromGrid(), W = G2.WORLD_W, H = G2.WORLD_H;
+    for (const [x, y] of [[-1000, 100], [100, -1000], [-0.5, -0.5], [W + 1000, 100], [100, H + 1000], [W + 1000, H + 1000],
+      [NaN, 100], [100, NaN], [NaN, NaN], [Infinity, 100], [100, -Infinity], [1e12, 1e12], [undefined, undefined]]) {
+      const m = x + ',' + y;
+      assert.equal(S.near(x, y), null, 'near ' + m);
+      assert.equal(S.near(x, y, 1), null, 'near level ' + m);
+      assert.equal(S.onRoadAt(x, y), false, 'onRoadAt ' + m);
+      assert.equal(S.onRoadAt(x, y, 0), false, 'onRoadAt level ' + m);
+      assert.equal(S.onSidewalkAt(x, y), false, 'onSidewalkAt ' + m);
+      assert.equal(S.laneAt(x, y), null, 'laneAt ' + m);
+      assert.ok(S.checked <= 8, 'mira pocas aristas ' + m);
+    }
+    assert.deepEqual(S.edgesOf(undefined), []);
+    assert.deepEqual(S.edgesOf(-1), []);
+  });
+
+  test('puntos repetidos en las puntas no cambian las tapas ni dependen del orden de las aristas', () => {
+    const tapas = S => JSON.stringify([...S.edges.values()].sort((x, y) => String(x.id).localeCompare(String(y.id)))
+      .map(e => [e.id, e.len, e.segs[0].lo, e.segs[e.segs.length - 1].hi]));
+    const limpia = new Streets(cruz());
+    const puntos = [[147, 273], [253, 273], [147, 327], [253, 327], [200, 300], [140, 260], [260, 340], [200, 120], [200, 480], [100, 300],
+      [300, 300], [250, 200], [450, 330], [440, 400]];
+    // Repite el primer punto, el último, o uno del medio (de la curva o de un tramo recto)
+    const repetir = (d, ids, donde) => {
+      for (const e of d.edges) {
+        if (!ids.includes(e.id)) continue;
+        const p = e.pts.map(q => [...q]);
+        if (donde.includes('ini')) p.unshift([...p[0]], [...p[0]]);
+        if (donde.includes('fin')) p.push([...p[p.length - 1]], [...p[p.length - 1]]);
+        if (donde.includes('medio')) { const k = p.length >> 1; p.splice(k, 0, [...p[k]], [...p[k]]); }
+        e.pts = p;
+      }
+    };
+    // a y d: llegan / salen del cruce; b y c: salen / llegan; curva: tiene 41 puntos y sale del nodo 2
+    const todas = ['a', 'b', 'c', 'd', 'curva', 'sur', 'subida', 'puente', 'bajada'];
+    const casos = [['b', ['ini']], ['b', ['fin']], ['c', ['ini']], ['c', ['fin']], ['a', ['ini', 'fin']], ['d', ['ini', 'fin']],
+      ['curva', ['medio']], ['puente', ['medio']], [todas, ['ini']], [todas, ['fin']], [todas, ['medio']], [todas, ['ini', 'medio', 'fin']]];
+    const volcar = S => JSON.stringify(puntos.map(([x, y]) => [S.onRoadAt(x, y, 0), S.onRoadAt(x, y, 1), S.onSidewalkAt(x, y)]));
+    for (const [ids, donde] of casos) {
+      const m = JSON.stringify(ids) + ' ' + donde;
+      const d = cruz();
+      repetir(d, [].concat(ids), donde);
+      const sucia = new Streets(d);
+      assert.deepEqual(sucia.validate(), [], m + ': el grafo sigue siendo válido');
+      assert.equal(tapas(sucia), tapas(limpia), m + ': mismas tapas y largo que sin repetidos');
+      assert.equal(volcar(sucia), volcar(limpia), m + ': mismas consultas');
+      const inv = { nodes: d.nodes.slice().reverse(), edges: d.edges.slice().reverse() };
+      assert.equal(tapas(new Streets(inv)), tapas(limpia), m + ': no depende del orden de las aristas');
+      const mezcla = { nodes: d.nodes, edges: d.edges.map((e, i, v) => v[(i * 5 + 3) % v.length]) };
+      assert.equal(new Set(mezcla.edges).size, d.edges.length, 'la mezcla usa cada arista una vez');
+      assert.equal(tapas(new Streets(mezcla)), tapas(limpia), m + ': ni de otro orden');
+    }
+    // Todos los puntos iguales: la arista no tiene tramos. validate() la marca; las otras no cambian; nada tira
+    const d = cruz();
+    d.nodes.push({ id: 9, x: 200, y: 300 });
+    d.edges.push({ id: 'nada', from: 1, to: 9, pts: [[200, 300], [200, 300], [200, 300]], roadW: 108, laneCount: 2, median: true, roadType: 'avenida' },
+      { id: 'sola', from: 9, to: 1, pts: [[200, 300], [200, 300]], roadW: 56 });
+    const rota = new Streets(d);
+    assert.equal(rota.validate().filter(e => /arista (nada|sola): necesita 2 puntos y medir 4px/.test(e)).length, 2, rota.validate().join(' | '));
+    assert.equal(rota.edges.get('nada').len, 0);
+    assert.deepEqual(rota.edges.get('nada').segs, []);
+    const sin = (S) => JSON.stringify([...S.edges.values()].filter(e => e.id !== 'nada' && e.id !== 'sola').map(e => [e.id, e.segs[0].lo, e.segs[e.segs.length - 1].hi]));
+    assert.equal(sin(rota), sin(limpia), 'una arista sin tramos no estira la tapa de las vecinas');
+    for (const [x, y] of puntos) {
+      assert.equal(rota.onRoadAt(x, y, 0), limpia.onRoadAt(x, y, 0), 'onRoadAt ' + x + ',' + y);
+      assert.doesNotThrow(() => { rota.near(x, y); rota.laneAt(x, y); rota.onSidewalkAt(x, y); });
+    }
+    // Una arista sin tramos como única vecina de un nodo: la otra arista cubre su punta con su propio medio ancho
+    const solo = new Streets({ nodes: [{ id: 0, x: 0, y: 0 }, { id: 1, x: 100, y: 0 }, { id: 2, x: 100, y: 0 }],
+      edges: [{ id: 'r', from: 0, to: 1, pts: [[0, 0], [100, 0]], roadW: 56 }, { id: 'v', from: 1, to: 2, pts: [[100, 0], [100, 0]], roadW: 56 }] });
+    assert.equal(solo.edges.get('r').segs[0].hi, 100 + 28, 'el nodo cuyas otras aristas no tienen tramos cierra con su medio ancho');
+    assert.match(solo.validate().join(' | '), /arista v: necesita 2 puntos/);
+  });
+
+  test('las validaciones que faltan: nodo repetido, ancho y vereda inválidos, y un grafo bueno no da nada', () => {
+    assert.deepEqual(new Streets({ nodes: [], edges: [] }).validate(), [], 'grafo vacío');
+    assert.deepEqual(new Streets(cruz()).validate(), [], 'grafo bueno');
+    assert.match(errores(d => d.nodes.push({ id: 1, x: 5, y: 5 })), /nodo 1 repetido/);
+    assert.match(errores(d => { d.edges[0].roadW = 20; }), /arista a: ancho inválido 20/);
+    assert.match(errores(d => { d.edges[0].roadW = NaN; }), /arista a: ancho inválido NaN/);
+    assert.match(errores(d => { d.edges[0].sidewalkW = 28; }), /arista a: vereda inválida 28/);
+    assert.match(errores(d => { d.edges[0].sidewalkW = -1; }), /arista a: vereda inválida -1/);
+    assert.match(errores(d => { d.edges[0].laneCount = 4; }), /arista a: carriles inválidos 4/);
+    assert.match(errores(d => { d.edges[0].from = 77; d.edges[0].to = 78; }), /arista a rota/);
+    assert.match(errores(d => { delete d.edges[0].pts; }), /arista a: necesita 2 puntos/);
+    assert.match(errores(d => { d.edges[0].pts = [[0, 300], [0, 300]]; }), /arista a: necesita 2 puntos y medir 4px/, 'puntos repetidos');
+    assert.match(errores(d => { d.nodes[0].x = NaN; }), /arista a: las puntas de la polilínea no caen/, 'nodo con x NaN');
+    assert.match(errores(d => { d.edges[0].oneway = 2; }), /arista a: mano inválida 2/);
+    assert.match(errores(d => { d.edges[0].level = 'x'; }), /arista a: nivel inválido x/);
+    // un puente con una sola punta conectada no es un puente colgado
+    const d = cruz(); d.edges = d.edges.filter(e => e.id !== 'bajada');
+    assert.deepEqual(new Streets(d).validate().filter(e => /colgado/.test(e)), []);
+    // varias fallas a la vez: salen todas
+    const v = errores(d => { d.edges[0].roadW = 300; d.edges[1].laneCount = 0; d.nodes.push({ id: 9, x: 9, y: 9 }); });
+    assert.ok(/ancho inválido/.test(v) && /carriles inválidos/.test(v) && /huérfano/.test(v), v);
+  });
+
+  describe('la paridad con onRoad falla de verdad si se rompe algo', () => {
+    G2.buildCity(4242);
+    const N = 40000;
+    const data = () => plano(Streets.fromGrid());
+    const falla = (nombre, fn, R = G2, Cls = Streets) => test(nombre, () => {
+      R.buildCity(4242);
+      const d = plano(Cls.fromGrid());
+      fn(d);
+      const S = new Cls(d);
+      const { cat } = muestrear(R, S, N);
+      assert.throws(() => veredicto(cat, N), undefined, 'el chequeo tendría que fallar: ' + JSON.stringify(cat));
+    });
+    test('el grafo sin tocar pasa (control)', () => {
+      const { cat } = muestrear(G2, new Streets(data()), N);
+      veredicto(cat, N);
+      assert.ok(cat.bocacalle < 40, JSON.stringify(cat));
+    });
+    falla('calles 6px más angostas', d => { for (const e of d.edges) if (e.roadType === 'calle') e.roadW -= 6; });
+    falla('avenidas 6px más anchas', d => { for (const e of d.edges) if (e.roadType === 'avenida' && e.roadW > 100) e.roadW += 6; });
+    falla('sin puentes', d => { d.edges = d.edges.filter(e => e.level !== 1); });
+    falla('sin la Diagonal', d => { d.edges = d.edges.filter(e => e.roadW !== G2.ROAD * 1.7); });
+    falla('un tramo de calle de menos', d => { d.edges = d.edges.filter((e, i) => !(e.roadType === 'calle' && i % 50 === 0)); });
+    test('sin la tapa de bocacalle (extAt en 0) falla', () => {
+      const cod = js.replace('return others ? ext : e.roadW / 2;', 'return 0;');
+      assert.notEqual(cod, js, 'cambió extAt: actualizar el test');
+      const M = new Function(cod + ';return {Streets,buildCity,onRoad,WORLD_W,WORLD_H,CELL,ROAD,roadWidthCol,roadWidthRow,segAliveV,segAliveH,bridgeAt,inDiagonalBand};')();
+      M.buildCity(4242);
+      const { cat } = muestrear(M, M.Streets.fromGrid(), N);
+      assert.throws(() => veredicto(cat, N), undefined, 'cat: ' + JSON.stringify(cat));
+      assert.ok(cat.otras > 0, 'las esquinas sin cubrir se cuentan como otras: ' + JSON.stringify(cat));
+    });
+  });
+
+  for (const [w, h] of [[3200, 4560], [4560, 3200]]) {
+    test('mundo rectangular ' + w + 'x' + h + ': fromGrid valida y coincide con onRoad', () => {
+      const ORIGINAL = 'WORLD_W = CELL * GRID, WORLD_H = CELL * GRID';
+      assert.ok(js.includes(ORIGINAL), 'cambió el texto de WORLD_W/WORLD_H en constants.js: actualizar el test');
+      const cod = js.replace(ORIGINAL, 'WORLD_W = ' + w + ', WORLD_H = ' + h);
+      assert.notEqual(cod, js);
+      const R = new Function(cod + ';return {Streets,buildCity,onRoad,WORLD_W,WORLD_H,CELL,ROAD,roadWidthCol,roadWidthRow,segAliveV,segAliveH,bridgeAt,inDiagonalBand};')();
+      assert.equal(R.WORLD_W, w); assert.equal(R.WORLD_H, h);
+      R.buildCity(4242);
+      const S = R.Streets.fromGrid();
+      assert.deepEqual(S.validate(), []);
+      let maxX = 0, maxY = 0;
+      for (const n of S.nodes.values()) { maxX = Math.max(maxX, n.x); maxY = Math.max(maxY, n.y); }
+      assert.ok(maxX <= w && maxY <= h, 'los nodos no se salen del mundo: ' + maxX + ',' + maxY);
+      assert.ok(maxX > w - R.CELL && maxY > h - R.CELL, 'y llegan hasta el borde de cada eje: ' + maxX + ',' + maxY);
+      let max = 0;
+      for (const c of S.grid.values()) max = Math.max(max, c.length);
+      assert.ok(max <= 8, 'celda con ' + max + ' aristas');
+      const N = 50000, { cat, revisadas } = muestrear(R, S, N);
+      assert.ok(revisadas <= max);
+      veredicto(cat, N);
+      // Fuera del mundo por cada eje: sin calle
+      assert.equal(S.onRoadAt(w + 500, 100), false);
+      assert.equal(S.onRoadAt(100, h + 500), false);
     });
   }
 });
